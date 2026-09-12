@@ -30,6 +30,10 @@ class MissionReportGenerator:
         trace = result_payload.get("execution_trace", {})
         steps = trace.get("steps", [])
 
+        trace_id = trace.get("trace_id") or result_payload.get("trace_id", "N/A")
+        langfuse_url = trace.get("langfuse_url", "Local Tracing Active")
+        model_name = result_payload.get("llm_model") or trace.get("model") or "qwen3.5:9b / qwen3.5:4b (Local Ollama)"
+
         steps_html = "".join([
             f"""<tr style="border-bottom: 1px solid #24303D;">
                 <td style="padding: 8px; color: #10B981; font-family: monospace;">#{s.get('step_id')}</td>
@@ -115,22 +119,44 @@ class MissionReportGenerator:
             border-radius: 6px;
         }}
         .metric-label {{ font-size: 12px; color: #94A3B8; margin-bottom: 4px; }}
-        .metric-val {{ font-size: 20px; font-weight: 700; color: #10B981; font-family: monospace; }}
+        .metric-val {{ font-size: 15px; font-weight: 600; color: #10B981; font-family: monospace; }}
     </style>
 </head>
 <body>
     <div class="header">
         <div>
             <div class="title">SATQUERY AI — MISSION INTELLIGENCE REPORT</div>
-            <div style="color: #64748B; font-size: 13px; margin-top: 4px;">ISRO Problem Statement 26167 | Agentic Multimodal Vision-Language System</div>
+            <div style="color: #64748B; font-size: 13px; margin-top: 4px;">ISRO Problem Statement 26167 | 100% Local Agentic Multimodal Vision-Language System</div>
         </div>
         <div class="badge">CONFIDENCE: {int(confidence * 100)}%</div>
     </div>
 
     <div class="card">
+        <div class="card-title">System & Execution Architecture</div>
+        <div class="metric-grid">
+            <div class="metric-box">
+                <div class="metric-label">AGENT FRAMEWORK</div>
+                <div class="metric-val">LangChain (Local)</div>
+            </div>
+            <div class="metric-box">
+                <div class="metric-label">LLM RUNTIME</div>
+                <div class="metric-val">Ollama ({model_name})</div>
+            </div>
+            <div class="metric-box">
+                <div class="metric-label">OBSERVABILITY</div>
+                <div class="metric-val">Langfuse v2 ({trace_id[:16]}...)</div>
+            </div>
+            <div class="metric-box">
+                <div class="metric-label">CLOUD LLM DEPENDENCY</div>
+                <div class="metric-val" style="color: #38BDF8;">NONE (100% Local/Air-Gapped)</div>
+            </div>
+        </div>
+    </div>
+
+    <div class="card">
         <div class="card-title">Analysis Directive & Result</div>
         <div style="font-size: 14px; color: #94A3B8; margin-bottom: 8px;"><strong>Query:</strong> &ldquo;{query}&rdquo;</div>
-        <div style="font-size: 13px; color: #64748B; margin-bottom: 16px;"><strong>Target Task:</strong> {task} &bull; <strong>Request ID:</strong> {req_id}</div>
+        <div style="font-size: 13px; color: #64748B; margin-bottom: 16px;"><strong>Target Task:</strong> {task} &bull; <strong>Request ID:</strong> {req_id} &bull; <strong>Trace ID:</strong> {trace_id}</div>
         <div class="answer-text">{answer}</div>
     </div>
 

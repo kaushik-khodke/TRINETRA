@@ -1,9 +1,11 @@
+import { translations, type SupportedLanguage } from "@/lib/i18n"
+
 export type AnalysisMode = "single" | "temporal" | "fusion"
 export type Confidence = "high" | "medium" | "low"
 export type AnalysisStatus = "idle" | "running" | "complete" | "error"
 export interface ImageInput { id: string; name: string; size: number; url: string; label: string; modality?: "OPTICAL" | "SAR"; date?: string; file?: File }
 export interface ExecutionStep { label: string; detail: string; duration: string; status: "complete" | "active" | "pending" }
-export interface AnalysisRequest { mode: AnalysisMode; images: ImageInput[]; query: string }
+export interface AnalysisRequest { mode: AnalysisMode; images: ImageInput[]; query: string; response_language?: "en" | "hi" | "mr" }
 export interface GroundingAnnotation { label: string; x: number; y: number; width: number; height: number; color: "cyan" | "amber" }
 export interface AnalysisResponse { id: string; mode: AnalysisMode; query: string; answer: string; confidence: Confidence; confidenceScore: number; evidence: string[]; annotations: GroundingAnnotation[]; steps: ExecutionStep[]; model: string; processingTime: string; resolution: string; imageType: string; createdAt: string; images: ImageInput[]; reportUrl?: string }
 export const modes: { id: AnalysisMode; label: string; description: string; icon: string }[] = [{ id: "single", label: "Single image", description: "Explore one scene", icon: "◈" }, { id: "temporal", label: "Bi-temporal", description: "Detect change over time", icon: "◌" }, { id: "fusion", label: "Optical + SAR", description: "Fuse complementary sensors", icon: "⌘" }]
@@ -12,23 +14,74 @@ export const formatBytes = (bytes: number) => `${(bytes / 1024 / 1024).toFixed(1
 export const makeImage = (name: string, label: string, modality?: "OPTICAL" | "SAR", date?: string): ImageInput => ({ id: `${name}-${Date.now()}`, name, size: 3200000, url: `/satellite-${modality === "SAR" ? "sar" : "optical"}.svg`, label, modality, date })
 export const demoScenarios = [{ id: "urban", title: "Urban growth", mode: "temporal" as const, query: "What changes are visible between these two dates?", response: "The analysis identifies **measurable urban expansion** along the eastern edge of the scene. New built-up surfaces appear as a connected 18% increase, while the central road corridor remains stable. The highlighted evidence regions show where impervious cover replaced mixed vegetation." }, { id: "flood", title: "Flood mapping", mode: "fusion" as const, query: "Identify flooded regions using combined modality data.", response: "Fused optical and SAR evidence suggests **standing water across the southern lowlands**. The radar-dark regions align with low-lying agricultural parcels and are distinct from persistent water bodies. Confidence is medium because cloud cover limits optical confirmation." }, { id: "landuse", title: "Land use scan", mode: "single" as const, query: "What land use types are visible in this image?", response: "The scene is predominantly **agricultural**, with rectangular cultivated parcels, a compact settlement cluster, and a riparian vegetation corridor. A paved road network divides the northern fields from denser development in the southwest." }, { id: "deforestation", title: "Vegetation loss", mode: "temporal" as const, query: "Show me areas of significant vegetation loss.", response: "A concentrated vegetation-loss signature appears in the northwest quadrant. The change region covers approximately 6.4 hectares and has a fragmented edge consistent with clearing activity. Validate against seasonal imagery before operational decisions." }]
 export const imagePresets = { optical: makeImage("sentinel-2-north.png", "Optical scene", "OPTICAL", "18 Aug 2025"), sar: makeImage("sentinel-1-radar.png", "Radar scene", "SAR", "18 Aug 2025"), before: makeImage("scene-before.png", "Earlier image", "OPTICAL", "12 Apr 2024"), after: makeImage("scene-after.png", "Later image", "OPTICAL", "18 Aug 2025") }
-export const demoRequest = (mode: AnalysisMode, query: string): AnalysisRequest => ({ mode, query, images: mode === "single" ? [imagePresets.optical] : mode === "temporal" ? [imagePresets.before, imagePresets.after] : [imagePresets.optical, imagePresets.sar] })
-export const getDemoResult = (request: AnalysisRequest): AnalysisResponse => { const scenario = demoScenarios.find((item) => item.mode === request.mode && item.query.toLowerCase() === request.query.toLowerCase()) ?? demoScenarios.find((item) => item.mode === request.mode) ?? demoScenarios[0]; return { id: `analysis-${Date.now()}`, mode: request.mode, query: request.query, answer: scenario.response, confidence: request.mode === "fusion" ? "medium" : "high", confidenceScore: request.mode === "fusion" ? 0.74 : 0.91, evidence: ["Connected evidence region 01", "Cross-checked spatial pattern", "Compared imagery metadata"], annotations: [{ label: "Primary evidence", x: 18, y: 28, width: 26, height: 22, color: "cyan" }, { label: "Change region", x: 61, y: 42, width: 24, height: 26, color: "amber" }], steps: [{ label: "Images loaded", detail: `${request.images.length} inputs verified`, duration: "0.2s", status: "complete" }, { label: "Imagery aligned", detail: "Normalizing contrast and spatial context", duration: "1.1s", status: "complete" }, { label: "Visual evidence mapped", detail: "Finding regions relevant to your question", duration: "2.4s", status: "complete" }, { label: "Answer composed", detail: "Citing observable evidence", duration: "0.8s", status: "complete" }], model: "SatQuery Vision v0.9", processingTime: "4.5s", resolution: "10 m / pixel", imageType: request.mode === "fusion" ? "Sentinel-2 MSI + Sentinel-1 SAR" : "Sentinel-2 MSI", createdAt: new Date().toISOString(), images: request.images } }
+export const demoRequest = (mode: AnalysisMode, query: string, lang: "en" | "hi" | "mr" = "en"): AnalysisRequest => ({ mode, query, images: mode === "single" ? [imagePresets.optical] : mode === "temporal" ? [imagePresets.before, imagePresets.after] : [imagePresets.optical, imagePresets.sar], response_language: lang })
+export const getDemoResult = (request: AnalysisRequest): AnalysisResponse => {
+  const lang = (request.response_language || "en") as SupportedLanguage;
+  const langDict = translations[lang] || translations.en;
+  const scenario = demoScenarios.find((item) => item.mode === request.mode && item.query.toLowerCase() === request.query.toLowerCase()) ?? demoScenarios.find((item) => item.mode === request.mode) ?? demoScenarios[0];
+  const localizedAnswer = (langDict as any)[`scenario.${scenario.id}.response`] || scenario.response;
+  const evidenceList = lang === "hi"
+    ? ["संबद्ध साक्ष्य क्षेत्र 01", "स्थानिक पैटर्न की परस्पर-जाँच", "छवि मेटाडेटा की तुलना"]
+    : lang === "mr"
+    ? ["जोडलेला पुरावा भाग 01", "स्थानिक पॅटर्नची उलट-तपासणी", "प्रतिमा मेटाडेटाची तुलना"]
+    : ["Connected evidence region 01", "Cross-checked spatial pattern", "Compared imagery metadata"];
+  const primaryEvidenceLabel = lang === "hi" ? "प्राथमिक साक्ष्य" : lang === "mr" ? "प्राथमिक पुरावा" : "Primary evidence";
+  const changeRegionLabel = lang === "hi" ? "परिवर्तन क्षेत्र" : lang === "mr" ? "बदल झालेला भाग" : "Change region";
+
+  return {
+    id: `analysis-${Date.now()}`,
+    mode: request.mode,
+    query: request.query,
+    answer: localizedAnswer,
+    confidence: request.mode === "fusion" ? "medium" : "high",
+    confidenceScore: request.mode === "fusion" ? 0.74 : 0.91,
+    evidence: evidenceList,
+    annotations: [
+      { label: primaryEvidenceLabel, x: 18, y: 28, width: 26, height: 22, color: "cyan" },
+      { label: changeRegionLabel, x: 61, y: 42, width: 24, height: 26, color: "amber" },
+    ],
+    steps: [
+      { label: lang === "hi" ? "छवियाँ लोड हुईं" : lang === "mr" ? "प्रतिमा लोड झाल्या" : "Images loaded", detail: `${request.images.length} ${lang === "hi" ? "इनपुट सत्यापित" : lang === "mr" ? "इनपुट सत्यापित" : "inputs verified"}`, duration: "0.2s", status: "complete" },
+      { label: lang === "hi" ? "छवि संरेखित" : lang === "mr" ? "प्रतिमा संरेखित" : "Imagery aligned", detail: lang === "hi" ? "कंट्रास्ट और स्थानिक संदर्भ सामान्यीकरण" : lang === "mr" ? "कॉन्ट्रास्ट व स्थानिक संदर्भ सामान्यीकरण" : "Normalizing contrast and spatial context", duration: "1.1s", status: "complete" },
+      { label: lang === "hi" ? "दृश्य साक्ष्य प्रतिचित्रित" : lang === "mr" ? "दृश्य पुरावा मॅप केला" : "Visual evidence mapped", detail: lang === "hi" ? "प्रश्न से प्रासंगिक क्षेत्रों की खोज" : lang === "mr" ? "प्रश्नाशी संबंधित भागांचा शोध" : "Finding regions relevant to your question", duration: "2.4s", status: "complete" },
+      { label: lang === "hi" ? "उत्तर तैयार" : lang === "mr" ? "उत्तर तयार झाले" : "Answer composed", detail: lang === "hi" ? "अवलोकन योग्य साक्ष्यों का उद्धरण" : lang === "mr" ? "निरीक्षणक्षम पुराव्यांचा संदर्भ" : "Citing observable evidence", duration: "0.8s", status: "complete" },
+    ],
+    model: "SatQuery Vision v0.9",
+    processingTime: "4.5s",
+    resolution: "10 m / pixel",
+    imageType: request.mode === "fusion" ? "Sentinel-2 MSI + Sentinel-1 SAR" : "Sentinel-2 MSI",
+    createdAt: new Date().toISOString(),
+    images: request.images,
+  }
+}
 
 export interface BackendHealth {
   status: string;
   service: string;
   version: string;
+  agent_framework?: string;
+  cloud_llm?: boolean;
+  ollama?: {
+    connected: boolean;
+    host: string;
+    models: string[];
+  };
+  langfuse?: {
+    connected: boolean;
+    host?: string;
+  };
   llm_status?: {
-    active_engine?: string;
-    engine_mode?: string;
-    provider?: string;
-    model?: string;
-    available?: boolean;
-    status?: string;
-    ollama?: {
-      selected_model?: string;
-    };
+    ollama_connected?: boolean;
+    ollama_host?: string;
+    installed_models?: string[];
+    model_count?: number;
+    cloud_llm?: boolean;
+    roles?: Record<string, {
+      configured: string;
+      active: string;
+      available: boolean;
+      description: string;
+    }>;
   };
 }
 
@@ -57,6 +110,7 @@ export const analysisAPI = {
         formData.append("query", request.query);
         const backendMode = request.mode === "temporal" ? "bi_temporal" : request.mode === "fusion" ? "optical_sar" : "single";
         formData.append("input_mode", backendMode);
+        formData.append("response_language", request.response_language || "en");
 
         const res = await fetch("/api/v1/analyze", {
           method: "POST",
@@ -199,10 +253,12 @@ export const analysisAPI = {
           reportUrl: data.request_id ? `/api/v1/reports/${data.request_id}/html` : undefined,
         };
       } catch (err: any) {
-        console.warn("[analysisAPI] Real API call error, falling back to scenario simulation:", err);
+        console.error("[analysisAPI] Real satellite analysis failed:", err);
+        throw new Error(err.message || "Real satellite analysis request failed on backend.");
       }
     }
 
+    // Only synthetic/demo requests without uploaded files proceed to demo scenario simulation
     await new Promise((resolve) => setTimeout(resolve, 800));
     return getDemoResult(request);
   },
