@@ -4,6 +4,7 @@ Provides local LLM inference using langchain_ollama.ChatOllama with fallback
 to native Ollama HTTP endpoints. Strictly zero cloud API dependencies.
 """
 
+import re
 import time
 import json
 import urllib.request
@@ -114,12 +115,40 @@ class OllamaProvider:
                 latency = (time.time() - t0) * 1000.0
                 raw_text = data.get("response", "").strip()
                 clean = cls._clean_text(raw_text)
+                
+                # Extract token usage details directly from Ollama engine
+                prompt_tokens = data.get("prompt_eval_count", 0)
+                completion_tokens = data.get("eval_count", 0)
+                usage = {
+                    "input": prompt_tokens,
+                    "output": completion_tokens,
+                    "total": prompt_tokens + completion_tokens
+                }
+
+                # Record generation telemetry into active Langfuse trace if active
+                try:
+                    from observability.langfuse_tracer import LangfuseTracer
+                    trace_ctx = LangfuseTracer.get_current_context()
+                    if trace_ctx:
+                        trace_ctx.record_generation(
+                            name=f"ollama-{role}-generation",
+                            model=model_tag,
+                            prompt=full_prompt,
+                            completion=clean or raw_text,
+                            latency_ms=round(latency, 2),
+                            usage=usage,
+                            metadata={"role": role}
+                        )
+                except Exception:
+                    pass
+
                 if clean or raw_text:
                     return LLMGenerationResponse(
                         text=clean or raw_text,
                         model=model_tag,
                         role=role,
                         latency_ms=round(latency, 2),
+                        token_usage=usage,
                         success=True
                     )
         except Exception:

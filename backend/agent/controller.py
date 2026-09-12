@@ -64,12 +64,14 @@ class AgentController:
             query=query,
             task="pending",
             session_id=trace.request_id,
+            input_mode=input_mode,
+            response_language=response_language,
             metadata={"input_mode": input_mode, "num_files": len(file_paths), "model": trace.llm_model}
         ) as trace_ctx:
             trace.trace_id = trace_ctx.trace_id
 
             # Step 1: Input Validation
-            with trace_ctx.span("input_validation", input_data={"files": file_paths, "mode": input_mode}) as span:
+            with trace_ctx.tool("validate-inputs", input_data={"files": file_paths, "mode": input_mode}) as span:
                 trace.add_step(
                     stage="validation",
                     action="inspect_inputs",
@@ -118,7 +120,7 @@ class AgentController:
             num_images = len(file_paths)
             image_modalities = [m["modality"] for m in val_report.images_metadata]
 
-            with trace_ctx.span("agent_planning", input_data={"query": query, "modalities": image_modalities}) as span:
+            with trace_ctx.agent("plan-agent-workflow", input_data={"query": query, "modalities": image_modalities}) as span:
                 exec_plan = self.planner.plan(
                     query=query,
                     input_mode=input_mode,
@@ -127,9 +129,10 @@ class AgentController:
                 )
                 classification = self.classifier.classify(query, input_mode, num_images, image_modalities)
                 
-                # Align detected task
+                # Align detected task and update Langfuse trace name to descriptive label
                 task = exec_plan.intent.task if exec_plan.intent.task else classification.task
                 trace.detected_task = task
+                trace_ctx.update_task(task)
 
                 span.update(output={
                     "task": task,
@@ -148,7 +151,7 @@ class AgentController:
             target_tool_id = classification.recommended_tools[1] if len(classification.recommended_tools) > 1 else "rs_vqa"
             tool_meta = get_tool(target_tool_id)
 
-            with trace_ctx.span("tool_parameter_safety", input_data={"tool": tool_meta.tool_id, "custom_params": custom_parameters}) as span:
+            with trace_ctx.tool("verify-parameters", input_data={"tool": tool_meta.tool_id, "custom_params": custom_parameters}) as span:
                 permitted_params = tool_meta.permitted_parameters.copy()
                 if custom_parameters:
                     for k, v in custom_parameters.items():
@@ -181,7 +184,7 @@ class AgentController:
                 )
 
             # Step 4: Raster Ingestion
-            with trace_ctx.span("raster_ingestion", input_data={"files": file_paths}) as span:
+            with trace_ctx.tool("ingest-rasters", input_data={"files": file_paths}) as span:
                 loaded_arrays = []
                 loaded_metas = []
                 image_previews = []
@@ -203,7 +206,8 @@ class AgentController:
             )
 
             try:
-                with trace_ctx.span("specialist_execution", input_data={"task": task, "tool": tool_meta.tool_id}) as span:
+                specialist_agent_name = f"execute-{task.replace('_', '-')}-specialist"
+                with trace_ctx.agent(specialist_agent_name, input_data={"task": task, "tool": tool_meta.tool_id, "language": response_language}) as span:
                     if task == "optical_sar_fusion":
                         result = self.optical_sar_specialist.execute(
                             images_arr=loaded_arrays,
@@ -295,7 +299,17 @@ class AgentController:
                 }
             }
 
-            MissionReportGenerator.generate_html_report(final_response, html_path)
-            MissionReportGenerator.generate_json_report(final_response, json_path)
+            with trace_ctx.tool("generate-mission-reports", input_data={"request_id": trace.request_id}) as span:
+                MissionReportGenerator.generate_html_report(final_response, html_path)
+                MissionReportGenerator.generate_json_report(final_response, json_path)
+                span.update(output={"html_report": report_html_filename, "json_report": report_json_filename})
+
+            trace_ctx.finalize(output={
+                "status": "completed",
+                "task": task,
+                "confidence": result.get("confidence", 0.90),
+                "answer": (result.get("answer") or result.get("caption") or "")[:250],
+                "reports": final_response["reports"]
+            })
 
             return final_response

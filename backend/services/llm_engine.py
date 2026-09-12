@@ -81,6 +81,8 @@ class LLMReasoningEngine:
         """
         lang_directive = cls._get_lang_directive(response_language)
 
+        spatial_dist = spectral_metrics.get("quadrant_distribution", "Balanced across quadrants")
+
         # 1. Attempt Local Ollama inference
         if LocalModelRegistry.is_ollama_online():
             prompt = f"""You are SatQuery AI, an ISRO remote-sensing vision-language assistant.
