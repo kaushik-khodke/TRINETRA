@@ -1,0 +1,174 @@
+{
+  "request_id": "d6ac65cd-2690-4f72-ac1a-d4e7f4519b6d",
+  "status": "completed",
+  "query": "Has the built-up area increased, decreased, or remained unchanged?",
+  "input_mode": "bi_temporal",
+  "task": "change_analysis",
+  "confidence": 0.95,
+  "result": {
+    "task": "change_analysis",
+    "tool": "change_ai",
+    "version": "2.1.0",
+    "engine": "Ollama (llama3.2:latest) Grounded Change Reasoning",
+    "query": "Has the built-up area increased, decreased, or remained unchanged?",
+    "answer": "Based on the verified radiometric differential measurements, the built-up area has expanded, with a total Modified Geographic Extent increase of 9.77%. The primary hotspot sectors, particularly the Southwest sector (23.4% altered) and Central Corridor sector (20.5% altered), indicate significant growth in built-up areas.",
+    "change_status": "expansion",
+    "confidence": 0.95,
+    "change_statistics": {
+      "mean_difference": 0.0759,
+      "max_difference": 0.85,
+      "changed_area_percentage": 9.77,
+      "significant_change_detected": true,
+      "quadrants": {
+        "Northwest": 0.0,
+        "Northeast": 0.0,
+        "Southwest": 23.4,
+        "Southeast": 15.6,
+        "Central Corridor": 20.5
+      },
+      "top_sectors": [
+        "Southwest sector (23.4% altered)",
+        "Central Corridor sector (20.5% altered)"
+      ],
+      "trend": "expansion"
+    },
+    "evidence": {
+      "t1_preview": "data:image/png;base64,iVBORw0KGgoAAAANSUhEUgAAAQAAAAEACAIAAADTED8xAAAEJUlEQVR4nO3dPW4TURSA0TFiJ2zIfbbAAtIhOuhZQqiZDbEWKCxZUX4mM7ETx+87p05Emu/d+8STvdvfTHAw//4xvY39ze30IX269B8AlyQA0gTAeywqb7dcnUgApAmA9BAQAGkCID0EBECaAEgPAQGQJgDSQ0AApAmA9BAQAGkCID0EBECaAEgPAQGQJgDSQ+DzKb/869vfqeTr9y+X/hM4MxOANAGQ3oJOWoE27QbHfWnUH+YamQCkh4AASBMAaQIgvQUJgDQBkB4CAiBNAKQJgPQWJADSBEDa7pSvSPIcumwe4vuUTADSBEDaeVagK3q07Dn0Gc3XvwWZAKQJgDQBkCYA0v8lLADSBECaAEgTAOlrgABIEwBpAiDNc+gNfEDieC+CTADS92ABkObToZf4dOjhmQCkCYA0AZAmANIEQJoASBMAaQIgTQCkCYA0AZDmOfQGnkOP9yLaBCBNAKR5Dr3Ec+jhmQCkCYA0AZAmANIEQJoASBMAaQIgTQB0HwIJgDoTgDTPoTfwHPpJViC4VlYg0jyHXuI59Nj7jwlAnRWINAGQJgC6FwABUGcCkCYAuvuPAKgzAUgTAGkCoHsB8Bx6G8+hxwvABCBNAHSPf8+hX+A59PBMALrH/6mXYILmsQIwAUgTAN3jXwDUmQB0j38BUGcCkCYAuvuPAKgzAege/wKgzgSge/wLgDoTgDQB0N1/BECdCUD3+BcAdSYA3eNfANSd50vyXuHP3b9L/dOscjftdj/HPv5NAOrcAXg/H+34FwB1JgDd418A1JkAdI9/AVBnAtA9/gVAnU+HJvTy5zErEGkCYMoe/wKgzgSom8PHvwCoMwHS5vbxLwDqTICuOX/8C4A6EyDK8X8gANIEQJoAiuw/RwIgTQA5jv/7BECaAFoc/w8IgDQBhDj+HxMAaQIgTQAV9p8nCYA0ASQ4/p8jANIEQJoAxmf/WSAA0gRAmgAGZ/9ZJgDSBECaAEZm/3mRAEgTAGkCGJb9Zw0BkCYA0gQwJvvPSgIgTQCkCYA0AZAmgAG5Aa8nANIEQJoASBMAaQIYjRvwJgIgTQCkCYA0AZAmANIEQJoASBMAaQIgTQCkCYA0AZAmANIEQJoASBMAaQIgTQCkCYA0AZAmANIEQJoASBMAaQIgTQCj2d/cXt1nzl2QAEgTAGkCIE0ApAlgQO7B6wmANAGQJgDSBDAm14CVBECaAEgTAGkCGJZrwBoCIE0ApAlgZLagFwmANAGQJoDB2YKWCYA0AZAmgPHZghYIgDQBJBgCzxEAaQIgTQAVtqAnCYA0AYQYAo8JgDQBkCaAFlvQAwIgTQA5hsB9AiBNAEWGwJEASBNAlCFwIADSBNC1943CAiDOBEjb54eAAEgTAGkCqNu3tyABkCYApvIQEABpAiA9BATAVPYf6j5vmAX1LIgAAAAASUVORK5CYII=",
+      "t2_preview": "data:image/png;base64,iVBORw0KGgoAAAANSUhEUgAAAQAAAAEACAIAAADTED8xAAAEOElEQVR4nO3dPU4bURSA0XHETtKyGPfuqbIAOkRH+lSpoc4sJm3WkhRICPFjcGwY+33n1CRx8717R7yMV+vNBPfmu5vpY6w3l9NR+rL0B4AlCYA0AfAZi8rHLVd7EgBpAiA9BARAmgBIDwEBkCYA0kNAAKQJgPQQEABpAiA9BARAmgBIDwEBkCYA0kNAAKQJgPQQONvnD/+4+jOVfLv+uvRH4MBMANIEQHoL2msF2mk3eNiXRv1hTpEJQHoICIA0AZAmANJbkABIEwDpISAA0gRAmgBIb0ECIE0ApK32+Yok16HL5iG+T8kEIE0ApB1mBTqhS8uuQx/QfPpbkAlAmgBIEwBpAiD9K2EBkCYA0gRAmgBIPwYIgDQBkCYA0lyH3oEXJI53I8gEIP0cLADSvB16G2+HHp4JQJoASBMAaQIgTQCkCYA0AZAmANIEQJoASBMAaa5D78B16PFuRJsApAmANNeht3EdengmAGkCIE0ApAmANAGQJgDSBECaAEgTAN2LQAKgzgQgzXXoHbgO/SIrEJwqKxBprkNv4zr02PuPCUCdFYg0AZAmALoPAAKgzgQgTQB09x8BUGcCkCYA0gRA9wHAdejduA49XgAmAGkCoHv8uw79Btehh2cC0D3+930IJmgeKwATgDQB0D3+BUCdCUD3+BcAdSYAaQKgu/8IgDoTgO7xLwDqTAC6x78AqDMBSBMA3f1HANSZAHSPfwFQZwLQPf4FQN1hviTvP/y6/bvUP8273E6r1fexj38TgDrPAHyeYzv+BUCdCUD3+BcAdSYA3eNfANSZAHSPfwFQ5+3QhG7+PGcFIk0ATNnjXwDUmQB1c/j4FwB1JkDa3D7+BUCdCdA1549/AVBnAkQ5/u8JgDQBkCaAIvvPAwGQJoAcx/9jAiBNAC2O/ycEQJoAQhz/R/R26KX8vPo9lVxcny/9EY6aCUCaACrsPy8SAGkCSHD8v0YApAmANAGMz/6zhQBIEwBpAhic/Wc7AZAmANIEwMhvPnyTAEgTAGkCoLv/CIA6E4A0AdDdfwRAnQlAmgBIEwBpAqD7BCwA6kwA0gRAmgBIEwDdJ2ABUGcCkCYA0gRAmgBIEwBpAiBNAKQJgDQBkCYA0gRAmgBIEwBpAiBNAKQJgDQBkCYA0gRAmgBIEwBpAiBNAKQJgDQB8F7z3c00HAGQJgDSBECaAEgTAOnnYAGQJgDSBECaAEg/BgiANAGQJgDSBED6MUAApAmANAGQ3oIEQJoASBPA4Nabyw/6m+chtiABkCYA0gQwPlvQFgIgTQAJhsBrzqaYi+vzpT8CR8QEIE0AFbagFwmANAGEGALPCYA0AZAmgBZb0BMCIE0AOYbAYwIgTQBFhsADAZAmgChD4J4ASBNA19r/lxcAcSZA2jo/BARAmgBIE0Ddur0FCYA0ATCVh4AASBMA6SEgAKayf3qfZK/q0QV8AAAAAElFTkSuQmCC",
+      "change_heatmap": "data:image/png;base64,iVBORw0KGgoAAAANSUhEUgAAAQAAAAEACAIAAADTED8xAAAEVklEQVR4nO3dPU5UURiA4TuGWFqxAzc0PVswxJLO2GFHjEuA2rshd0BlaaMFCSH8DDMOMDPnfZ5acZr3fN+NhzuL5ckEN+ar8+l1LE/Opr30btcfAHZJAKQJgLdYVF5vudqSAEgTAOkhIADSBEB6CAiANAGQHgICIE0ApIeAAEgTAOkhIADSBEB6CAiANAGQHgICIE0ApIfA0TZ/+ceXX1PJp68fd/0ReGEmAGkCIL0FbbUCbbQb3O5Lo/5hDpEJQHoICIA0AZAmANJbkABIEwDpISAA0gRAmgBIb0ECIE0ApC22+Yok16HL5iG+T8kEIE0ApL3MCnRAl5Zdh35B8+FvQSYAaQIgTQCkCYD0fwkLgDQBkCYA0gRA+jFAAKQJgDQBkOY69Aa8IHG8G0EmAOnnYAGQ5u3Qq3g79PBMANIEQJoASBMAaQIgTQCkCYA0AZAmANIEQJoASHMdegOuQ493I9oEIE0ApLkOvYrr0MMzAUgTAGkCIE0ApAmANAGQJgDSBECaAOheBBIAdSYAaa5Db8B16EdZgeBQWYFIcx16Fdehx95/TADqrECkCYA0AdB9ABAAdSYAaQKgu/8IgDoTgDQBkCYAug8ArkNvxnXo8QIwAUgTAN3j33XoZ7gOPTwTgO7xv+1DMEHzWAGYAKQJgO7xLwDqTAC6x78AqDMBSBMA3f1HANSZAHSPfwFQZwLQPf4FQJ0JQJoA6O4/AqDOBKB7/AuAOhOA7vEvAOpe5kvy/sPPy7+7+qdZy+W0WHwb+/g3AajzDMDb2bfjXwDUmQB0j38BUGcC0D3+BUCdCUD3+BcAdd4OTejmz0NWINIEwJQ9/gVAnQlQN4ePfwFQZwKkze3jXwDUmQBdc/74FwB1JkCU4/+GAEgTAGkCKLL/3BIAaQLIcfzfJQDSBNDi+L9HAKQJIMTxv0dvh96V78efp5LT64tdf4S9ZgKQJoAK+8+jBECaABIc/08RAGkCIE0A47P/rCAA0gRAmgAGZ/9ZTQCkCYA0AYzs9/Wf+JsPnyUA0gRAmgCGZf9ZhwBIEwBpAhiT/WdNAiBNAKQJgDQBkCaAAXkCXp8ASBMAaQIgTQCkCWA0noA3IgDSBECaAEgTAGkCIE0ApAmANAGQJgDSBECaAEgTAGkCIE0ApAmANAGQJgDSBECaAEgTAGkCIE0ApAmANAGQJgDSBDCaD8fvX+knz1fn03AEQJoASBMAaQIgTQAD8hy8PgGQJgDSBECaAMbkMWBNAiBNAKQJgDQBDMtjwDoEQJoASBPAyGxBzxIAaQIgTQCDW56cvdJPnof4DUkBkCYA0gQwPlvQCgIgTQAJhsBTjqaY0+uLXX8E9ogJQJoAKmxBjxIAaQIIMQQeEgBpAiBNAC22oHsEQJoAcgyBuwRAmgCKDIFbAiBNAFGGwA0BkCaArqXflxcAcSZA2jI/BARAmgBIE0Ddsr0FCYA0ATCVh4AASBMA6SEgAKayf9IadIaO3OpJAAAAAElFTkSuQmCC"
+    }
+  },
+  "inputs_metadata": [
+    {
+      "filename": "t1.tif",
+      "width": 256,
+      "height": 256,
+      "bands": 3,
+      "dtype": "uint8",
+      "crs": "EPSG:4326 (WGS 84)",
+      "bounds": [
+        77.1025,
+        28.7041,
+        77.2025,
+        28.8041
+      ],
+      "is_geotiff": true,
+      "modality": "optical"
+    },
+    {
+      "filename": "t2.tif",
+      "width": 256,
+      "height": 256,
+      "bands": 3,
+      "dtype": "uint8",
+      "crs": "EPSG:4326 (WGS 84)",
+      "bounds": [
+        77.1025,
+        28.7041,
+        77.2025,
+        28.8041
+      ],
+      "is_geotiff": true,
+      "modality": "optical"
+    }
+  ],
+  "image_previews": [
+    "data:image/png;base64,iVBORw0KGgoAAAANSUhEUgAAAQAAAAEACAIAAADTED8xAAAEJUlEQVR4nO3dPW4TURSA0TFiJ2zIfbbAAtIhOuhZQqiZDbEWKCxZUX4mM7ETx+87p05Emu/d+8STvdvfTHAw//4xvY39ze30IX269B8AlyQA0gTAeywqb7dcnUgApAmA9BAQAGkCID0EBECaAEgPAQGQJgDSQ0AApAmA9BAQAGkCID0EBECaAEgPAQGQJgDSQ+DzKb/869vfqeTr9y+X/hM4MxOANAGQ3oJOWoE27QbHfWnUH+YamQCkh4AASBMAaQIgvQUJgDQBkB4CAiBNAKQJgPQWJADSBEDa7pSvSPIcumwe4vuUTADSBEDaeVagK3q07Dn0Gc3XvwWZAKQJgDQBkCYA0v8lLADSBECaAEgTAOlrgABIEwBpAiDNc+gNfEDieC+CTADS92ABkObToZf4dOjhmQCkCYA0AZAmANIEQJoASBMAaQIgTQCkCYA0AZDmOfQGnkOP9yLaBCBNAKR5Dr3Ec+jhmQCkCYA0AZAmANIEQJoASBMAaQIgTQB0HwIJgDoTgDTPoTfwHPpJViC4VlYg0jyHXuI59Nj7jwlAnRWINAGQJgC6FwABUGcCkCYAuvuPAKgzAUgTAGkCoHsB8Bx6G8+hxwvABCBNAHSPf8+hX+A59PBMALrH/6mXYILmsQIwAUgTAN3jXwDUmQB0j38BUGcCkCYAuvuPAKgzAege/wKgzgSge/wLgDoTgDQB0N1/BECdCUD3+BcAdSYA3eNfANSd50vyXuHP3b9L/dOscjftdj/HPv5NAOrcAXg/H+34FwB1JgDd418A1JkAdI9/AVBnAtA9/gVAnU+HJvTy5zErEGkCYMoe/wKgzgSom8PHvwCoMwHS5vbxLwDqTICuOX/8C4A6EyDK8X8gANIEQJoAiuw/RwIgTQA5jv/7BECaAFoc/w8IgDQBhDj+HxMAaQIgTQAV9p8nCYA0ASQ4/p8jANIEQJoAxmf/WSAA0gRAmgAGZ/9ZJgDSBECaAEZm/3mRAEgTAGkCGJb9Zw0BkCYA0gQwJvvPSgIgTQCkCYA0AZAmgAG5Aa8nANIEQJoASBMAaQIYjRvwJgIgTQCkCYA0AZAmANIEQJoASBMAaQIgTQCkCYA0AZAmANIEQJoASBMAaQIgTQCkCYA0AZAmANIEQJoASBMAaQIgTQCj2d/cXt1nzl2QAEgTAGkCIE0ApAlgQO7B6wmANAGQJgDSBDAm14CVBECaAEgTAGkCGJZrwBoCIE0ApAlgZLagFwmANAGQJoDB2YKWCYA0AZAmgPHZghYIgDQBJBgCzxEAaQIgTQAVtqAnCYA0AYQYAo8JgDQBkCaAFlvQAwIgTQA5hsB9AiBNAEWGwJEASBNAlCFwIADSBNC1943CAiDOBEjb54eAAEgTAGkCqNu3tyABkCYApvIQEABpAiA9BATAVPYf6j5vmAX1LIgAAAAASUVORK5CYII=",
+    "data:image/png;base64,iVBORw0KGgoAAAANSUhEUgAAAQAAAAEACAIAAADTED8xAAAEOElEQVR4nO3dPU4bURSA0XHETtKyGPfuqbIAOkRH+lSpoc4sJm3WkhRICPFjcGwY+33n1CRx8717R7yMV+vNBPfmu5vpY6w3l9NR+rL0B4AlCYA0AfAZi8rHLVd7EgBpAiA9BARAmgBIDwEBkCYA0kNAAKQJgPQQEABpAiA9BARAmgBIDwEBkCYA0kNAAKQJgPQQONvnD/+4+jOVfLv+uvRH4MBMANIEQHoL2msF2mk3eNiXRv1hTpEJQHoICIA0AZAmANJbkABIEwDpISAA0gRAmgBIb0ECIE0ApK32+Yok16HL5iG+T8kEIE0ApB1mBTqhS8uuQx/QfPpbkAlAmgBIEwBpAiD9K2EBkCYA0gRAmgBIPwYIgDQBkCYA0lyH3oEXJI53I8gEIP0cLADSvB16G2+HHp4JQJoASBMAaQIgTQCkCYA0AZAmANIEQJoASBMAaa5D78B16PFuRJsApAmANNeht3EdengmAGkCIE0ApAmANAGQJgDSBECaAEgTAN2LQAKgzgQgzXXoHbgO/SIrEJwqKxBprkNv4zr02PuPCUCdFYg0AZAmALoPAAKgzgQgTQB09x8BUGcCkCYA0gRA9wHAdejduA49XgAmAGkCoHv8uw79Btehh2cC0D3+930IJmgeKwATgDQB0D3+BUCdCUD3+BcAdSYAaQKgu/8IgDoTgO7xLwDqTAC6x78AqDMBSBMA3f1HANSZAHSPfwFQZwLQPf4FQN1hviTvP/y6/bvUP8273E6r1fexj38TgDrPAHyeYzv+BUCdCUD3+BcAdSYA3eNfANSZAHSPfwFQ5+3QhG7+PGcFIk0ATNnjXwDUmQB1c/j4FwB1JkDa3D7+BUCdCdA1549/AVBnAkQ5/u8JgDQBkCaAIvvPAwGQJoAcx/9jAiBNAC2O/ycEQJoAQhz/R/R26KX8vPo9lVxcny/9EY6aCUCaACrsPy8SAGkCSHD8v0YApAmANAGMz/6zhQBIEwBpAhic/Wc7AZAmANIEwMhvPnyTAEgTAGkCoLv/CIA6E4A0AdDdfwRAnQlAmgBIEwBpAqD7BCwA6kwA0gRAmgBIEwDdJ2ABUGcCkCYA0gRAmgBIEwBpAiBNAKQJgDQBkCYA0gRAmgBIEwBpAiBNAKQJgDQBkCYA0gRAmgBIEwBpAiBNAKQJgDQB8F7z3c00HAGQJgDSBECaAEgTAOnnYAGQJgDSBECaAEg/BgiANAGQJgDSBED6MUAApAmANAGQ3oIEQJoASBPA4Nabyw/6m+chtiABkCYA0gQwPlvQFgIgTQAJhsBrzqaYi+vzpT8CR8QEIE0AFbagFwmANAGEGALPCYA0AZAmgBZb0BMCIE0AOYbAYwIgTQBFhsADAZAmgChD4J4ASBNA19r/lxcAcSZA2jo/BARAmgBIE0Ddur0FCYA0ATCVh4AASBMA6SEgAKayf3qfZK/q0QV8AAAAAElFTkSuQmCC"
+  ],
+  "execution_trace": {
+    "request_id": "d6ac65cd-2690-4f72-ac1a-d4e7f4519b6d",
+    "input_mode": "bi_temporal",
+    "query": "Has the built-up area increased, decreased, or remained unchanged?",
+    "detected_task": "change_analysis",
+    "selected_tools": [
+      {
+        "name": "validator",
+        "version": "1.2.0"
+      },
+      {
+        "name": "Bi-Temporal Change Understanding Specialist",
+        "version": "2.1.0"
+      }
+    ],
+    "parameters": {
+      "difference_method": "differential_feature_fusion",
+      "sensitivity_threshold": 0.35,
+      "generate_change_map": true
+    },
+    "steps": [
+      {
+        "step_id": 1,
+        "stage": "validation",
+        "action": "inspect_inputs",
+        "tool": "validator",
+        "parameters": {},
+        "status": "success",
+        "timestamp_ms": 1789220445499.9177,
+        "details": "Validating 2 input raster(s) for mode 'bi_temporal'."
+      },
+      {
+        "step_id": 2,
+        "stage": "validation",
+        "action": "validation_passed",
+        "tool": "validator",
+        "parameters": {},
+        "status": "success",
+        "timestamp_ms": 1789220445598.5713,
+        "details": "All files verified: t1.tif, t2.tif."
+      },
+      {
+        "step_id": 3,
+        "stage": "classification",
+        "action": "classify_intent",
+        "tool": null,
+        "parameters": {},
+        "status": "success",
+        "timestamp_ms": 1789220445599.5862,
+        "details": "Task classified as 'change_analysis' with confidence 0.95. Reasoning: Bi-temporal image pair detected with temporal change analysis query."
+      },
+      {
+        "step_id": 4,
+        "stage": "planning",
+        "action": "select_specialist_tool",
+        "tool": "change_ai",
+        "parameters": {
+          "difference_method": "differential_feature_fusion",
+          "sensitivity_threshold": 0.35,
+          "generate_change_map": true
+        },
+        "status": "success",
+        "timestamp_ms": 1789220445599.5862,
+        "details": "Selected tool 'Bi-Temporal Change Understanding Specialist' [2.1.0]. Configured permitted parameters."
+      },
+      {
+        "step_id": 5,
+        "stage": "execution",
+        "action": "run_inference",
+        "tool": "change_ai",
+        "parameters": {},
+        "status": "success",
+        "timestamp_ms": 1789220445654.3733,
+        "details": "Invoking Bi-Temporal Change Understanding Specialist with inputs."
+      },
+      {
+        "step_id": 6,
+        "stage": "integration",
+        "action": "integrate_evidence",
+        "tool": "change_ai",
+        "parameters": {},
+        "status": "success",
+        "timestamp_ms": 1789220452486.3157,
+        "details": "Integrated textual conclusions, visual evidence overlays, and confidence metrics."
+      }
+    ],
+    "status": "completed",
+    "start_time": 1789220445.4999177,
+    "end_time": 1789220452.4863157,
+    "duration_ms": 6986.4
+  },
+  "reports": {
+    "html_report_url": "/api/v1/reports/d6ac65cd-2690-4f72-ac1a-d4e7f4519b6d/html",
+    "json_report_url": "/api/v1/reports/d6ac65cd-2690-4f72-ac1a-d4e7f4519b6d/json"
+  }
+}

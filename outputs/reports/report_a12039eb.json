@@ -1,0 +1,136 @@
+{
+  "request_id": "a12039eb-08a1-46a2-a139-f0be23f97ee5",
+  "status": "completed",
+  "query": "What are the predominant land-cover types and is there any water body present?",
+  "input_mode": "single",
+  "task": "vqa",
+  "confidence": 0.94,
+  "result": {
+    "task": "vqa",
+    "tool": "rs_vqa",
+    "version": "2.0.0",
+    "engine": "Remote-Sensing Feature & Representation Engine",
+    "query": "What are the predominant land-cover types and is there any water body present?",
+    "answer": "Yes, prominent hydrological features (water bodies/reservoirs) are clearly identified, covering approximately 94.0% of the observable tile extent.",
+    "confidence": 0.94,
+    "evidence_metrics": {
+      "vegetation_cover_pct": 11.66,
+      "water_body_pct": 93.96,
+      "built_up_density_pct": 5.45,
+      "mean_ndvi": 0.229,
+      "mean_ndwi": 0.229
+    }
+  },
+  "inputs_metadata": [
+    {
+      "width": 256,
+      "height": 256,
+      "bands": 3,
+      "dtype": "uint8",
+      "crs": "EPSG:4326 (WGS 84)",
+      "bounds": [
+        77.1025,
+        28.7041,
+        77.2025,
+        28.8041
+      ],
+      "is_geotiff": false,
+      "modality": "optical"
+    }
+  ],
+  "execution_trace": {
+    "request_id": "a12039eb-08a1-46a2-a139-f0be23f97ee5",
+    "input_mode": "single",
+    "query": "What are the predominant land-cover types and is there any water body present?",
+    "detected_task": "vqa",
+    "selected_tools": [
+      {
+        "name": "validator",
+        "version": "1.2.0"
+      },
+      {
+        "name": "Remote-Sensing VQA Specialist",
+        "version": "2.0.0"
+      }
+    ],
+    "parameters": {
+      "confidence_threshold": 0.65,
+      "max_tokens": 128,
+      "temperature": 0.2
+    },
+    "steps": [
+      {
+        "step_id": 1,
+        "stage": "validation",
+        "action": "inspect_inputs",
+        "tool": "validator",
+        "parameters": {},
+        "status": "success",
+        "timestamp_ms": 1789212146006.4014,
+        "details": "Validating 1 input raster(s) for mode 'single'."
+      },
+      {
+        "step_id": 2,
+        "stage": "validation",
+        "action": "validation_passed",
+        "tool": "validator",
+        "parameters": {},
+        "status": "success",
+        "timestamp_ms": 1789212146007.5378,
+        "details": "All files verified: sample_optical.tif."
+      },
+      {
+        "step_id": 3,
+        "stage": "classification",
+        "action": "classify_intent",
+        "tool": null,
+        "parameters": {},
+        "status": "success",
+        "timestamp_ms": 1789212146007.5378,
+        "details": "Task classified as 'vqa' with confidence 0.88. Reasoning: Single-image natural-language question answering intent."
+      },
+      {
+        "step_id": 4,
+        "stage": "planning",
+        "action": "select_specialist_tool",
+        "tool": "rs_vqa",
+        "parameters": {
+          "confidence_threshold": 0.65,
+          "max_tokens": 128,
+          "temperature": 0.2
+        },
+        "status": "success",
+        "timestamp_ms": 1789212146008.5464,
+        "details": "Selected tool 'Remote-Sensing VQA Specialist' [2.0.0]. Configured permitted parameters."
+      },
+      {
+        "step_id": 5,
+        "stage": "execution",
+        "action": "run_inference",
+        "tool": "rs_vqa",
+        "parameters": {},
+        "status": "success",
+        "timestamp_ms": 1789212146009.595,
+        "details": "Invoking Remote-Sensing VQA Specialist with inputs."
+      },
+      {
+        "step_id": 6,
+        "stage": "integration",
+        "action": "integrate_evidence",
+        "tool": "rs_vqa",
+        "parameters": {},
+        "status": "success",
+        "timestamp_ms": 1789212146014.6873,
+        "details": "Integrated textual conclusions, visual evidence overlays, and confidence metrics."
+      }
+    ],
+    "status": "completed",
+    "start_time": 1789212146.0064013,
+    "end_time": 1789212146.0146873,
+    "duration_ms": 8.29
+  },
+  "reports": {
+    "html_report_url": "/api/v1/reports/a12039eb-08a1-46a2-a139-f0be23f97ee5/html",
+    "json_report_url": "/api/v1/reports/a12039eb-08a1-46a2-a139-f0be23f97ee5/json"
+  }
+}

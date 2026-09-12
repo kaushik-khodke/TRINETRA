@@ -1,0 +1,11 @@
+{
+  "name": "satquery-ai-workspace",
+  "private": true,
+  "version": "2.0.0",
+  "scripts": {
+    "postinstall": "npm --prefix frontend install",
+    "dev": "npm --prefix frontend run dev",
+    "build": "npm --prefix frontend run build",
+    "preview": "npm --prefix frontend run preview"
+  }
+}

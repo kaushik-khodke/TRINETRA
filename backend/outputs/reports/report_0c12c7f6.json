@@ -1,0 +1,138 @@
+{
+  "request_id": "0c12c7f6-fe45-41c5-92c7-1fb4fae1bafe",
+  "status": "completed",
+  "query": "Provide a comprehensive scene description and land cover summary",
+  "input_mode": "single",
+  "task": "captioning",
+  "confidence": 0.92,
+  "result": {
+    "task": "captioning",
+    "tool": "rs_caption",
+    "version": "2.0.0",
+    "engine": "Multi-Spectral Scene Understanding Engine",
+    "caption": "Here is a 2-sentence scene description for the satellite image:\n\nThe 256x256 optical satellite image reveals a predominantly agricultural landscape with extensive fields of crops, interspersed with scattered patches of water bodies and minor urban areas, with a notable absence of bare ground and dense vegetation cover. The dominant land-cover features include vast expanses of rice paddies, sugarcane fields, and small-scale irrigation canals, with a few isolated urban centers and industrial sites scattered throughout the landscape.",
+    "confidence": 0.92,
+    "evidence_image": "data:image/png;base64,iVBORw0KGgoAAAANSUhEUgAAAQAAAAEACAIAAADTED8xAAAEJklEQVR4nO3dwW1TQRRA0Z+ICuiCcnAJ6G+zpQM22WbrBrKBSugJiUhWFDs/37ITx3PPWYOSzZ33Rgz2zXbzdYL/5t8/p/ex3dxPn9LtpX8BuCQBkCYAPmJReb/l6kQCIE0ApIeAAEgTAOkhIADSBEB6CAiANAGQHgICIE0ApIeAAEgTAOkhIADSBEB6CAiANAGQHgJfTvnL3+8eppI/D3eX/hU4MxOANAGQ3oJOWoGO2g12+9Kof5hrZAKQHgICIE0ApAmA9BYkANIEQHoICIA0AZAmANJbkABIEwBpN6d8RZLn0GXzEN+nZAKQJgDSzrMCXdGjZc+hz2i+/i3IBCBNAKQJgDQBkP4nYQGQJgDSBECaAEhfAwRAmgBIEwBpnkMfwQckjvciyAQgfQ8WAGk+HXqJT4cenglAmgBIEwBpAiBNAKQJgDQBkCYA0gRAmgBIEwBpnkMfwXPo8V5EmwCkCYA0z6GXeA49PBOANAGQJgDSBECaAEgTAGkCIE0ApAmA7kMgAVBnApDmOfQRPIc+yAoE18oKRJrn0Es8hx57/zEBqLMCkSYA0gRA9wIgAOpMANIEQHf/EQB1JgBpAiBNAHQvAJ5DH8dz6PECMAFIEwDd499z6Dd4Dj08E4Du8X/qJZigeawATADSBED3+BcAdSYA3eNfANSZAKQJgO7+IwDqTAC6x78AqDMB6B7/AqDOBCBNAHT3HwFQZwLQPf4FQJ0JQPf4FwB1F/s/wT9+PV7k57Le7be/Yx//JgB17gB8nM92/AuAOhOA7vEvAOpMALrHvwCoMwHoHv8CoM6nQxN6+bPPCkSaAJiyx78AqDMB6ubw8S8A6kyAtLl9/AuAOhOga84f/wKgzgSIcvw/EQBpAiBNAEX2nx0BkCaAHMf/cwIgTQAtjv8XBECaAEIc//sEQJoASBNAhf3nIAGQJoAEx/9rBECaAEgTwPjsPwsEQJoASBPA4Ow/ywRAmgBIE8DI7D9vEgBpAiBNAMOy/6whANIEQJoAxmT/WUkApAmANAGQJgDSBDAgN+D1BECaAEgTAGkCIE0Ao3EDPooASBMAaQIgTQCkCYA0AZAmANIEQJoASBMAaQIgTQCkCYA0AZAmANIEQJoASBMAaQIgTQCkCYA0AZAmANIEQJoASBPAaLab+6v7zLkLEgBpAiBNAKQJgDQBDMg9eD0BkCYA0gRAmgDG5BqwkgBIEwBpAiBNAMNyDVhDAKQJgDQBjMwW9CYBkCYA0gQwOFvQMgGQJgDSBDA+W9ACAZAmgARD4DUCIE0ApAmgwhZ0kABIE0CIIbBPAKQJgDQBtNiCXhAAaQLIMQSeEwBpAigyBHYEQJoAogyBJwIgTQBdW98oLADiTIC0bX4ICIA0AZAmgLptewsSAGkCYCoPAQGQJgDSQ0AATGX/ANk8d122OhJ7AAAAAElFTkSuQmCC",
+    "raw_preview": "data:image/png;base64,iVBORw0KGgoAAAANSUhEUgAAAQAAAAEACAIAAADTED8xAAAEJUlEQVR4nO3dPW4TURSA0TFiJ2zIfbbAAtIhOuhZQqiZDbEWKCxZUX4mM7ETx+87p05Emu/d+8STvdvfTHAw//4xvY39ze30IX269B8AlyQA0gTAeywqb7dcnUgApAmA9BAQAGkCID0EBECaAEgPAQGQJgDSQ0AApAmA9BAQAGkCID0EBECaAEgPAQGQJgDSQ+DzKb/869vfqeTr9y+X/hM4MxOANAGQ3oJOWoE27QbHfWnUH+YamQCkh4AASBMAaQIgvQUJgDQBkB4CAiBNAKQJgPQWJADSBEDa7pSvSPIcumwe4vuUTADSBEDaeVagK3q07Dn0Gc3XvwWZAKQJgDQBkCYA0v8lLADSBECaAEgTAOlrgABIEwBpAiDNc+gNfEDieC+CTADS92ABkObToZf4dOjhmQCkCYA0AZAmANIEQJoASBMAaQIgTQCkCYA0AZDmOfQGnkOP9yLaBCBNAKR5Dr3Ec+jhmQCkCYA0AZAmANIEQJoASBMAaQIgTQB0HwIJgDoTgDTPoTfwHPpJViC4VlYg0jyHXuI59Nj7jwlAnRWINAGQJgC6FwABUGcCkCYAuvuPAKgzAUgTAGkCoHsB8Bx6G8+hxwvABCBNAHSPf8+hX+A59PBMALrH/6mXYILmsQIwAUgTAN3jXwDUmQB0j38BUGcCkCYAuvuPAKgzAege/wKgzgSge/wLgDoTgDQB0N1/BECdCUD3+BcAdSYA3eNfANSd50vyXuHP3b9L/dOscjftdj/HPv5NAOrcAXg/H+34FwB1JgDd418A1JkAdI9/AVBnAtA9/gVAnU+HJvTy5zErEGkCYMoe/wKgzgSom8PHvwCoMwHS5vbxLwDqTICuOX/8C4A6EyDK8X8gANIEQJoAiuw/RwIgTQA5jv/7BECaAFoc/w8IgDQBhDj+HxMAaQIgTQAV9p8nCYA0ASQ4/p8jANIEQJoAxmf/WSAA0gRAmgAGZ/9ZJgDSBECaAEZm/3mRAEgTAGkCGJb9Zw0BkCYA0gQwJvvPSgIgTQCkCYA0AZAmgAG5Aa8nANIEQJoASBMAaQIYjRvwJgIgTQCkCYA0AZAmANIEQJoASBMAaQIgTQCkCYA0AZAmANIEQJoASBMAaQIgTQCkCYA0AZAmANIEQJoASBMAaQIgTQCj2d/cXt1nzl2QAEgTAGkCIE0ApAlgQO7B6wmANAGQJgDSBDAm14CVBECaAEgTAGkCGJZrwBoCIE0ApAlgZLagFwmANAGQJoDB2YKWCYA0AZAmgPHZghYIgDQBJBgCzxEAaQIgTQAVtqAnCYA0AYQYAo8JgDQBkCaAFlvQAwIgTQA5hsB9AiBNAEWGwJEASBNAlCFwIADSBNC1943CAiDOBEjb54eAAEgTAGkCqNu3tyABkCYApvIQEABpAiA9BATAVPYf6j5vmAX1LIgAAAAASUVORK5CYII=",
+    "land_cover_breakdown": {
+      "Vegetation / Canopy": "82.3%",
+      "Hydrology / Water": "11.7%",
+      "Urban / Infrastructure": "2.8%",
+      "Bare Soil / Open Ground": "3.2%"
+    }
+  },
+  "inputs_metadata": [
+    {
+      "filename": "sample_optical.tif",
+      "width": 256,
+      "height": 256,
+      "bands": 3,
+      "dtype": "uint8",
+      "crs": "EPSG:4326 (WGS 84)",
+      "bounds": [
+        77.1025,
+        28.7041,
+        77.2025,
+        28.8041
+      ],
+      "is_geotiff": true,
+      "modality": "optical"
+    }
+  ],
+  "image_previews": [
+    "data:image/png;base64,iVBORw0KGgoAAAANSUhEUgAAAQAAAAEACAIAAADTED8xAAAEJUlEQVR4nO3dPW4TURSA0TFiJ2zIfbbAAtIhOuhZQqiZDbEWKCxZUX4mM7ETx+87p05Emu/d+8STvdvfTHAw//4xvY39ze30IX269B8AlyQA0gTAeywqb7dcnUgApAmA9BAQAGkCID0EBECaAEgPAQGQJgDSQ0AApAmA9BAQAGkCID0EBECaAEgPAQGQJgDSQ+DzKb/869vfqeTr9y+X/hM4MxOANAGQ3oJOWoE27QbHfWnUH+YamQCkh4AASBMAaQIgvQUJgDQBkB4CAiBNAKQJgPQWJADSBEDa7pSvSPIcumwe4vuUTADSBEDaeVagK3q07Dn0Gc3XvwWZAKQJgDQBkCYA0v8lLADSBECaAEgTAOlrgABIEwBpAiDNc+gNfEDieC+CTADS92ABkObToZf4dOjhmQCkCYA0AZAmANIEQJoASBMAaQIgTQCkCYA0AZDmOfQGnkOP9yLaBCBNAKR5Dr3Ec+jhmQCkCYA0AZAmANIEQJoASBMAaQIgTQB0HwIJgDoTgDTPoTfwHPpJViC4VlYg0jyHXuI59Nj7jwlAnRWINAGQJgC6FwABUGcCkCYAuvuPAKgzAUgTAGkCoHsB8Bx6G8+hxwvABCBNAHSPf8+hX+A59PBMALrH/6mXYILmsQIwAUgTAN3jXwDUmQB0j38BUGcCkCYAuvuPAKgzAege/wKgzgSge/wLgDoTgDQB0N1/BECdCUD3+BcAdSYA3eNfANSd50vyXuHP3b9L/dOscjftdj/HPv5NAOrcAXg/H+34FwB1JgDd418A1JkAdI9/AVBnAtA9/gVAnU+HJvTy5zErEGkCYMoe/wKgzgSom8PHvwCoMwHS5vbxLwDqTICuOX/8C4A6EyDK8X8gANIEQJoAiuw/RwIgTQA5jv/7BECaAFoc/w8IgDQBhDj+HxMAaQIgTQAV9p8nCYA0ASQ4/p8jANIEQJoAxmf/WSAA0gRAmgAGZ/9ZJgDSBECaAEZm/3mRAEgTAGkCGJb9Zw0BkCYA0gQwJvvPSgIgTQCkCYA0AZAmgAG5Aa8nANIEQJoASBMAaQIYjRvwJgIgTQCkCYA0AZAmANIEQJoASBMAaQIgTQCkCYA0AZAmANIEQJoASBMAaQIgTQCkCYA0AZAmANIEQJoASBMAaQIgTQCj2d/cXt1nzl2QAEgTAGkCIE0ApAlgQO7B6wmANAGQJgDSBDAm14CVBECaAEgTAGkCGJZrwBoCIE0ApAlgZLagFwmANAGQJoDB2YKWCYA0AZAmgPHZghYIgDQBJBgCzxEAaQIgTQAVtqAnCYA0AYQYAo8JgDQBkCaAFlvQAwIgTQA5hsB9AiBNAEWGwJEASBNAlCFwIADSBNC1943CAiDOBEjb54eAAEgTAGkCqNu3tyABkCYApvIQEABpAiA9BATAVPYf6j5vmAX1LIgAAAAASUVORK5CYII="
+  ],
+  "execution_trace": {
+    "request_id": "0c12c7f6-fe45-41c5-92c7-1fb4fae1bafe",
+    "input_mode": "single",
+    "query": "Provide a comprehensive scene description and land cover summary",
+    "detected_task": "captioning",
+    "selected_tools": [
+      {
+        "name": "validator",
+        "version": "1.2.0"
+      },
+      {
+        "name": "Remote-Sensing Scene Captioning Specialist",
+        "version": "1.8.0"
+      }
+    ],
+    "parameters": {
+      "detail_level": "comprehensive",
+      "extract_landcover_stats": true
+    },
+    "steps": [
+      {
+        "step_id": 1,
+        "stage": "validation",
+        "action": "inspect_inputs",
+        "tool": "validator",
+        "parameters": {},
+        "status": "success",
+        "timestamp_ms": 1789219885670.0962,
+        "details": "Validating 1 input raster(s) for mode 'single'."
+      },
+      {
+        "step_id": 2,
+        "stage": "validation",
+        "action": "validation_passed",
+        "tool": "validator",
+        "parameters": {},
+        "status": "success",
+        "timestamp_ms": 1789219885677.0151,
+        "details": "All files verified: sample_optical.tif."
+      },
+      {
+        "step_id": 3,
+        "stage": "classification",
+        "action": "classify_intent",
+        "tool": null,
+        "parameters": {},
+        "status": "success",
+        "timestamp_ms": 1789219885680.8662,
+        "details": "Task classified as 'captioning' with confidence 0.9. Reasoning: Single-image scene description / captioning query intent."
+      },
+      {
+        "step_id": 4,
+        "stage": "planning",
+        "action": "select_specialist_tool",
+        "tool": "rs_caption",
+        "parameters": {
+          "detail_level": "comprehensive",
+          "extract_landcover_stats": true
+        },
+        "status": "success",
+        "timestamp_ms": 1789219885680.8662,
+        "details": "Selected tool 'Remote-Sensing Scene Captioning Specialist' [1.8.0]. Configured permitted parameters."
+      },
+      {
+        "step_id": 5,
+        "stage": "execution",
+        "action": "run_inference",
+        "tool": "rs_caption",
+        "parameters": {},
+        "status": "success",
+        "timestamp_ms": 1789219885702.0432,
+        "details": "Invoking Remote-Sensing Scene Captioning Specialist with inputs."
+      },
+      {
+        "step_id": 6,
+        "stage": "integration",
+        "action": "integrate_evidence",
+        "tool": "rs_caption",
+        "parameters": {},
+        "status": "success",
+        "timestamp_ms": 1789219893461.6106,
+        "details": "Integrated textual conclusions, visual evidence overlays, and confidence metrics."
+      }
+    ],
+    "status": "completed",
+    "start_time": 1789219885.6700962,
+    "end_time": 1789219893.4616106,
+    "duration_ms": 7791.51
+  },
+  "reports": {
+    "html_report_url": "/api/v1/reports/0c12c7f6-fe45-41c5-92c7-1fb4fae1bafe/html",
+    "json_report_url": "/api/v1/reports/0c12c7f6-fe45-41c5-92c7-1fb4fae1bafe/json"
+  }
+}
