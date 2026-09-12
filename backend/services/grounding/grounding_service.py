@@ -93,6 +93,7 @@ class RSGroundingSpecialist:
             "target_query": query,
             "answer": synthesis.get("answer"),
             "detected_regions": len(boxes),
+            "bounding_box": boxes[0]["bbox"] if boxes else [0.15, 0.15, 0.85, 0.85],
             "regions": boxes,
             "confidence": synthesis.get("confidence", max(b["score"] for b in boxes)),
             "evidence_image": evidence_b64,

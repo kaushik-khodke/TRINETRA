@@ -18,3 +18,9 @@ torch>=2.0.0
 torchvision>=0.15.0
 transformers>=4.30.0
 timm>=0.9.0
+
+# 100% Local Agentic AI & Telemetry
+langchain-ollama>=1.0.0
+langchain-core>=0.3.0
+langfuse>=2.50.0
+

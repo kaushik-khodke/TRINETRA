@@ -25,11 +25,13 @@ from agent.controller import AgentController
 from agent.registry import list_tools
 from models.loader import ModelRegistryStatus
 from services.llm_engine import LLMReasoningEngine
+from llm.model_registry import local_registry
+from observability.langfuse_tracer import LangfuseTracer
 
 app = FastAPI(
     title="SatQuery AI — Vision-Language Assistant API",
     version="2.0.0",
-    description="Agentic Remote-Sensing Intelligence Platform for Multimodal Satellite Analysis"
+    description="100% Local Agentic Remote-Sensing Intelligence Platform for Multimodal Satellite Analysis"
 )
 
 # CORS configuration
@@ -56,26 +58,49 @@ if os.path.exists(REPORTS_DIR):
 JOBS_DB = {}
 controller = AgentController()
 
+@app.on_event("startup")
+def startup_diagnostics():
+    print("=" * 60)
+    print(" SATQUERY AI — 100% LOCAL AGENTIC PLATFORM INITIALIZED")
+    print(" Agent Framework : LangChain (langchain-ollama)")
+    print(f" LLM Runtime    : Ollama ({local_registry.get_ollama_host()})")
+    print(f" Ollama Online  : {local_registry.is_ollama_online()}")
+    print(f" Local Models   : {local_registry.probe_installed_models()}")
+    print(f" Telemetry      : Langfuse (Enabled={LangfuseTracer.is_available()})")
+    print(" Cloud LLM      : NONE (100% Air-Gapped / Zero External APIs)")
+    print("=" * 60)
+
 @app.get("/api/v1/health")
 def health_check():
     return {
         "status": "healthy",
         "service": "SatQuery AI Backend",
         "version": "2.0.0",
+        "agent_framework": "LangChain",
+        "cloud_llm": False,
+        "ollama": {
+            "connected": local_registry.is_ollama_online(),
+            "host": local_registry.get_ollama_host(),
+            "models": local_registry.probe_installed_models()
+        },
+        "langfuse": {
+            "connected": LangfuseTracer.is_available(),
+            "host": os.environ.get("LANGFUSE_HOST", "https://cloud.langfuse.com")
+        },
         "models_status": ModelRegistryStatus.get_status(),
-        "llm_status": LLMReasoningEngine.get_engine_status()
+        "llm_status": local_registry.get_status_summary()
     }
 
 @app.get("/api/v1/llm-status")
 def get_llm_status():
-    return LLMReasoningEngine.get_engine_status()
+    return local_registry.get_status_summary()
 
 @app.get("/api/v1/registry")
 def get_tool_registry():
     return {
         "tools": list_tools(),
         "checkpoint_status": ModelRegistryStatus.get_status(),
-        "llm_status": LLMReasoningEngine.get_engine_status()
+        "llm_status": local_registry.get_status_summary()
     }
 
 @app.get("/api/v1/samples")
@@ -134,7 +159,8 @@ async def analyze_request(
     files: List[UploadFile] = File(...),
     query: str = Form(...),
     input_mode: str = Form("single"),
-    modalities: Optional[str] = Form(None)
+    modalities: Optional[str] = Form(None),
+    response_language: Optional[str] = Form("en")
 ):
     request_id = str(uuid.uuid4())
     req_upload_dir = os.path.join(UPLOAD_DIR, request_id)
@@ -155,7 +181,8 @@ async def analyze_request(
             file_paths=saved_paths,
             query=query,
             input_mode=input_mode,
-            declared_modalities=declared_mods
+            declared_modalities=declared_mods,
+            response_language=response_language or "en"
         )
 
         JOBS_DB[result_payload["request_id"]] = result_payload
@@ -166,7 +193,8 @@ async def analyze_request(
 
 @app.post("/api/v1/analyze-preset")
 async def analyze_preset(
-    sample_id: str = Form(...)
+    sample_id: str = Form(...),
+    response_language: Optional[str] = Form("en")
 ):
     """Executes a preloaded sample scenario without needing re-upload."""
     samples = {s["id"]: s for s in get_demo_samples()}
@@ -185,7 +213,8 @@ async def analyze_preset(
     result_payload = controller.process_request(
         file_paths=local_paths,
         query=preset["query"],
-        input_mode=preset["mode"]
+        input_mode=preset["mode"],
+        response_language=response_language or "en"
     )
     JOBS_DB[result_payload["request_id"]] = result_payload
     return result_payload

@@ -28,7 +28,8 @@ class RSCaptionSpecialist:
         modality = meta.get("modality", "optical").upper()
 
         dimensions = f"{meta.get('width', 512)}x{meta.get('height', 512)}"
-        caption = LLMReasoningEngine.synthesize_caption(modality, metrics, dimensions)
+        response_lang = parameters.get("response_language", "en") if parameters else "en"
+        caption = LLMReasoningEngine.synthesize_caption(modality, metrics, dimensions, response_language=response_lang)
 
         # Generate visual land-cover evidence overlay
         rgb_preview = GeospatialReader.to_rgb_preview(image_arr, meta.get("modality", "optical"))

@@ -1,427 +1,917 @@
 "use client"
-import { useEffect, useMemo, useRef, useState } from "react"
-import { Activity, ArrowRight, BarChart3, Check, ChevronDown, Clock3, FileImage, GitCompareArrows, ImagePlus, Layers3, Menu, PanelTop, Radar, Search, Send, ShieldCheck, Sparkles, Upload, X } from "lucide-react"
-import { analysisAPI, checkBackendHealth, confidenceCopy, demoScenarios, evaluationMetrics, examples, formatBytes, formatDate, imagePresets, isReady, loadHistory, makeImage, metricCards, modeRequirements, modeSlots, modes, navItems, normalizeFile, saveHistory, type AnalysisMode, type AnalysisResponse, type ImageInput } from "@/lib/types"
 
-const Icon = ({ mode }: { mode: AnalysisMode }) => mode === "single" ? <FileImage /> : mode === "temporal" ? <GitCompareArrows /> : <Layers3 />
+import { useEffect, useMemo, useRef, useState } from "react"
+import { Activity, ArrowRight, BarChart3, Check, ChevronDown, Clock3, FileImage, GitCompareArrows, Globe, ImagePlus, Layers3, Menu, PanelTop, Radar, Search, Send, ShieldCheck, Sparkles, Upload, X } from "lucide-react"
+import {
+  analysisAPI,
+  checkBackendHealth,
+  demoScenarios,
+  formatBytes,
+  formatDate,
+  imagePresets,
+  isReady,
+  loadHistory,
+  normalizeFile,
+  saveHistory,
+  type AnalysisMode,
+  type AnalysisResponse,
+  type ImageInput,
+} from "@/lib/types"
+import { I18nProvider, useTranslation, type SupportedLanguage } from "@/lib/i18n"
+
+const Icon = ({ mode }: { mode: AnalysisMode }) =>
+  mode === "single" ? <FileImage /> : mode === "temporal" ? <GitCompareArrows /> : <Layers3 />
+
+function LanguageSelector() {
+  const { language, setLanguage, languages, t } = useTranslation()
+  return (
+    <div className="lang-switch" role="group" aria-label={t("aria.language")}>
+      <Globe size={13} style={{ color: "rgba(255,255,255,0.4)", marginLeft: "4px" }} />
+      {languages.map((item) => (
+        <button
+          key={item.code}
+          type="button"
+          className={`lang-btn ${language === item.code ? "active" : ""}`}
+          onClick={() => setLanguage(item.code)}
+          title={item.label}
+          aria-pressed={language === item.code}
+        >
+          {item.nativeName}
+        </button>
+      ))}
+    </div>
+  )
+}
 
 function Header({ path, navigate }: { path: string; navigate: (path: string) => void }) {
-  const [health, setHealth] = useState<{ online: boolean; text: string }>({ online: false, text: "CHECKING..." });
-  useEffect(() => {
-    checkBackendHealth().then((h) => {
-      if (h && h.status === "healthy") {
-        const engine = h.llm_status?.active_engine ? ` • ${h.llm_status.active_engine.toUpperCase()}` : h.llm_status?.model ? ` • ${h.llm_status.model.toUpperCase()}` : "";
-        setHealth({ online: true, text: `FASTAPI ONLINE${engine}` });
-      } else {
-        setHealth({ online: false, text: "DEMO / OFFLINE MODE" });
-      }
-    }).catch(() => {
-      setHealth({ online: false, text: "DEMO / OFFLINE MODE" });
-    });
-  }, []);
+  const { t } = useTranslation()
+  const [health, setHealth] = useState<{ online: boolean; rawStatus?: string; model?: string; langfuse?: boolean }>({
+    online: false,
+  })
 
-  return <header className="topbar"><button className="brand" onClick={() => navigate("/")}><span className="brandmark"><Radar /></span><span>SatQuery <b>AI</b><small>EARTH OBSERVATION / 26167</small></span></button><nav>{navItems.map((item) => <button key={item.href} className={path === item.href ? "active" : ""} onClick={() => navigate(item.href)}>{item.label}</button>)}</nav><div className="header-status"><i style={{ backgroundColor: health.online ? "var(--cyan-400, #00f0ff)" : "var(--amber-400, #ffb300)" }} /> <span>{health.text}</span></div><button className="mobile-menu" aria-label="Menu"><Menu /></button></header>
+  useEffect(() => {
+    checkBackendHealth()
+      .then((h) => {
+        if (h && h.status === "healthy") {
+          const ollamaTag = h.ollama?.models?.[0] || h.llm_status?.roles?.planner?.active || "QWEN3.5"
+          setHealth({
+            online: true,
+            model: ollamaTag.toUpperCase(),
+            langfuse: Boolean(h.langfuse?.connected),
+          })
+        } else {
+          setHealth({ online: false })
+        }
+      })
+      .catch(() => {
+        setHealth({ online: false })
+      })
+  }, [])
+
+  const navItems = [
+    { href: "/", label: t("nav.overview") },
+    { href: "/analysis", label: t("nav.workspace") },
+    { href: "/dashboard", label: t("nav.history") },
+    { href: "/evaluation", label: t("nav.evaluation") },
+  ]
+
+  const statusText = health.online
+    ? t("status.ready", {
+        model: health.model || "LOCAL",
+        trace: health.langfuse ? t("status.langfuse_on") : "",
+      })
+    : t("status.offline")
+
+  return (
+    <header className="topbar">
+      <button className="brand" onClick={() => navigate("/")}>
+        <span className="brandmark">
+          <Radar />
+        </span>
+        <span>
+          {t("brand.title")} <b>{t("brand.ai")}</b>
+          <small>{t("brand.subtitle")}</small>
+        </span>
+      </button>
+      <nav>
+        {navItems.map((item) => (
+          <button
+            key={item.href}
+            className={path === item.href ? "active" : ""}
+            onClick={() => navigate(item.href)}
+          >
+            {item.label}
+          </button>
+        ))}
+      </nav>
+      <LanguageSelector />
+      <div className="header-status">
+        <i
+          style={{
+            backgroundColor: health.online ? "var(--cyan-400, #00f0ff)" : "var(--amber-400, #ffb300)",
+          }}
+        />{" "}
+        <span>{statusText}</span>
+      </div>
+      <button className="mobile-menu" aria-label={t("aria.menu")}>
+        <Menu />
+      </button>
+    </header>
+  )
 }
-function Pill({ children, tone = "cyan" }: { children: React.ReactNode; tone?: string }) { return <span className={`pill ${tone}`}>{children}</span> }
-function SatelliteBackdrop() { return <div className="backdrop"><div className="orb"/><div className="orbit orbit-one"/><div className="orbit orbit-two"/><div className="scanline"/></div> }
-function Landing({ navigate }: { navigate: (path: string) => void }) { return <main className="landing"><SatelliteBackdrop/><div className="hero"><Pill><span className="pulse"/>AGENTIC VISION-LANGUAGE ANALYSIS</Pill><h1>Ask Earth.<br/><span>See evidence.</span></h1><p>SatQuery AI turns complex satellite imagery questions into grounded, inspectable answers — without requiring a remote-sensing background.</p><div className="hero-actions"><button className="primary" onClick={() => navigate("/analysis")}>Start Analysis <ArrowRight /></button><button className="secondary" onClick={() => navigate("/analysis?demo=1")}>Explore Demo <Sparkles /></button></div><div className="hero-stats"><div><b>03</b><span>analysis modes</span></div><div><b>01</b><span>evidence layer</span></div><div><b>04</b><span>guided scenarios</span></div></div></div><div className="capabilities">{modes.map((mode) => <div className="cap-card" key={mode.id}><div className="cap-icon"><Icon mode={mode.id}/></div><div><span className="eyebrow">0{modes.indexOf(mode) + 1} / {mode.label}</span><h3>{mode.description}</h3><p>{mode.id === "single" ? "Ask about land use, vegetation, water, infrastructure, or conditions." : mode.id === "temporal" ? "Compare two dates to surface meaningful change and movement." : "Fuse visible context with radar signals for deeper evidence."}</p></div></div>)}</div></main> }
-function UploadSlot({ slot, image, onFile, onRemove }: { slot: { label: string; hint: string }; image?: ImageInput; onFile: (file: File) => void; onRemove: () => void }) { const ref = useRef<HTMLInputElement>(null); return <div className={`upload-slot ${image ? "filled" : ""}`} onDragOver={(e) => e.preventDefault()} onDrop={(e) => { e.preventDefault(); const file = e.dataTransfer.files[0]; if (file) onFile(file) }} onClick={() => !image && ref.current?.click()}>{image ? <><img src={image.url} alt="Uploaded satellite preview"/><div className="slot-overlay"><Pill tone="dark">{slot.hint}</Pill><strong>{image.name}</strong><span>{formatBytes(image.size)}</span></div><button className="remove" onClick={(e) => { e.stopPropagation(); onRemove() }} aria-label="Remove image"><X /></button></> : <><input ref={ref} type="file" accept="image/png,image/jpeg,image/tiff,.tif,.tiff" hidden onChange={(e) => e.target.files?.[0] && onFile(e.target.files[0])}/><Upload/><strong>{slot.label}</strong><span>Drop image or click to browse</span><small>{slot.hint} · PNG, JPEG, GeoTIFF</small></>}</div> }
+
+function Pill({ children, tone = "cyan" }: { children: React.ReactNode; tone?: string }) {
+  return <span className={`pill ${tone}`}>{children}</span>
+}
+
+function SatelliteBackdrop() {
+  return (
+    <div className="backdrop">
+      <div className="orb" />
+      <div className="orbit orbit-one" />
+      <div className="orbit orbit-two" />
+      <div className="scanline" />
+    </div>
+  )
+}
+
+function Landing({ navigate }: { navigate: (path: string) => void }) {
+  const { t } = useTranslation()
+
+  const capabilities = [
+    {
+      id: "single" as const,
+      eyebrow: t("cap.single.eyebrow"),
+      title: t("cap.single.title"),
+      desc: t("cap.single.desc"),
+    },
+    {
+      id: "temporal" as const,
+      eyebrow: t("cap.temporal.eyebrow"),
+      title: t("cap.temporal.title"),
+      desc: t("cap.temporal.desc"),
+    },
+    {
+      id: "fusion" as const,
+      eyebrow: t("cap.fusion.eyebrow"),
+      title: t("cap.fusion.title"),
+      desc: t("cap.fusion.desc"),
+    },
+  ]
+
+  return (
+    <main className="landing">
+      <SatelliteBackdrop />
+      <div className="hero">
+        <Pill>
+          <span className="pulse" />
+          {t("landing.pill")}
+        </Pill>
+        <h1>
+          {t("landing.hero.title1")}
+          <br />
+          <span>{t("landing.hero.title2")}</span>
+        </h1>
+        <p>{t("landing.hero.desc")}</p>
+        <div className="hero-actions">
+          <button className="primary" onClick={() => navigate("/analysis")}>
+            {t("landing.hero.start")} <ArrowRight />
+          </button>
+          <button className="secondary" onClick={() => navigate("/analysis?demo=1")}>
+            {t("landing.hero.demo")} <Sparkles />
+          </button>
+        </div>
+        <div className="hero-stats">
+          <div>
+            <b>03</b>
+            <span>{t("landing.stats.modes")}</span>
+          </div>
+          <div>
+            <b>01</b>
+            <span>{t("landing.stats.layer")}</span>
+          </div>
+          <div>
+            <b>04</b>
+            <span>{t("landing.stats.scenarios")}</span>
+          </div>
+        </div>
+      </div>
+      <div className="capabilities">
+        {capabilities.map((cap) => (
+          <div className="cap-card" key={cap.id}>
+            <div className="cap-icon">
+              <Icon mode={cap.id} />
+            </div>
+            <div>
+              <span className="eyebrow">{cap.eyebrow}</span>
+              <h3>{cap.title}</h3>
+              <p>{cap.desc}</p>
+            </div>
+          </div>
+        ))}
+      </div>
+    </main>
+  )
+}
+
+function UploadSlot({
+  slot,
+  image,
+  onFile,
+  onRemove,
+}: {
+  slot: { label: string; hint: string }
+  image?: ImageInput
+  onFile: (file: File) => void
+  onRemove: () => void
+}) {
+  const { t } = useTranslation()
+  const ref = useRef<HTMLInputElement>(null)
+  return (
+    <div
+      className={`upload-slot ${image ? "filled" : ""}`}
+      onDragOver={(e) => e.preventDefault()}
+      onDrop={(e) => {
+        e.preventDefault()
+        const file = e.dataTransfer.files[0]
+        if (file) onFile(file)
+      }}
+      onClick={() => !image && ref.current?.click()}
+    >
+      {image ? (
+        <>
+          <img src={image.url} alt={t("aria.preview")} />
+          <div className="slot-overlay">
+            <Pill tone="dark">{slot.hint}</Pill>
+            <strong>{image.name}</strong>
+            <span>{formatBytes(image.size)}</span>
+          </div>
+          <button
+            className="remove"
+            onClick={(e) => {
+              e.stopPropagation()
+              onRemove()
+            }}
+            aria-label={t("upload.remove_aria")}
+          >
+            <X />
+          </button>
+        </>
+      ) : (
+        <>
+          <input
+            ref={ref}
+            type="file"
+            accept="image/png,image/jpeg,image/tiff,.tif,.tiff"
+            hidden
+            onChange={(e) => e.target.files?.[0] && onFile(e.target.files[0])}
+          />
+          <Upload />
+          <strong>{slot.label}</strong>
+          <span>{t("upload.drop_prompt")}</span>
+          <small>{t("upload.formats", { hint: slot.hint })}</small>
+        </>
+      )}
+    </div>
+  )
+}
+
 function Workspace({ navigate, initialDemo = false }: { navigate: (path: string) => void; initialDemo?: boolean }) {
+  const { t, language } = useTranslation()
   const [mode, setMode] = useState<AnalysisMode>(initialDemo ? "temporal" : "single")
-  const [images, setImages] = useState<ImageInput[]>(initialDemo ? [imagePresets.before, imagePresets.after] : [])
-  const [query, setQuery] = useState(initialDemo ? demoScenarios[0].query : "")
+  const [images, setImages] = useState<ImageInput[]>(
+    initialDemo ? [imagePresets.before, imagePresets.after] : []
+  )
+  const [query, setQuery] = useState(
+    initialDemo ? (t("scenario.urban.query" as any) || demoScenarios[0].query) : ""
+  )
   const [result, setResult] = useState<AnalysisResponse>()
-  const [error, setError] = useState<string | null>(null)
   const [running, setRunning] = useState(false)
   const [technical, setTechnical] = useState(false)
-  const slots = modeSlots(mode)
+  const [errorMessage, setErrorMessage] = useState<string | null>(null)
+
+  // Localized slots
+  const slots = useMemo(() => {
+    if (mode === "single") {
+      return [{ label: t("slot.single.label"), hint: t("slot.single.hint") }]
+    }
+    if (mode === "temporal") {
+      return [
+        { label: t("slot.temporal.before.label"), hint: t("slot.temporal.before.hint") },
+        { label: t("slot.temporal.after.label"), hint: t("slot.temporal.after.hint") },
+      ]
+    }
+    return [
+      { label: t("slot.fusion.opt.label"), hint: t("slot.fusion.opt.hint") },
+      { label: t("slot.fusion.sar.label"), hint: t("slot.fusion.sar.hint") },
+    ]
+  }, [mode, t])
+
+  // Localized workflow options
+  const workflowModes: { id: AnalysisMode; label: string; desc: string }[] = [
+    { id: "single", label: t("mode.single.label"), desc: t("mode.single.desc") },
+    { id: "temporal", label: t("mode.temporal.label"), desc: t("mode.temporal.desc") },
+    { id: "fusion", label: t("mode.fusion.label"), desc: t("mode.fusion.desc") },
+  ]
+
+  // Localized query examples
+  const currentExamples = useMemo(() => {
+    if (mode === "single") {
+      return [t("examples.single.0"), t("examples.single.1"), t("examples.single.2")]
+    }
+    if (mode === "temporal") {
+      return [t("examples.temporal.0"), t("examples.temporal.1"), t("examples.temporal.2")]
+    }
+    return [t("examples.fusion.0"), t("examples.fusion.1")]
+  }, [mode, t])
+
   const ready = isReady(mode, images, query)
-  const setModeAndReset = (next: AnalysisMode) => { setMode(next); setImages([]); setResult(undefined); setError(null) }
-  const addImage = (file: File, index: number) => {
-    setError(null)
+
+  const setModeAndReset = (next: AnalysisMode) => {
+    setMode(next)
+    setImages([])
+    setResult(undefined)
+    setErrorMessage(null)
+  }
+
+  const addImage = (file: File, index: number) =>
     setImages((current) => {
       const next = [...current]
-      next[index] = normalizeFile(file, slots[index].label, mode === "fusion" ? (index === 0 ? "OPTICAL" : "SAR") : undefined)
+      next[index] = normalizeFile(
+        file,
+        slots[index]?.label || "Image",
+        mode === "fusion" ? (index === 0 ? "OPTICAL" : "SAR") : undefined
+      )
       return next
     })
-  }
+
   const run = async () => {
     if (!ready) return
     setRunning(true)
-    setError(null)
     setResult(undefined)
+    setErrorMessage(null)
     try {
-      const response = await analysisAPI.submitAnalysis({ mode, images, query })
+      const response = await analysisAPI.submitAnalysis({
+        mode,
+        images,
+        query,
+        response_language: language,
+      })
       setResult(response)
       saveHistory(response)
     } catch (err: any) {
-      setError(err?.message || "Analysis could not be completed.")
+      setErrorMessage(err.message || "Satellite analysis failed on local backend.")
     } finally {
       setRunning(false)
     }
   }
-  useEffect(() => { if (initialDemo && !result) { setTimeout(() => run(), 450) } }, [])
+
+  useEffect(() => {
+    if (initialDemo && !result) {
+      setTimeout(() => run(), 450)
+    }
+  }, [])
 
   return (
     <main className="workspace page">
       <div className="page-intro">
         <div>
-          <Pill><span className="pulse"/>WORKSPACE / LIVE</Pill>
-          <h1>Analysis workspace</h1>
-          <p>Choose a workflow, add imagery, and ask a question. The agent handles the rest.</p>
+          <Pill>
+            <span className="pulse" />
+            {t("workspace.pill")}
+          </Pill>
+          <h1>{t("workspace.title")}</h1>
+          <p>{t("workspace.desc")}</p>
         </div>
-        <button className="secondary compact" onClick={() => navigate("/dashboard")}><Clock3/> History</button>
+        <button className="secondary compact" onClick={() => navigate("/dashboard")}>
+          <Clock3 /> {t("workspace.history_btn")}
+        </button>
       </div>
       <div className="workspace-grid">
         <section className="input-panel">
           <div className="section-heading">
-            <div><span className="eyebrow">01 / workflow</span><h2>What are you looking at?</h2></div>
-            <Pill tone="muted">{modeRequirements[mode]}</Pill>
+            <div>
+              <span className="eyebrow">{t("section.workflow.eyebrow")}</span>
+              <h2>{t("section.workflow.title")}</h2>
+            </div>
+            <Pill tone="muted">{t(`req.${mode}` as any)}</Pill>
           </div>
           <div className="mode-grid">
-            {modes.map((item) => (
-              <button key={item.id} className={`mode-card ${mode === item.id ? "selected" : ""}`} onClick={() => setModeAndReset(item.id)}>
-                <Icon mode={item.id}/><strong>{item.label}</strong><span>{item.description}</span>
+            {workflowModes.map((item) => (
+              <button
+                key={item.id}
+                className={`mode-card ${mode === item.id ? "selected" : ""}`}
+                onClick={() => setModeAndReset(item.id)}
+              >
+                <Icon mode={item.id} />
+                <strong>{item.label}</strong>
+                <span>{item.desc}</span>
               </button>
             ))}
           </div>
           <div className="section-heading upload-heading">
-            <div><span className="eyebrow">02 / imagery</span><h2>Upload your evidence</h2></div>
-            <span className="accepted">PNG / JPEG / GeoTIFF · MAX 50MB</span>
+            <div>
+              <span className="eyebrow">{t("section.imagery.eyebrow")}</span>
+              <h2>{t("section.imagery.title")}</h2>
+            </div>
+            <span className="accepted">{t("upload.accepted")}</span>
           </div>
           <div className={`upload-grid ${mode === "single" ? "single" : ""}`}>
             {slots.map((slot, index) => (
-              <UploadSlot key={slot.label} slot={slot} image={images[index]} onFile={(file) => addImage(file, index)} onRemove={() => setImages((current) => current.filter((_, i) => i !== index))}/>
+              <UploadSlot
+                key={slot.label + index}
+                slot={slot}
+                image={images[index]}
+                onFile={(file) => addImage(file, index)}
+                onRemove={() => setImages((current) => current.filter((_, i) => i !== index))}
+              />
             ))}
           </div>
           <div className="supported">
-            <ShieldCheck/> <span>Supports Landsat, Sentinel, MODIS, Planet, and custom image exports.</span>
+            <ShieldCheck /> <span>{t("supported.satellites")}</span>
           </div>
           <div className="section-heading query-heading">
-            <div><span className="eyebrow">03 / intent</span><h2>What do you want to know?</h2></div>
+            <div>
+              <span className="eyebrow">{t("section.intent.eyebrow")}</span>
+              <h2>{t("section.intent.title")}</h2>
+            </div>
             <span className="accepted">{query.length}/240</span>
           </div>
           <textarea
             value={query}
             maxLength={240}
             onChange={(e) => setQuery(e.target.value)}
-            onKeyDown={(e) => { if (e.key === "Enter" && !e.shiftKey && !e.nativeEvent.isComposing && e.keyCode !== 229) { e.preventDefault(); run() } }}
-            placeholder="Ask about land use, changes, infrastructure, damage, vegetation, water bodies..."
+            onKeyDown={(e) => {
+              if (e.key === "Enter" && !e.shiftKey && !e.nativeEvent.isComposing && e.keyCode !== 229) {
+                e.preventDefault()
+                run()
+              }
+            }}
+            placeholder={t("query.placeholder")}
           />
           <div className="examples">
-            <span>Try asking</span>
-            {examples[mode].map((example) => (
-              <button key={example} onClick={() => setQuery(example)}>{example}</button>
+            <span>{t("examples.label")}</span>
+            {currentExamples.map((example) => (
+              <button key={example} onClick={() => setQuery(example)}>
+                {example}
+              </button>
             ))}
           </div>
           <button className="analyze primary" disabled={!ready || running} onClick={run}>
-            {running ? <><Activity className="spin"/> Processing evidence...</> : <>Analyze <ArrowRight/></>}
+            {running ? (
+              <>
+                <Activity className="spin" /> {t("btn.processing")}
+              </>
+            ) : (
+              <>
+                {t("btn.analyze")} <ArrowRight />
+              </>
+            )}
           </button>
-          <p className="local-note"><Sparkles/> Connected to SatQuery Multi-Model Reasoning Engine + Local LLM</p>
+          <p className="local-note">
+            <Sparkles /> {t("local.note")}
+          </p>
         </section>
         <section className="result-panel">
-          {running ? <ExecutionTrace/> : error ? <ErrorResult error={error} onDismiss={() => setError(null)} /> : result ? <ResultView result={result} technical={technical} setTechnical={setTechnical}/> : <EmptyResult/>}
+          {running ? (
+            <ExecutionTrace />
+          ) : errorMessage ? (
+            <div
+              className="trace-card"
+              style={{
+                border: "1px solid rgba(239, 68, 68, 0.4)",
+                background: "rgba(239, 68, 68, 0.08)",
+              }}
+            >
+              <div className="trace-header">
+                <div>
+                  <span className="eyebrow" style={{ color: "#ef4444" }}>
+                    {t("error.eyebrow")}
+                  </span>
+                  <h2 style={{ color: "#fca5a5" }}>{t("error.title")}</h2>
+                </div>
+              </div>
+              <p style={{ color: "#fecaca", margin: "16px 0", fontSize: "14px", lineHeight: 1.6 }}>
+                {errorMessage}
+              </p>
+              <small style={{ color: "#94a3b8" }}>{t("error.note")}</small>
+            </div>
+          ) : result ? (
+            <ResultView result={result} technical={technical} setTechnical={setTechnical} />
+          ) : (
+            <EmptyResult />
+          )}
         </section>
       </div>
     </main>
   )
 }
-function ErrorResult({ error, onDismiss }: { error: string; onDismiss: () => void }) {
+
+function EmptyResult() {
+  const { t } = useTranslation()
   return (
-    <div className="empty-result" style={{ padding: "40px 30px", textAlign: "center" }}>
-      <div className="empty-orbit" style={{ borderColor: "rgba(255, 99, 132, 0.5)", color: "#ff6384", boxShadow: "0 0 40px rgba(255, 99, 132, 0.15)" }}>
-        <ShieldCheck />
+    <div className="empty-result">
+      <div className="empty-orbit">
+        <Radar />
       </div>
-      <span className="eyebrow" style={{ color: "#ff6384" }}>INPUT VALIDATION / DOMAIN ALERT</span>
-      <h2 style={{ fontSize: "24px", margin: "14px 0 12px", letterSpacing: "-0.04em" }}>Non-Satellite Image Detected</h2>
-      <p style={{ maxWidth: "460px", color: "rgba(255, 255, 255, 0.7)", fontSize: "13px", lineHeight: 1.65, margin: "0 auto 24px" }}>
-        {error}
-      </p>
-      <div style={{ display: "flex", gap: "10px", justifyContent: "center" }}>
-        <button className="primary compact" onClick={onDismiss}>
-          Re-upload Imagery
-        </button>
+      <span className="eyebrow">{t("empty.eyebrow")}</span>
+      <h2>
+        {t("empty.title").split("\n").map((line, i) => (
+          <span key={i}>
+            {line}
+            {i === 0 && <br />}
+          </span>
+        ))}
+      </h2>
+      <p>{t("empty.desc")}</p>
+      <div className="empty-lines">
+        <span />
+        <span />
+        <span />
       </div>
     </div>
   )
 }
-function EmptyResult() { return <div className="empty-result"><div className="empty-orbit"><Radar/></div><span className="eyebrow">READY FOR INPUT</span><h2>Your next answer<br/>will appear here.</h2><p>Upload imagery and ask a question to begin an inspectable analysis.</p><div className="empty-lines"><span/><span/><span/></div></div> }
-function ExecutionTrace() { return <div className="trace-card"><div className="trace-header"><div><span className="eyebrow">LIVE / OBSERVABLE</span><h2>Agent execution</h2></div><Activity className="spin cyan"/></div><div className="trace-steps">{["Loading imagery", "Preprocessing imagery", "Mapping visual evidence", "Composing answer"].map((step, index) => <div className="trace-step" key={step}><span className="trace-dot">{index < 2 ? <Check/> : <Activity className="spin"/>}</span><div><strong>{step}</strong><small>{index < 2 ? "Complete" : "Working with visible evidence..."}</small></div><code>{index < 2 ? `${(index + 1) * 0.8}s` : "—"}</code></div>)}</div><div className="progress"><span style={{ width: "62%" }}/></div><p className="trace-foot">The agent is selecting the appropriate evidence workflow.</p></div> }
+
+function ExecutionTrace() {
+  const { t } = useTranslation()
+  const traceSteps = [
+    t("trace.step.loading"),
+    t("trace.step.preprocess"),
+    t("trace.step.mapping"),
+    t("trace.step.composing"),
+  ]
+
+  return (
+    <div className="trace-card">
+      <div className="trace-header">
+        <div>
+          <span className="eyebrow">{t("trace.eyebrow")}</span>
+          <h2>{t("trace.title")}</h2>
+        </div>
+        <Activity className="spin cyan" />
+      </div>
+      <div className="trace-steps">
+        {traceSteps.map((step, index) => (
+          <div className="trace-step" key={step}>
+            <span className="trace-dot">{index < 2 ? <Check /> : <Activity className="spin" />}</span>
+            <div>
+              <strong>{step}</strong>
+              <small>{index < 2 ? t("trace.step.complete") : t("trace.step.working")}</small>
+            </div>
+            <code>{index < 2 ? `${(index + 1) * 0.8}s` : "—"}</code>
+          </div>
+        ))}
+      </div>
+      <div className="progress">
+        <span style={{ width: "62%" }} />
+      </div>
+      <p className="trace-foot">{t("trace.foot")}</p>
+    </div>
+  )
+}
+
 function EvidenceViewer({ result }: { result: AnalysisResponse }) {
-  const [viewMode, setViewMode] = useState<"single" | "side-by-side" | "overlay">("single")
-  const [sliderPos, setSliderPos] = useState<number>(50)
-  const [isDragging, setIsDragging] = useState<boolean>(false)
-  const viewerRef = useRef<HTMLDivElement>(null)
-
-  const rawImg = result.rawImageUrl || result.images[0]?.url || "/satellite-optical.svg"
-  const overlayImg = result.overlayImageUrl || result.images[1]?.url || result.images[0]?.url || "/satellite-optical.svg"
-
-  const handleDrag = (clientX: number) => {
-    if (!viewerRef.current) return
-    const rect = viewerRef.current.getBoundingClientRect()
-    const offsetX = clientX - rect.left
-    const percentage = Math.max(0, Math.min(100, (offsetX / rect.width) * 100))
-    setSliderPos(Math.round(percentage))
-  }
-
-  const onMouseDown = (e: React.MouseEvent) => {
-    setIsDragging(true)
-    handleDrag(e.clientX)
-  }
-
-  const onTouchStart = (e: React.TouchEvent) => {
-    setIsDragging(true)
-    if (e.touches[0]) {
-      handleDrag(e.touches[0].clientX)
-    }
-  }
-
-  useEffect(() => {
-    if (!isDragging) return
-
-    const onMouseMove = (e: MouseEvent) => {
-      handleDrag(e.clientX)
-    }
-    const onMouseUp = () => {
-      setIsDragging(false)
-    }
-    const onTouchMove = (e: TouchEvent) => {
-      if (e.touches[0]) {
-        handleDrag(e.touches[0].clientX)
-      }
-    }
-    const onTouchEnd = () => {
-      setIsDragging(false)
-    }
-
-    window.addEventListener("mousemove", onMouseMove)
-    window.addEventListener("mouseup", onMouseUp)
-    window.addEventListener("touchmove", onTouchMove)
-    window.addEventListener("touchend", onTouchEnd)
-
-    return () => {
-      window.removeEventListener("mousemove", onMouseMove)
-      window.removeEventListener("mouseup", onMouseUp)
-      window.removeEventListener("touchmove", onTouchMove)
-      window.removeEventListener("touchend", onTouchEnd)
-    }
-  }, [isDragging])
+  const { t } = useTranslation()
+  const headEyebrow =
+    result.mode === "fusion" ? t("evidence.eyebrow.fused") : t("evidence.eyebrow.grounded")
 
   return (
     <div className="evidence">
       <div className="evidence-head">
         <div>
-          <span className="eyebrow">
-            VISUAL EVIDENCE / {result.mode === "fusion" ? "FUSED SENSOR" : result.mode === "temporal" ? "BI-TEMPORAL" : "GROUNDED REGION"}
-          </span>
-          <h3>
-            {viewMode === "overlay"
-              ? "Slidable Overlay Comparison"
-              : viewMode === "side-by-side"
-              ? "Side-by-Side Comparative View"
-              : "Claims connected to imagery"}
-          </h3>
+          <span className="eyebrow">{headEyebrow}</span>
+          <h3>{t("evidence.head.title")}</h3>
         </div>
         <div className="viewer-controls">
-          <button
-            className={viewMode === "single" ? "active" : ""}
-            onClick={() => setViewMode("single")}
-            title="Single annotated view"
-          >
-            <Layers3 /> Standard
+          <button>
+            <PanelTop /> {t("viewer.side_by_side")}
           </button>
-          <button
-            className={viewMode === "side-by-side" ? "active" : ""}
-            onClick={() => setViewMode(viewMode === "side-by-side" ? "single" : "side-by-side")}
-            title="Side-by-side comparison"
-          >
-            <PanelTop /> Side-by-side
-          </button>
-          <button
-            className={viewMode === "overlay" ? "active" : ""}
-            onClick={() => setViewMode(viewMode === "overlay" ? "single" : "overlay")}
-            title="Dynamic slidable comparison window"
-          >
-            <GitCompareArrows /> Slidable Overlay
+          <button>
+            <Layers3 /> {t("viewer.overlay")}
           </button>
         </div>
       </div>
-
-      {viewMode === "side-by-side" && (
-        <div className="side-by-side-grid">
-          <div className="side-panel">
-            <img src={rawImg} alt="Raw Satellite Observation" />
-            <div className="side-badge">
-              <Pill tone="dark">BASE OBSERVATION</Pill>
-              <span>{result.mode === "temporal" ? "T1 Earlier Baseline" : "Raw Satellite Raster"}</span>
-            </div>
-          </div>
-          <div className="side-panel">
-            <img src={overlayImg} alt="Tactical Analysis Evidence" />
-            {result.annotations.map((annotation) => (
-              <div
-                key={annotation.label}
-                className={`annotation ${annotation.color}`}
-                style={{
-                  left: `${annotation.x}%`,
-                  top: `${annotation.y}%`,
-                  width: `${annotation.width}%`,
-                  height: `${annotation.height}%`,
-                }}
-              >
-                <span>{annotation.label}</span>
-              </div>
-            ))}
-            <div className="side-badge">
-              <Pill tone="cyan">TACTICAL EVIDENCE</Pill>
-              <span>{result.mode === "temporal" ? "T2 / Heatmap" : result.mode === "fusion" ? "SAR / Fused Layer" : "Annotated Layer"}</span>
-            </div>
-          </div>
-        </div>
-      )}
-
-      {viewMode === "overlay" && (
-        <>
+      <div className="viewer">
+        <img src={result.images[0]?.url || "/satellite-optical.svg"} alt={t("aria.preview")} />
+        {result.annotations.map((annotation) => (
           <div
-            ref={viewerRef}
-            className="curtain-viewer"
-            onMouseDown={onMouseDown}
-            onTouchStart={onTouchStart}
+            key={annotation.label}
+            className={`annotation ${annotation.color}`}
+            style={{
+              left: `${annotation.x}%`,
+              top: `${annotation.y}%`,
+              width: `${annotation.width}%`,
+              height: `${annotation.height}%`,
+            }}
           >
-            <img
-              src={rawImg}
-              alt="Base Observation"
-              className="curtain-base-img"
-            />
-            <div
-              className="curtain-overlay-wrap"
-              style={{
-                clipPath: `polygon(0 0, ${sliderPos}% 0, ${sliderPos}% 100%, 0 100%)`,
-              }}
-            >
-              <img
-                src={overlayImg}
-                alt="Tactical Evidence Overlay"
-                className="curtain-overlay-img"
-              />
-              {result.annotations.map((annotation) => (
-                <div
-                  key={annotation.label}
-                  className={`annotation ${annotation.color}`}
-                  style={{
-                    left: `${annotation.x}%`,
-                    top: `${annotation.y}%`,
-                    width: `${annotation.width}%`,
-                    height: `${annotation.height}%`,
-                  }}
-                >
-                  <span>{annotation.label}</span>
-                </div>
-              ))}
-            </div>
-
-            <div
-              className="curtain-divider"
-              style={{ left: `${sliderPos}%` }}
-            >
-              <div className="curtain-handle">
-                <GitCompareArrows size={14} />
-              </div>
-            </div>
-
-            <div className="curtain-tag left">
-              <span>OVERLAY: {sliderPos}%</span>
-            </div>
-            <div className="curtain-tag right">
-              <span>BASE: {100 - sliderPos}%</span>
-            </div>
-
-            <div className="viewer-badge">
-              <Pill tone="dark">{result.imageType}</Pill>
-              <span>DRAG WINDOW OR SLIDE BAR</span>
-            </div>
+            <span>{annotation.label}</span>
           </div>
-
-          <div className="slider-control-bar">
-            <div className="slider-meta">
-              <span className="slider-label">INTERACTIVE WINDOW SWIPE</span>
-              <span className="slider-value">
-                OVERLAY {sliderPos}% ⟵ Divider ⟶ RAW BASE {100 - sliderPos}%
-              </span>
-            </div>
-            <div className="slider-track-wrap">
-              <span className="slider-end-label">0% (Base)</span>
-              <input
-                type="range"
-                min={0}
-                max={100}
-                value={sliderPos}
-                onChange={(e) => setSliderPos(Number(e.target.value))}
-                className="curtain-range"
-              />
-              <span className="slider-end-label">100% (Overlay)</span>
-            </div>
-            <div className="slider-presets">
-              {[0, 25, 50, 75, 100].map((pct) => (
-                <button
-                  key={pct}
-                  className={`preset-chip ${sliderPos === pct ? "active" : ""}`}
-                  onClick={() => setSliderPos(pct)}
-                >
-                  {pct === 0
-                    ? "0% Raw Base"
-                    : pct === 50
-                    ? "50% Split Window"
-                    : pct === 100
-                    ? "100% Full Overlay"
-                    : `${pct}%`}
-                </button>
-              ))}
-            </div>
-          </div>
-        </>
-      )}
-
-      {viewMode === "single" && (
-        <div className="viewer">
-          <img src={overlayImg} alt="Satellite analysis evidence" />
-          {result.annotations.map((annotation) => (
-            <div
-              key={annotation.label}
-              className={`annotation ${annotation.color}`}
-              style={{
-                left: `${annotation.x}%`,
-                top: `${annotation.y}%`,
-                width: `${annotation.width}%`,
-                height: `${annotation.height}%`,
-              }}
-            >
-              <span>{annotation.label}</span>
-            </div>
-          ))}
-          <div className="viewer-badge">
-            <Pill tone="dark">{result.imageType}</Pill>
-            <span>10 m / px</span>
-          </div>
+        ))}
+        <div className="viewer-badge">
+          <Pill tone="dark">{result.imageType}</Pill>
+          <span>10 m / px</span>
         </div>
-      )}
-
+      </div>
       <div className="evidence-legend">
-        <span><i className="cyan-dot" /> Connected evidence</span>
-        <span><i className="amber-dot" /> Change / caution region</span>
-        <span className="mono">
-          {viewMode === "overlay"
-            ? "SLIDABLE WINDOW ACTIVE"
-            : viewMode === "side-by-side"
-            ? "DUAL COMPARISON ACTIVE"
-            : "GROUNDING ACTIVE"}
+        <span>
+          <i className="cyan-dot" /> {t("legend.connected")}
         </span>
+        <span>
+          <i className="amber-dot" /> {t("legend.change")}
+        </span>
+        <span className="mono">{t("legend.active")}</span>
       </div>
     </div>
   )
 }
-function ResultView({ result, technical, setTechnical }: { result: AnalysisResponse; technical: boolean; setTechnical: (value: boolean) => void }) { const parts = result.answer.split(/(\*\*.*?\*\*)/g); return <div className="result-view"><div className="result-top"><div><span className="eyebrow">ANALYSIS COMPLETE · {result.mode.toUpperCase()}</span><h2>Here is what the imagery shows</h2></div><div className={`confidence ${result.confidence}`}><span>{Math.round(result.confidenceScore * 100)}%</span><small>{confidenceCopy[result.confidence]}</small></div></div><div className="answer">{parts.map((part, index) => part.startsWith("**") ? <strong key={index}>{part.slice(2, -2)}</strong> : <span key={index}>{part}</span>)}</div><EvidenceViewer result={result}/><div className="evidence-list">{result.evidence.map((item, index) => <div key={item}><span>0{index + 1}</span>{item}<Check/></div>)}</div>{result.reportUrl && <div style={{ marginTop: "1rem", marginBottom: "0.5rem" }}><a href={result.reportUrl} target="_blank" rel="noreferrer" className="secondary compact" style={{ display: "inline-flex", alignItems: "center", gap: "0.5rem", padding: "0.6rem 1.2rem", borderRadius: "8px", textDecoration: "none", background: "rgba(0, 240, 255, 0.1)", border: "1px solid rgba(0, 240, 255, 0.3)", color: "var(--cyan-400, #00f0ff)", fontSize: "0.85rem", fontWeight: 600 }}><PanelTop size={16} /> View Mission Intelligence Report (HTML) <ArrowRight size={14} /></a></div>}<button className="technical-toggle" onClick={() => setTechnical(!technical)}><span><span className="eyebrow">TRACE / METADATA</span><strong>Technical details</strong></span><ChevronDown className={technical ? "rotate" : ""}/></button>{technical && <div className="technical-grid">{[["Model", result.model], ["Resolution", result.resolution], ["Source", result.imageType], ["Processing", result.processingTime]].map(([label, value]) => <div key={label}><span>{label}</span><b>{value}</b></div>)}</div>}<p className="disclaimer">Confidence reflects image quality and evidence alignment, not certainty. Validate findings before operational decisions.</p></div> }
 
-function Dashboard({ navigate }: { navigate: (path: string) => void }) { const [history, setHistory] = useState<AnalysisResponse[]>([]); useEffect(() => setHistory(loadHistory()), []); return <main className="page dashboard"><div className="page-intro"><div><Pill><span className="pulse"/>COMMAND CENTER</Pill><h1>Analysis history</h1><p>A concise view of your analysis trail and system signals.</p></div><button className="primary compact" onClick={() => navigate("/analysis")}><ImagePlus/> New analysis</button></div><div className="metric-grid">{metricCards.map((metric) => <div className="metric" key={metric.label}><span>{metric.label}</span><strong>{metric.value}</strong><small>{metric.delta}</small></div>)}</div><section className="history-card"><div className="section-heading"><div><span className="eyebrow">RECENT ACTIVITY</span><h2>Evidence trail</h2></div><div className="search"><Search/><input placeholder="Filter analyses"/></div></div>{history.length === 0 ? <div className="history-empty"><Clock3/><p>No local analyses yet. Run your first scene interpretation to build a trail of evidence.</p><button className="secondary" onClick={() => navigate("/analysis?demo=1")}>Run guided demo <ArrowRight/></button></div> : <div className="history-list">{history.map((item) => <button className="history-row" key={item.id} onClick={() => navigate("/analysis")}><span>{formatDate(item.createdAt)}</span><strong>{item.mode === "temporal" ? "Bi-temporal" : item.mode === "fusion" ? "Optical + SAR" : "Single image"}</strong><p>{item.query}</p><Pill tone={item.confidence}>{Math.round(item.confidenceScore * 100)}%</Pill><ArrowRight/></button>)}</div>}</section></main> }
-function Evaluation({ navigate }: { navigate: (path: string) => void }) { return <main className="page evaluation"><div className="page-intro"><div><Pill><span className="pulse"/>EVALUATION COCKPIT</Pill><h1>Make intelligence inspectable.</h1><p>Review the behaviors that matter in an agentic vision-language workflow.</p></div><button className="secondary compact" onClick={() => navigate("/analysis")}><Radar/> Open workspace</button></div><div className="eval-grid"><section className="evaluation-card"><div className="section-heading"><div><span className="eyebrow">SYSTEM SIGNALS</span><h2>What the judge can inspect</h2></div><BarChart3/></div>{evaluationMetrics.map((metric) => <div className="eval-metric" key={metric.label}><div><strong>{metric.label}</strong><span>{metric.note}</span></div><b>{metric.value}%</b><div className="metric-bar"><span style={{ width: `${metric.value}%` }}/></div></div>)}</section><section className="evaluation-card architecture"><span className="eyebrow">FRONTEND ARCHITECTURE</span><h2>Simple on the surface.<br/><em>Ready for real inference.</em></h2><div className="arch-flow"><span>INPUTS</span><ArrowRight/><span>AGENT</span><ArrowRight/><span>EVIDENCE</span></div><p>Clean service boundaries keep the experience backend-agnostic. Swap the local adapter for a real API without rewriting the analysis workspace.</p><button className="secondary" onClick={() => navigate("/analysis")}>Test a scenario <ArrowRight/></button></section></div></main> }
-export default function Page() { const [path, setPath] = useState(() => typeof window === "undefined" ? "/" : window.location.pathname); const navigate = (next: string) => { const clean = next.split("?")[0]; setPath(clean); window.history.pushState({}, "", next) }; useEffect(() => { const sync = () => setPath(window.location.pathname); sync(); window.addEventListener("popstate", sync); return () => window.removeEventListener("popstate", sync) }, []); const page = useMemo(() => path === "/analysis" ? <Workspace navigate={navigate} initialDemo={window.location.search.includes("demo=1")}/> : path === "/dashboard" ? <Dashboard navigate={navigate}/> : path === "/evaluation" ? <Evaluation navigate={navigate}/> : <Landing navigate={navigate}/>, [path]); return <div className="app-shell"><Header path={path} navigate={navigate}/>{page}<footer><span>SatQuery AI · SIH 2026 / PS 26167</span><span>LOCAL DEMO DATA · REPLACEABLE API ADAPTER</span></footer></div> }
+function ResultView({
+  result,
+  technical,
+  setTechnical,
+}: {
+  result: AnalysisResponse
+  technical: boolean
+  setTechnical: (value: boolean) => void
+}) {
+  const { t } = useTranslation()
+  const parts = result.answer.split(/(\*\*.*?\*\*)/g)
+  const confidenceKey = `confidence.${result.confidence}` as const
+  const confidenceText = t(confidenceKey)
+
+  return (
+    <div className="result-view">
+      <div className="result-top">
+        <div>
+          <span className="eyebrow">{t("result.eyebrow", { mode: result.mode.toUpperCase() })}</span>
+          <h2>{t("result.title")}</h2>
+        </div>
+        <div className={`confidence ${result.confidence}`}>
+          <span>{Math.round(result.confidenceScore * 100)}%</span>
+          <small>{confidenceText}</small>
+        </div>
+      </div>
+      <div className="answer">
+        {parts.map((part, index) =>
+          part.startsWith("**") ? (
+            <strong key={index}>{part.slice(2, -2)}</strong>
+          ) : (
+            <span key={index}>{part}</span>
+          )
+        )}
+      </div>
+      <EvidenceViewer result={result} />
+      <div className="evidence-list">
+        {result.evidence.map((item, index) => (
+          <div key={item}>
+            <span>0{index + 1}</span>
+            {item}
+            <Check />
+          </div>
+        ))}
+      </div>
+      {result.reportUrl && (
+        <div style={{ marginTop: "1rem", marginBottom: "0.5rem" }}>
+          <a
+            href={result.reportUrl}
+            target="_blank"
+            rel="noreferrer"
+            className="secondary compact"
+            style={{
+              display: "inline-flex",
+              alignItems: "center",
+              gap: "0.5rem",
+              padding: "0.6rem 1.2rem",
+              borderRadius: "8px",
+              textDecoration: "none",
+              background: "rgba(0, 240, 255, 0.1)",
+              border: "1px solid rgba(0, 240, 255, 0.3)",
+              color: "var(--cyan-400, #00f0ff)",
+              fontSize: "0.85rem",
+              fontWeight: 600,
+            }}
+          >
+            <PanelTop size={16} /> {t("btn.report")} <ArrowRight size={14} />
+          </a>
+        </div>
+      )}
+      <button className="technical-toggle" onClick={() => setTechnical(!technical)}>
+        <span>
+          <span className="eyebrow">{t("meta.eyebrow")}</span>
+          <strong>{t("meta.title")}</strong>
+        </span>
+        <ChevronDown className={technical ? "rotate" : ""} />
+      </button>
+      {technical && (
+        <div className="technical-grid">
+          {[
+            [t("meta.model"), result.model],
+            [t("meta.resolution"), result.resolution],
+            [t("meta.source"), result.imageType],
+            [t("meta.processing"), result.processingTime],
+          ].map(([label, value]) => (
+            <div key={label}>
+              <span>{label}</span>
+              <b>{value}</b>
+            </div>
+          ))}
+        </div>
+      )}
+      <p className="disclaimer">{t("result.disclaimer")}</p>
+    </div>
+  )
+}
+
+function Dashboard({ navigate }: { navigate: (path: string) => void }) {
+  const { t } = useTranslation()
+  const [history, setHistory] = useState<AnalysisResponse[]>([])
+  useEffect(() => setHistory(loadHistory()), [])
+
+  const metricCards = [
+    { label: t("metric.analyses"), value: "24", delta: t("metric.analyses_delta") },
+    { label: t("metric.images"), value: "58", delta: t("metric.images_delta") },
+    { label: t("metric.confidence"), value: "93%", delta: t("metric.confidence_delta") },
+  ]
+
+  return (
+    <main className="page dashboard">
+      <div className="page-intro">
+        <div>
+          <Pill>
+            <span className="pulse" />
+            {t("dash.pill")}
+          </Pill>
+          <h1>{t("dash.title")}</h1>
+          <p>{t("dash.desc")}</p>
+        </div>
+        <button className="primary compact" onClick={() => navigate("/analysis")}>
+          <ImagePlus /> {t("dash.btn_new")}
+        </button>
+      </div>
+      <div className="metric-grid">
+        {metricCards.map((metric) => (
+          <div className="metric" key={metric.label}>
+            <span>{metric.label}</span>
+            <strong>{metric.value}</strong>
+            <small>{metric.delta}</small>
+          </div>
+        ))}
+      </div>
+      <section className="history-card">
+        <div className="section-heading">
+          <div>
+            <span className="eyebrow">{t("hist.eyebrow")}</span>
+            <h2>{t("hist.title")}</h2>
+          </div>
+          <div className="search">
+            <Search />
+            <input placeholder={t("hist.search")} />
+          </div>
+        </div>
+        {history.length === 0 ? (
+          <div className="history-empty">
+            <Clock3 />
+            <p>{t("hist.empty_desc")}</p>
+            <button className="secondary" onClick={() => navigate("/analysis?demo=1")}>
+              {t("hist.demo_btn")} <ArrowRight />
+            </button>
+          </div>
+        ) : (
+          <div className="history-list">
+            {history.map((item) => (
+              <button className="history-row" key={item.id} onClick={() => navigate("/analysis")}>
+                <span>{formatDate(item.createdAt)}</span>
+                <strong>{t(`mode.${item.mode}.label` as any)}</strong>
+                <p>{item.query}</p>
+                <Pill tone={item.confidence}>{Math.round(item.confidenceScore * 100)}%</Pill>
+                <ArrowRight />
+              </button>
+            ))}
+          </div>
+        )}
+      </section>
+    </main>
+  )
+}
+
+function Evaluation({ navigate }: { navigate: (path: string) => void }) {
+  const { t } = useTranslation()
+
+  const evaluationMetrics = [
+    { label: t("eval.metric1.label"), value: 96, note: t("eval.metric1.note") },
+    { label: t("eval.metric2.label"), value: 100, note: t("eval.metric2.note") },
+    { label: t("eval.metric3.label"), value: 94, note: t("eval.metric3.note") },
+  ]
+
+  return (
+    <main className="page evaluation">
+      <div className="page-intro">
+        <div>
+          <Pill>
+            <span className="pulse" />
+            {t("eval.pill")}
+          </Pill>
+          <h1>{t("eval.title")}</h1>
+          <p>{t("eval.desc")}</p>
+        </div>
+        <button className="secondary compact" onClick={() => navigate("/analysis")}>
+          <Radar /> {t("eval.workspace_btn")}
+        </button>
+      </div>
+      <div className="eval-grid">
+        <section className="evaluation-card">
+          <div className="section-heading">
+            <div>
+              <span className="eyebrow">{t("eval.signals.eyebrow")}</span>
+              <h2>{t("eval.signals.title")}</h2>
+            </div>
+            <BarChart3 />
+          </div>
+          {evaluationMetrics.map((metric) => (
+            <div className="eval-metric" key={metric.label}>
+              <div>
+                <strong>{metric.label}</strong>
+                <span>{metric.note}</span>
+              </div>
+              <b>{metric.value}%</b>
+              <div className="metric-bar">
+                <span style={{ width: `${metric.value}%` }} />
+              </div>
+            </div>
+          ))}
+        </section>
+        <section className="evaluation-card architecture">
+          <span className="eyebrow">{t("eval.arch.eyebrow")}</span>
+          <h2>
+            {t("eval.arch.title1")}
+            <br />
+            <em>{t("eval.arch.title2")}</em>
+          </h2>
+          <div className="arch-flow">
+            <span>{t("eval.arch.flow.inputs")}</span>
+            <ArrowRight />
+            <span>{t("eval.arch.flow.agent")}</span>
+            <ArrowRight />
+            <span>{t("eval.arch.flow.evidence")}</span>
+          </div>
+          <p>{t("eval.arch.desc")}</p>
+          <button className="secondary" onClick={() => navigate("/analysis")}>
+            {t("eval.scenario_btn")} <ArrowRight />
+          </button>
+        </section>
+      </div>
+    </main>
+  )
+}
+
+function PageContent() {
+  const [path, setPath] = useState(() => (typeof window === "undefined" ? "/" : window.location.pathname))
+  const { t } = useTranslation()
+
+  const navigate = (next: string) => {
+    const clean = next.split("?")[0]
+    setPath(clean)
+    window.history.pushState({}, "", next)
+  }
+
+  useEffect(() => {
+    const sync = () => setPath(window.location.pathname)
+    sync()
+    window.addEventListener("popstate", sync)
+    return () => window.removeEventListener("popstate", sync)
+  }, [])
+
+  const page = useMemo(
+    () =>
+      path === "/analysis" ? (
+        <Workspace navigate={navigate} initialDemo={typeof window !== "undefined" && window.location.search.includes("demo=1")} />
+      ) : path === "/dashboard" ? (
+        <Dashboard navigate={navigate} />
+      ) : path === "/evaluation" ? (
+        <Evaluation navigate={navigate} />
+      ) : (
+        <Landing navigate={navigate} />
+      ),
+    [path]
+  )
+
+  return (
+    <div className="app-shell">
+      <Header path={path} navigate={navigate} />
+      {page}
+      <footer>
+        <span>{t("footer.left")}</span>
+        <span>{t("footer.right")}</span>
+      </footer>
+    </div>
+  )
+}
+
+export default function Page() {
+  return (
+    <I18nProvider>
+      <PageContent />
+    </I18nProvider>
+  )
+}
