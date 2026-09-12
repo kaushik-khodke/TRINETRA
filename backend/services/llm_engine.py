@@ -76,15 +76,16 @@ class LLMReasoningEngine:
         }
 
     @classmethod
-    def _execute_ollama_prompt(cls, ollama_url: str, model: str, prompt: str, max_tokens: int = 200) -> Optional[str]:
+    def _execute_ollama_prompt(cls, ollama_url: str, model: str, prompt: str, system: Optional[str] = None, max_tokens: int = 250) -> Optional[str]:
         """Generic, reliable runner for local Ollama completion queries."""
         try:
             req_payload = {
                 "model": model,
                 "prompt": prompt,
+                "system": system or "You are SatQuery AI, an expert Earth Observation and Remote Sensing Vision-Language Assistant developed for ISRO. You answer questions directly, insightfully, and concisely based strictly on physical satellite observations.",
                 "stream": False,
                 "options": {
-                    "temperature": 0.2,
+                    "temperature": 0.25,
                     "num_predict": max_tokens
                 }
             }
@@ -115,7 +116,7 @@ class LLMReasoningEngine:
         detected_features: Dict[str, Any]
     ) -> Dict[str, Any]:
         """
-        Answers a user question grounded in physical radiometric measurements.
+        Answers a user question grounded in physical radiometric measurements and spatial layout.
         Priority:
         1. Local Ollama (if running and model downloaded)
         2. Google Gemini API (if key present in environment)
@@ -124,18 +125,22 @@ class LLMReasoningEngine:
         # 1. Attempt Ollama
         ollama_status = cls.check_ollama_status()
         if ollama_status["available"] and ollama_status["selected_model"]:
-            prompt = f"""You are SatQuery AI, an ISRO remote-sensing vision-language assistant.
-Answer the user's question directly and concisely based on these real satellite sensor measurements:
-- Sensor Modality: {modality.upper()}
-- Vegetation Cover (NDVI/VARI): {spectral_metrics.get('vegetation_cover_pct', 0)}% (Mean: {spectral_metrics.get('mean_ndvi', 0)})
-- Hydrological Surface Water (NDWI): {spectral_metrics.get('water_body_pct', 0)}% (Mean: {spectral_metrics.get('mean_ndwi', 0)})
+            spatial_dist = spectral_metrics.get("spatial_distribution", "Uniformly distributed")
+            prompt = f"""You are analyzing a satellite observation tile ({modality.upper()} sensor).
+Radiometric and Spatial Measurements:
+- Vegetation Cover (NDVI/VARI): {spectral_metrics.get('vegetation_cover_pct', 0)}% (Mean NDVI: {spectral_metrics.get('mean_ndvi', 0)})
+- Hydrological Surface Water (NDWI): {spectral_metrics.get('water_body_pct', 0)}% (Mean NDWI: {spectral_metrics.get('mean_ndwi', 0)})
 - Urban / Built-Up Density: {spectral_metrics.get('built_up_density_pct', 0)}%
 - Bare Soil / Substrate: {spectral_metrics.get('bare_soil_pct', 0)}%
-- Structural Features: {detected_features}
+- Spatial Quadrant Distribution: {spatial_dist}
+- Observable Structural Features: {detected_features}
 
 User Question: "{query}"
 
-Provide a concise, direct answer (2 sentences max) answering the question using the radiometric measurements above."""
+CRITICAL INSTRUCTIONS:
+1. Directly answer what the user asked in your first sentence. If asked about water, suitability, vegetation, buildings, or location, focus specifically on answering that topic.
+2. Do NOT simply recite a dry list of numbers or output robotic code flags like '(has_water: True)'. Speak naturally and authoritatively as a remote-sensing scientist.
+3. Be concise and conclusive (2 to 3 sentences maximum), citing the relevant spatial sectors and verified radiometric indices."""
 
             ans = cls._execute_ollama_prompt(ollama_status["url"], ollama_status["selected_model"], prompt)
             if ans:
@@ -161,6 +166,101 @@ Provide a concise, direct answer (2 sentences max) answering the question using 
 
         # 3. Deterministic Grounded Remote-Sensing Physics Engine
         return cls._domain_grounded_synthesis(query, modality, spectral_metrics, detected_features)
+
+    # ==========================================
+    # 1B. Text-Guided Region Grounding Reasoning
+    # ==========================================
+
+    @classmethod
+    def synthesize_grounding_answer(
+        cls,
+        query: str,
+        modality: str,
+        boxes: List[Dict[str, Any]],
+        spectral_metrics: Dict[str, Any],
+        image_shape: Any
+    ) -> Dict[str, Any]:
+        """
+        Synthesizes a natural-language explanation of detected grounding bounding boxes
+        and spatial locations to directly answer where the requested features are.
+        """
+        if not boxes:
+            box_summary = "No prominent localized regions matching the query criteria met the detection threshold."
+        else:
+            box_descs = []
+            for b in boxes:
+                bbox = b.get("bbox", [0, 0, 1, 1])
+                ymin, xmin, ymax, xmax = [round(float(c) * 100, 1) for c in bbox]
+                ns = "Northern" if ymax <= 50 else ("Southern" if ymin >= 50 else "Central")
+                ew = "Western" if xmax <= 50 else ("Eastern" if xmin >= 50 else "Central")
+                sector = f"{ns}-{ew}" if ns != ew else ns
+                box_descs.append(f"{b.get('label', 'Feature')} in {sector} sector [X: {xmin}%–{xmax}%, Y: {ymin}%–{ymax}%] (Confidence: {round(float(b.get('score', 0.9))*100)}%)")
+            box_summary = "; ".join(box_descs)
+
+        # 1. Attempt Ollama
+        ollama_status = cls.check_ollama_status()
+        if ollama_status["available"] and ollama_status["selected_model"]:
+            prompt = f"""You are analyzing a satellite observation tile ({modality.upper()} sensor).
+The user asked to locate or identify specific features in this satellite scene:
+"{query}"
+
+Grounding Detection Results:
+- Detected Target Count: {len(boxes)}
+- Located Bounding Regions: {box_summary}
+- Supporting Radiometric Context: Vegetation {spectral_metrics.get('vegetation_cover_pct', 0)}%, Water {spectral_metrics.get('water_body_pct', 0)}%, Built-up {spectral_metrics.get('built_up_density_pct', 0)}%
+- Spatial Distribution: {spectral_metrics.get('spatial_distribution', 'Detailed in scene')}
+
+Instructions:
+1. Directly answer what the user asked (confirm whether and specifically WHERE the feature was identified in the scene).
+2. Cite the exact spatial location (e.g. quadrant, sector, or coordinate percentage) and describe the surrounding context.
+3. Provide a clear, natural-language response in 2–3 sentences."""
+
+            ans = cls._execute_ollama_prompt(ollama_status["url"], ollama_status["selected_model"], prompt)
+            if ans:
+                return {
+                    "answer": ans,
+                    "engine": f"Ollama ({ollama_status['selected_model']}) Grounded Spatial Localization",
+                    "confidence": max([float(b.get("score", 0.92)) for b in boxes]) if boxes else 0.85
+                }
+
+        # 2. Attempt Gemini
+        api_key = cls.get_gemini_api_key()
+        if api_key:
+            try:
+                ans = cls._call_gemini_generic(
+                    api_key,
+                    f"You are SatQuery AI for ISRO. Answer the query: '{query}'. Detected features: {box_summary}. Context: Veg {spectral_metrics.get('vegetation_cover_pct', 0)}%, Water {spectral_metrics.get('water_body_pct', 0)}%. Answer directly where the feature is located in 2 sentences."
+                )
+                if ans:
+                    return {
+                        "answer": ans,
+                        "engine": "Gemini Grounded Localization",
+                        "confidence": 0.95
+                    }
+            except Exception as e:
+                print(f"[LLMEngine] Gemini grounding error: {e}")
+
+        # 3. Deterministic Domain Fallback
+        if boxes:
+            primary = boxes[0]
+            bbox = primary.get("bbox", [0, 0, 1, 1])
+            ymin, xmin, ymax, xmax = [round(float(c) * 100, 1) for c in bbox]
+            ns = "northern" if ymax <= 50 else ("southern" if ymin >= 50 else "central")
+            ew = "western" if xmax <= 50 else ("eastern" if xmin >= 50 else "central")
+            sector = f"{ns}-{ew}" if ns != ew else ns
+            answer = (
+                f"The target feature ({primary.get('label', 'Feature')}) is prominently located in the {sector} sector of the scene "
+                f"(coordinates: x: {xmin}%–{xmax}%, y: {ymin}%–{ymax}%). "
+                f"Tactical bounding box overlay has been registered with {round(float(primary.get('score', 0.94))*100)}% confidence."
+            )
+        else:
+            answer = f"No distinct spatial feature matching '{query}' was detected above the radiometric confidence threshold."
+
+        return {
+            "answer": answer,
+            "engine": "Grounded Geospatial Contour Localization (Local Physics)",
+            "confidence": 0.92
+        }
 
     # ==========================================
     # 2. Bi-Temporal Change Reasoning

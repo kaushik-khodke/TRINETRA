@@ -117,6 +117,37 @@ class GeospatialNormalizer:
         urban_pct = round(float(np.sum(is_urban & (~is_veg) & (~is_water))) / total_pixels * 100.0, 1)
         bare_pct = max(0.0, round(100.0 - (veg_pct + water_pct + urban_pct), 1))
 
+        # Spatial quadrant breakdown
+        mid_y, mid_x = gray.shape[0] // 2, gray.shape[1] // 2
+        water_quads = {
+            "Northwest": round(float(np.mean(is_water[:mid_y, :mid_x])) * 100.0, 1),
+            "Northeast": round(float(np.mean(is_water[:mid_y, mid_x:])) * 100.0, 1),
+            "Southwest": round(float(np.mean(is_water[mid_y:, :mid_x])) * 100.0, 1),
+            "Southeast": round(float(np.mean(is_water[mid_y:, mid_x:])) * 100.0, 1),
+        }
+        veg_quads = {
+            "Northwest": round(float(np.mean(is_veg[:mid_y, :mid_x])) * 100.0, 1),
+            "Northeast": round(float(np.mean(is_veg[:mid_y, mid_x:])) * 100.0, 1),
+            "Southwest": round(float(np.mean(is_veg[mid_y:, :mid_x])) * 100.0, 1),
+            "Southeast": round(float(np.mean(is_veg[mid_y:, mid_x:])) * 100.0, 1),
+        }
+        urban_quads = {
+            "Northwest": round(float(np.mean(is_urban[:mid_y, :mid_x])) * 100.0, 1),
+            "Northeast": round(float(np.mean(is_urban[:mid_y, mid_x:])) * 100.0, 1),
+            "Southwest": round(float(np.mean(is_urban[mid_y:, :mid_x])) * 100.0, 1),
+            "Southeast": round(float(np.mean(is_urban[mid_y:, mid_x:])) * 100.0, 1),
+        }
+
+        top_water_sectors = [f"{k} ({v}%)" for k, v in sorted(water_quads.items(), key=lambda x: x[1], reverse=True) if v > 1.0]
+        top_veg_sectors = [f"{k} ({v}%)" for k, v in sorted(veg_quads.items(), key=lambda x: x[1], reverse=True) if v > 5.0]
+        top_urban_sectors = [f"{k} ({v}%)" for k, v in sorted(urban_quads.items(), key=lambda x: x[1], reverse=True) if v > 2.0]
+
+        spatial_desc = (
+            f"Water concentrated in: {', '.join(top_water_sectors) if top_water_sectors else 'None'}; "
+            f"Vegetation concentrated in: {', '.join(top_veg_sectors) if top_veg_sectors else 'Sparse'}; "
+            f"Built-up in: {', '.join(top_urban_sectors) if top_urban_sectors else 'Low'}"
+        )
+
         return {
             "vegetation_cover_pct": veg_pct,
             "water_body_pct": water_pct,
@@ -124,6 +155,12 @@ class GeospatialNormalizer:
             "bare_soil_pct": bare_pct,
             "mean_ndvi": round(float(np.mean(ndvi)), 3),
             "mean_ndwi": round(float(np.mean(ndwi)), 3),
+            "spatial_distribution": spatial_desc,
+            "quadrants": {
+                "water": water_quads,
+                "vegetation": veg_quads,
+                "urban": urban_quads
+            },
             "ndvi_map": ndvi,
             "ndwi_map": ndwi
         }

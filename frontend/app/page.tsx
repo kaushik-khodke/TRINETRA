@@ -26,11 +26,400 @@ function Pill({ children, tone = "cyan" }: { children: React.ReactNode; tone?: s
 function SatelliteBackdrop() { return <div className="backdrop"><div className="orb"/><div className="orbit orbit-one"/><div className="orbit orbit-two"/><div className="scanline"/></div> }
 function Landing({ navigate }: { navigate: (path: string) => void }) { return <main className="landing"><SatelliteBackdrop/><div className="hero"><Pill><span className="pulse"/>AGENTIC VISION-LANGUAGE ANALYSIS</Pill><h1>Ask Earth.<br/><span>See evidence.</span></h1><p>SatQuery AI turns complex satellite imagery questions into grounded, inspectable answers — without requiring a remote-sensing background.</p><div className="hero-actions"><button className="primary" onClick={() => navigate("/analysis")}>Start Analysis <ArrowRight /></button><button className="secondary" onClick={() => navigate("/analysis?demo=1")}>Explore Demo <Sparkles /></button></div><div className="hero-stats"><div><b>03</b><span>analysis modes</span></div><div><b>01</b><span>evidence layer</span></div><div><b>04</b><span>guided scenarios</span></div></div></div><div className="capabilities">{modes.map((mode) => <div className="cap-card" key={mode.id}><div className="cap-icon"><Icon mode={mode.id}/></div><div><span className="eyebrow">0{modes.indexOf(mode) + 1} / {mode.label}</span><h3>{mode.description}</h3><p>{mode.id === "single" ? "Ask about land use, vegetation, water, infrastructure, or conditions." : mode.id === "temporal" ? "Compare two dates to surface meaningful change and movement." : "Fuse visible context with radar signals for deeper evidence."}</p></div></div>)}</div></main> }
 function UploadSlot({ slot, image, onFile, onRemove }: { slot: { label: string; hint: string }; image?: ImageInput; onFile: (file: File) => void; onRemove: () => void }) { const ref = useRef<HTMLInputElement>(null); return <div className={`upload-slot ${image ? "filled" : ""}`} onDragOver={(e) => e.preventDefault()} onDrop={(e) => { e.preventDefault(); const file = e.dataTransfer.files[0]; if (file) onFile(file) }} onClick={() => !image && ref.current?.click()}>{image ? <><img src={image.url} alt="Uploaded satellite preview"/><div className="slot-overlay"><Pill tone="dark">{slot.hint}</Pill><strong>{image.name}</strong><span>{formatBytes(image.size)}</span></div><button className="remove" onClick={(e) => { e.stopPropagation(); onRemove() }} aria-label="Remove image"><X /></button></> : <><input ref={ref} type="file" accept="image/png,image/jpeg,image/tiff,.tif,.tiff" hidden onChange={(e) => e.target.files?.[0] && onFile(e.target.files[0])}/><Upload/><strong>{slot.label}</strong><span>Drop image or click to browse</span><small>{slot.hint} · PNG, JPEG, GeoTIFF</small></>}</div> }
-function Workspace({ navigate, initialDemo = false }: { navigate: (path: string) => void; initialDemo?: boolean }) { const [mode, setMode] = useState<AnalysisMode>(initialDemo ? "temporal" : "single"); const [images, setImages] = useState<ImageInput[]>(initialDemo ? [imagePresets.before, imagePresets.after] : []); const [query, setQuery] = useState(initialDemo ? demoScenarios[0].query : ""); const [result, setResult] = useState<AnalysisResponse>(); const [running, setRunning] = useState(false); const [technical, setTechnical] = useState(false); const slots = modeSlots(mode); const ready = isReady(mode, images, query); const setModeAndReset = (next: AnalysisMode) => { setMode(next); setImages([]); setResult(undefined) }; const addImage = (file: File, index: number) => setImages((current) => { const next = [...current]; next[index] = normalizeFile(file, slots[index].label, mode === "fusion" ? (index === 0 ? "OPTICAL" : "SAR") : undefined); return next }); const run = async () => { if (!ready) return; setRunning(true); setResult(undefined); const response = await analysisAPI.submitAnalysis({ mode, images, query }); setResult(response); saveHistory(response); setRunning(false) }; useEffect(() => { if (initialDemo && !result) { setTimeout(() => run(), 450) } }, [])
- return <main className="workspace page"><div className="page-intro"><div><Pill><span className="pulse"/>WORKSPACE / LIVE</Pill><h1>Analysis workspace</h1><p>Choose a workflow, add imagery, and ask a question. The agent handles the rest.</p></div><button className="secondary compact" onClick={() => navigate("/dashboard")}><Clock3/> History</button></div><div className="workspace-grid"><section className="input-panel"><div className="section-heading"><div><span className="eyebrow">01 / workflow</span><h2>What are you looking at?</h2></div><Pill tone="muted">{modeRequirements[mode]}</Pill></div><div className="mode-grid">{modes.map((item) => <button key={item.id} className={`mode-card ${mode === item.id ? "selected" : ""}`} onClick={() => setModeAndReset(item.id)}><Icon mode={item.id}/><strong>{item.label}</strong><span>{item.description}</span></button>)}</div><div className="section-heading upload-heading"><div><span className="eyebrow">02 / imagery</span><h2>Upload your evidence</h2></div><span className="accepted">PNG / JPEG / GeoTIFF · MAX 50MB</span></div><div className={`upload-grid ${mode === "single" ? "single" : ""}`}>{slots.map((slot, index) => <UploadSlot key={slot.label} slot={slot} image={images[index]} onFile={(file) => addImage(file, index)} onRemove={() => setImages((current) => current.filter((_, i) => i !== index))}/>)}</div><div className="supported"><ShieldCheck/> <span>Supports Landsat, Sentinel, MODIS, Planet, and custom image exports.</span></div><div className="section-heading query-heading"><div><span className="eyebrow">03 / intent</span><h2>What do you want to know?</h2></div><span className="accepted">{query.length}/240</span></div><textarea value={query} maxLength={240} onChange={(e) => setQuery(e.target.value)} onKeyDown={(e) => { if (e.key === "Enter" && !e.shiftKey && !e.nativeEvent.isComposing && e.keyCode !== 229) { e.preventDefault(); run() } }} placeholder="Ask about land use, changes, infrastructure, damage, vegetation, water bodies..."/><div className="examples"><span>Try asking</span>{examples[mode].map((example) => <button key={example} onClick={() => setQuery(example)}>{example}</button>)}</div><button className="analyze primary" disabled={!ready || running} onClick={run}>{running ? <><Activity className="spin"/> Processing evidence...</> : <>Analyze <ArrowRight/></>}</button><p className="local-note"><Sparkles/> Connected to SatQuery Multi-Model Reasoning Engine + Local LLM</p></section><section className="result-panel">{running ? <ExecutionTrace/> : result ? <ResultView result={result} technical={technical} setTechnical={setTechnical}/> : <EmptyResult/>}</section></div></main> }
+function Workspace({ navigate, initialDemo = false }: { navigate: (path: string) => void; initialDemo?: boolean }) {
+  const [mode, setMode] = useState<AnalysisMode>(initialDemo ? "temporal" : "single")
+  const [images, setImages] = useState<ImageInput[]>(initialDemo ? [imagePresets.before, imagePresets.after] : [])
+  const [query, setQuery] = useState(initialDemo ? demoScenarios[0].query : "")
+  const [result, setResult] = useState<AnalysisResponse>()
+  const [error, setError] = useState<string | null>(null)
+  const [running, setRunning] = useState(false)
+  const [technical, setTechnical] = useState(false)
+  const slots = modeSlots(mode)
+  const ready = isReady(mode, images, query)
+  const setModeAndReset = (next: AnalysisMode) => { setMode(next); setImages([]); setResult(undefined); setError(null) }
+  const addImage = (file: File, index: number) => {
+    setError(null)
+    setImages((current) => {
+      const next = [...current]
+      next[index] = normalizeFile(file, slots[index].label, mode === "fusion" ? (index === 0 ? "OPTICAL" : "SAR") : undefined)
+      return next
+    })
+  }
+  const run = async () => {
+    if (!ready) return
+    setRunning(true)
+    setError(null)
+    setResult(undefined)
+    try {
+      const response = await analysisAPI.submitAnalysis({ mode, images, query })
+      setResult(response)
+      saveHistory(response)
+    } catch (err: any) {
+      setError(err?.message || "Analysis could not be completed.")
+    } finally {
+      setRunning(false)
+    }
+  }
+  useEffect(() => { if (initialDemo && !result) { setTimeout(() => run(), 450) } }, [])
+
+  return (
+    <main className="workspace page">
+      <div className="page-intro">
+        <div>
+          <Pill><span className="pulse"/>WORKSPACE / LIVE</Pill>
+          <h1>Analysis workspace</h1>
+          <p>Choose a workflow, add imagery, and ask a question. The agent handles the rest.</p>
+        </div>
+        <button className="secondary compact" onClick={() => navigate("/dashboard")}><Clock3/> History</button>
+      </div>
+      <div className="workspace-grid">
+        <section className="input-panel">
+          <div className="section-heading">
+            <div><span className="eyebrow">01 / workflow</span><h2>What are you looking at?</h2></div>
+            <Pill tone="muted">{modeRequirements[mode]}</Pill>
+          </div>
+          <div className="mode-grid">
+            {modes.map((item) => (
+              <button key={item.id} className={`mode-card ${mode === item.id ? "selected" : ""}`} onClick={() => setModeAndReset(item.id)}>
+                <Icon mode={item.id}/><strong>{item.label}</strong><span>{item.description}</span>
+              </button>
+            ))}
+          </div>
+          <div className="section-heading upload-heading">
+            <div><span className="eyebrow">02 / imagery</span><h2>Upload your evidence</h2></div>
+            <span className="accepted">PNG / JPEG / GeoTIFF · MAX 50MB</span>
+          </div>
+          <div className={`upload-grid ${mode === "single" ? "single" : ""}`}>
+            {slots.map((slot, index) => (
+              <UploadSlot key={slot.label} slot={slot} image={images[index]} onFile={(file) => addImage(file, index)} onRemove={() => setImages((current) => current.filter((_, i) => i !== index))}/>
+            ))}
+          </div>
+          <div className="supported">
+            <ShieldCheck/> <span>Supports Landsat, Sentinel, MODIS, Planet, and custom image exports.</span>
+          </div>
+          <div className="section-heading query-heading">
+            <div><span className="eyebrow">03 / intent</span><h2>What do you want to know?</h2></div>
+            <span className="accepted">{query.length}/240</span>
+          </div>
+          <textarea
+            value={query}
+            maxLength={240}
+            onChange={(e) => setQuery(e.target.value)}
+            onKeyDown={(e) => { if (e.key === "Enter" && !e.shiftKey && !e.nativeEvent.isComposing && e.keyCode !== 229) { e.preventDefault(); run() } }}
+            placeholder="Ask about land use, changes, infrastructure, damage, vegetation, water bodies..."
+          />
+          <div className="examples">
+            <span>Try asking</span>
+            {examples[mode].map((example) => (
+              <button key={example} onClick={() => setQuery(example)}>{example}</button>
+            ))}
+          </div>
+          <button className="analyze primary" disabled={!ready || running} onClick={run}>
+            {running ? <><Activity className="spin"/> Processing evidence...</> : <>Analyze <ArrowRight/></>}
+          </button>
+          <p className="local-note"><Sparkles/> Connected to SatQuery Multi-Model Reasoning Engine + Local LLM</p>
+        </section>
+        <section className="result-panel">
+          {running ? <ExecutionTrace/> : error ? <ErrorResult error={error} onDismiss={() => setError(null)} /> : result ? <ResultView result={result} technical={technical} setTechnical={setTechnical}/> : <EmptyResult/>}
+        </section>
+      </div>
+    </main>
+  )
+}
+function ErrorResult({ error, onDismiss }: { error: string; onDismiss: () => void }) {
+  return (
+    <div className="empty-result" style={{ padding: "40px 30px", textAlign: "center" }}>
+      <div className="empty-orbit" style={{ borderColor: "rgba(255, 99, 132, 0.5)", color: "#ff6384", boxShadow: "0 0 40px rgba(255, 99, 132, 0.15)" }}>
+        <ShieldCheck />
+      </div>
+      <span className="eyebrow" style={{ color: "#ff6384" }}>INPUT VALIDATION / DOMAIN ALERT</span>
+      <h2 style={{ fontSize: "24px", margin: "14px 0 12px", letterSpacing: "-0.04em" }}>Non-Satellite Image Detected</h2>
+      <p style={{ maxWidth: "460px", color: "rgba(255, 255, 255, 0.7)", fontSize: "13px", lineHeight: 1.65, margin: "0 auto 24px" }}>
+        {error}
+      </p>
+      <div style={{ display: "flex", gap: "10px", justifyContent: "center" }}>
+        <button className="primary compact" onClick={onDismiss}>
+          Re-upload Imagery
+        </button>
+      </div>
+    </div>
+  )
+}
 function EmptyResult() { return <div className="empty-result"><div className="empty-orbit"><Radar/></div><span className="eyebrow">READY FOR INPUT</span><h2>Your next answer<br/>will appear here.</h2><p>Upload imagery and ask a question to begin an inspectable analysis.</p><div className="empty-lines"><span/><span/><span/></div></div> }
 function ExecutionTrace() { return <div className="trace-card"><div className="trace-header"><div><span className="eyebrow">LIVE / OBSERVABLE</span><h2>Agent execution</h2></div><Activity className="spin cyan"/></div><div className="trace-steps">{["Loading imagery", "Preprocessing imagery", "Mapping visual evidence", "Composing answer"].map((step, index) => <div className="trace-step" key={step}><span className="trace-dot">{index < 2 ? <Check/> : <Activity className="spin"/>}</span><div><strong>{step}</strong><small>{index < 2 ? "Complete" : "Working with visible evidence..."}</small></div><code>{index < 2 ? `${(index + 1) * 0.8}s` : "—"}</code></div>)}</div><div className="progress"><span style={{ width: "62%" }}/></div><p className="trace-foot">The agent is selecting the appropriate evidence workflow.</p></div> }
-function EvidenceViewer({ result }: { result: AnalysisResponse }) { return <div className="evidence"><div className="evidence-head"><div><span className="eyebrow">VISUAL EVIDENCE / {result.mode === "fusion" ? "FUSED VIEW" : "GROUNDED REGION"}</span><h3>Claims connected to imagery</h3></div><div className="viewer-controls"><button><PanelTop/> Side-by-side</button><button><Layers3/> Overlay</button></div></div><div className="viewer"><img src={result.images[0]?.url || "/satellite-optical.svg"} alt="Satellite analysis evidence"/>{result.annotations.map((annotation) => <div key={annotation.label} className={`annotation ${annotation.color}`} style={{ left: `${annotation.x}%`, top: `${annotation.y}%`, width: `${annotation.width}%`, height: `${annotation.height}%` }}><span>{annotation.label}</span></div>)}<div className="viewer-badge"><Pill tone="dark">{result.imageType}</Pill><span>10 m / px</span></div></div><div className="evidence-legend"><span><i className="cyan-dot"/> Connected evidence</span><span><i className="amber-dot"/> Change / caution region</span><span className="mono">GROUNDING ACTIVE</span></div></div> }
+function EvidenceViewer({ result }: { result: AnalysisResponse }) {
+  const [viewMode, setViewMode] = useState<"single" | "side-by-side" | "overlay">("single")
+  const [sliderPos, setSliderPos] = useState<number>(50)
+  const [isDragging, setIsDragging] = useState<boolean>(false)
+  const viewerRef = useRef<HTMLDivElement>(null)
+
+  const rawImg = result.rawImageUrl || result.images[0]?.url || "/satellite-optical.svg"
+  const overlayImg = result.overlayImageUrl || result.images[1]?.url || result.images[0]?.url || "/satellite-optical.svg"
+
+  const handleDrag = (clientX: number) => {
+    if (!viewerRef.current) return
+    const rect = viewerRef.current.getBoundingClientRect()
+    const offsetX = clientX - rect.left
+    const percentage = Math.max(0, Math.min(100, (offsetX / rect.width) * 100))
+    setSliderPos(Math.round(percentage))
+  }
+
+  const onMouseDown = (e: React.MouseEvent) => {
+    setIsDragging(true)
+    handleDrag(e.clientX)
+  }
+
+  const onTouchStart = (e: React.TouchEvent) => {
+    setIsDragging(true)
+    if (e.touches[0]) {
+      handleDrag(e.touches[0].clientX)
+    }
+  }
+
+  useEffect(() => {
+    if (!isDragging) return
+
+    const onMouseMove = (e: MouseEvent) => {
+      handleDrag(e.clientX)
+    }
+    const onMouseUp = () => {
+      setIsDragging(false)
+    }
+    const onTouchMove = (e: TouchEvent) => {
+      if (e.touches[0]) {
+        handleDrag(e.touches[0].clientX)
+      }
+    }
+    const onTouchEnd = () => {
+      setIsDragging(false)
+    }
+
+    window.addEventListener("mousemove", onMouseMove)
+    window.addEventListener("mouseup", onMouseUp)
+    window.addEventListener("touchmove", onTouchMove)
+    window.addEventListener("touchend", onTouchEnd)
+
+    return () => {
+      window.removeEventListener("mousemove", onMouseMove)
+      window.removeEventListener("mouseup", onMouseUp)
+      window.removeEventListener("touchmove", onTouchMove)
+      window.removeEventListener("touchend", onTouchEnd)
+    }
+  }, [isDragging])
+
+  return (
+    <div className="evidence">
+      <div className="evidence-head">
+        <div>
+          <span className="eyebrow">
+            VISUAL EVIDENCE / {result.mode === "fusion" ? "FUSED SENSOR" : result.mode === "temporal" ? "BI-TEMPORAL" : "GROUNDED REGION"}
+          </span>
+          <h3>
+            {viewMode === "overlay"
+              ? "Slidable Overlay Comparison"
+              : viewMode === "side-by-side"
+              ? "Side-by-Side Comparative View"
+              : "Claims connected to imagery"}
+          </h3>
+        </div>
+        <div className="viewer-controls">
+          <button
+            className={viewMode === "single" ? "active" : ""}
+            onClick={() => setViewMode("single")}
+            title="Single annotated view"
+          >
+            <Layers3 /> Standard
+          </button>
+          <button
+            className={viewMode === "side-by-side" ? "active" : ""}
+            onClick={() => setViewMode(viewMode === "side-by-side" ? "single" : "side-by-side")}
+            title="Side-by-side comparison"
+          >
+            <PanelTop /> Side-by-side
+          </button>
+          <button
+            className={viewMode === "overlay" ? "active" : ""}
+            onClick={() => setViewMode(viewMode === "overlay" ? "single" : "overlay")}
+            title="Dynamic slidable comparison window"
+          >
+            <GitCompareArrows /> Slidable Overlay
+          </button>
+        </div>
+      </div>
+
+      {viewMode === "side-by-side" && (
+        <div className="side-by-side-grid">
+          <div className="side-panel">
+            <img src={rawImg} alt="Raw Satellite Observation" />
+            <div className="side-badge">
+              <Pill tone="dark">BASE OBSERVATION</Pill>
+              <span>{result.mode === "temporal" ? "T1 Earlier Baseline" : "Raw Satellite Raster"}</span>
+            </div>
+          </div>
+          <div className="side-panel">
+            <img src={overlayImg} alt="Tactical Analysis Evidence" />
+            {result.annotations.map((annotation) => (
+              <div
+                key={annotation.label}
+                className={`annotation ${annotation.color}`}
+                style={{
+                  left: `${annotation.x}%`,
+                  top: `${annotation.y}%`,
+                  width: `${annotation.width}%`,
+                  height: `${annotation.height}%`,
+                }}
+              >
+                <span>{annotation.label}</span>
+              </div>
+            ))}
+            <div className="side-badge">
+              <Pill tone="cyan">TACTICAL EVIDENCE</Pill>
+              <span>{result.mode === "temporal" ? "T2 / Heatmap" : result.mode === "fusion" ? "SAR / Fused Layer" : "Annotated Layer"}</span>
+            </div>
+          </div>
+        </div>
+      )}
+
+      {viewMode === "overlay" && (
+        <>
+          <div
+            ref={viewerRef}
+            className="curtain-viewer"
+            onMouseDown={onMouseDown}
+            onTouchStart={onTouchStart}
+          >
+            <img
+              src={rawImg}
+              alt="Base Observation"
+              className="curtain-base-img"
+            />
+            <div
+              className="curtain-overlay-wrap"
+              style={{
+                clipPath: `polygon(0 0, ${sliderPos}% 0, ${sliderPos}% 100%, 0 100%)`,
+              }}
+            >
+              <img
+                src={overlayImg}
+                alt="Tactical Evidence Overlay"
+                className="curtain-overlay-img"
+              />
+              {result.annotations.map((annotation) => (
+                <div
+                  key={annotation.label}
+                  className={`annotation ${annotation.color}`}
+                  style={{
+                    left: `${annotation.x}%`,
+                    top: `${annotation.y}%`,
+                    width: `${annotation.width}%`,
+                    height: `${annotation.height}%`,
+                  }}
+                >
+                  <span>{annotation.label}</span>
+                </div>
+              ))}
+            </div>
+
+            <div
+              className="curtain-divider"
+              style={{ left: `${sliderPos}%` }}
+            >
+              <div className="curtain-handle">
+                <GitCompareArrows size={14} />
+              </div>
+            </div>
+
+            <div className="curtain-tag left">
+              <span>OVERLAY: {sliderPos}%</span>
+            </div>
+            <div className="curtain-tag right">
+              <span>BASE: {100 - sliderPos}%</span>
+            </div>
+
+            <div className="viewer-badge">
+              <Pill tone="dark">{result.imageType}</Pill>
+              <span>DRAG WINDOW OR SLIDE BAR</span>
+            </div>
+          </div>
+
+          <div className="slider-control-bar">
+            <div className="slider-meta">
+              <span className="slider-label">INTERACTIVE WINDOW SWIPE</span>
+              <span className="slider-value">
+                OVERLAY {sliderPos}% ⟵ Divider ⟶ RAW BASE {100 - sliderPos}%
+              </span>
+            </div>
+            <div className="slider-track-wrap">
+              <span className="slider-end-label">0% (Base)</span>
+              <input
+                type="range"
+                min={0}
+                max={100}
+                value={sliderPos}
+                onChange={(e) => setSliderPos(Number(e.target.value))}
+                className="curtain-range"
+              />
+              <span className="slider-end-label">100% (Overlay)</span>
+            </div>
+            <div className="slider-presets">
+              {[0, 25, 50, 75, 100].map((pct) => (
+                <button
+                  key={pct}
+                  className={`preset-chip ${sliderPos === pct ? "active" : ""}`}
+                  onClick={() => setSliderPos(pct)}
+                >
+                  {pct === 0
+                    ? "0% Raw Base"
+                    : pct === 50
+                    ? "50% Split Window"
+                    : pct === 100
+                    ? "100% Full Overlay"
+                    : `${pct}%`}
+                </button>
+              ))}
+            </div>
+          </div>
+        </>
+      )}
+
+      {viewMode === "single" && (
+        <div className="viewer">
+          <img src={overlayImg} alt="Satellite analysis evidence" />
+          {result.annotations.map((annotation) => (
+            <div
+              key={annotation.label}
+              className={`annotation ${annotation.color}`}
+              style={{
+                left: `${annotation.x}%`,
+                top: `${annotation.y}%`,
+                width: `${annotation.width}%`,
+                height: `${annotation.height}%`,
+              }}
+            >
+              <span>{annotation.label}</span>
+            </div>
+          ))}
+          <div className="viewer-badge">
+            <Pill tone="dark">{result.imageType}</Pill>
+            <span>10 m / px</span>
+          </div>
+        </div>
+      )}
+
+      <div className="evidence-legend">
+        <span><i className="cyan-dot" /> Connected evidence</span>
+        <span><i className="amber-dot" /> Change / caution region</span>
+        <span className="mono">
+          {viewMode === "overlay"
+            ? "SLIDABLE WINDOW ACTIVE"
+            : viewMode === "side-by-side"
+            ? "DUAL COMPARISON ACTIVE"
+            : "GROUNDING ACTIVE"}
+        </span>
+      </div>
+    </div>
+  )
+}
 function ResultView({ result, technical, setTechnical }: { result: AnalysisResponse; technical: boolean; setTechnical: (value: boolean) => void }) { const parts = result.answer.split(/(\*\*.*?\*\*)/g); return <div className="result-view"><div className="result-top"><div><span className="eyebrow">ANALYSIS COMPLETE · {result.mode.toUpperCase()}</span><h2>Here is what the imagery shows</h2></div><div className={`confidence ${result.confidence}`}><span>{Math.round(result.confidenceScore * 100)}%</span><small>{confidenceCopy[result.confidence]}</small></div></div><div className="answer">{parts.map((part, index) => part.startsWith("**") ? <strong key={index}>{part.slice(2, -2)}</strong> : <span key={index}>{part}</span>)}</div><EvidenceViewer result={result}/><div className="evidence-list">{result.evidence.map((item, index) => <div key={item}><span>0{index + 1}</span>{item}<Check/></div>)}</div>{result.reportUrl && <div style={{ marginTop: "1rem", marginBottom: "0.5rem" }}><a href={result.reportUrl} target="_blank" rel="noreferrer" className="secondary compact" style={{ display: "inline-flex", alignItems: "center", gap: "0.5rem", padding: "0.6rem 1.2rem", borderRadius: "8px", textDecoration: "none", background: "rgba(0, 240, 255, 0.1)", border: "1px solid rgba(0, 240, 255, 0.3)", color: "var(--cyan-400, #00f0ff)", fontSize: "0.85rem", fontWeight: 600 }}><PanelTop size={16} /> View Mission Intelligence Report (HTML) <ArrowRight size={14} /></a></div>}<button className="technical-toggle" onClick={() => setTechnical(!technical)}><span><span className="eyebrow">TRACE / METADATA</span><strong>Technical details</strong></span><ChevronDown className={technical ? "rotate" : ""}/></button>{technical && <div className="technical-grid">{[["Model", result.model], ["Resolution", result.resolution], ["Source", result.imageType], ["Processing", result.processingTime]].map(([label, value]) => <div key={label}><span>{label}</span><b>{value}</b></div>)}</div>}<p className="disclaimer">Confidence reflects image quality and evidence alignment, not certainty. Validate findings before operational decisions.</p></div> }
 
 function Dashboard({ navigate }: { navigate: (path: string) => void }) { const [history, setHistory] = useState<AnalysisResponse[]>([]); useEffect(() => setHistory(loadHistory()), []); return <main className="page dashboard"><div className="page-intro"><div><Pill><span className="pulse"/>COMMAND CENTER</Pill><h1>Analysis history</h1><p>A concise view of your analysis trail and system signals.</p></div><button className="primary compact" onClick={() => navigate("/analysis")}><ImagePlus/> New analysis</button></div><div className="metric-grid">{metricCards.map((metric) => <div className="metric" key={metric.label}><span>{metric.label}</span><strong>{metric.value}</strong><small>{metric.delta}</small></div>)}</div><section className="history-card"><div className="section-heading"><div><span className="eyebrow">RECENT ACTIVITY</span><h2>Evidence trail</h2></div><div className="search"><Search/><input placeholder="Filter analyses"/></div></div>{history.length === 0 ? <div className="history-empty"><Clock3/><p>No local analyses yet. Run your first scene interpretation to build a trail of evidence.</p><button className="secondary" onClick={() => navigate("/analysis?demo=1")}>Run guided demo <ArrowRight/></button></div> : <div className="history-list">{history.map((item) => <button className="history-row" key={item.id} onClick={() => navigate("/analysis")}><span>{formatDate(item.createdAt)}</span><strong>{item.mode === "temporal" ? "Bi-temporal" : item.mode === "fusion" ? "Optical + SAR" : "Single image"}</strong><p>{item.query}</p><Pill tone={item.confidence}>{Math.round(item.confidenceScore * 100)}%</Pill><ArrowRight/></button>)}</div>}</section></main> }
