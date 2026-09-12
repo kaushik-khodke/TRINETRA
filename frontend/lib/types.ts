@@ -20,10 +20,15 @@ export interface BackendHealth {
   service: string;
   version: string;
   llm_status?: {
+    active_engine?: string;
+    engine_mode?: string;
     provider?: string;
     model?: string;
     available?: boolean;
     status?: string;
+    ollama?: {
+      selected_model?: string;
+    };
   };
 }
 
@@ -130,11 +135,11 @@ export const analysisAPI = {
           resData.regions.forEach((r: any, idx: number) => {
             const bbox = r.bbox || [0, 0, 1, 1]; // [ymin, xmin, ymax, xmax]
             annotations.push({
-              label: r.label || `Feature ${idx + 1}`,
+              label: r.label || `Region ${idx + 1}`,
               x: Math.round(bbox[1] * 100),
               y: Math.round(bbox[0] * 100),
-              width: Math.round((bbox[3] - bbox[1]) * 100),
-              height: Math.round((bbox[2] - bbox[0]) * 100),
+              width: Math.max(5, Math.round((bbox[3] - bbox[1]) * 100)),
+              height: Math.max(5, Math.round((bbox[2] - bbox[0]) * 100)),
               color: idx === 0 ? "cyan" : "amber",
             });
           });
