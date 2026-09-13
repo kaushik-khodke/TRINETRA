@@ -1,6 +1,7 @@
 "use client"
 
 import { useEffect, useMemo, useRef, useState } from "react"
+import { usePathname, useRouter } from "next/navigation"
 import { Activity, ArrowRight, BarChart3, Check, ChevronDown, Clock3, FileImage, GitCompareArrows, Globe, ImagePlus, Layers3, Menu, PanelTop, Radar, Search, Send, ShieldCheck, Sparkles, Upload, X } from "lucide-react"
 import {
   analysisAPI,
@@ -367,10 +368,11 @@ function Workspace({ navigate, initialDemo = false }: { navigate: (path: string)
   }
 
   useEffect(() => {
-    if (initialDemo && !result) {
+    const isDemo = initialDemo || (typeof window !== "undefined" && window.location.search.includes("demo=1"))
+    if (isDemo && !result) {
       setTimeout(() => run(), 450)
     }
-  }, [])
+  }, [initialDemo])
 
   return (
     <main className="workspace page">
@@ -866,18 +868,25 @@ function Evaluation({ navigate }: { navigate: (path: string) => void }) {
 }
 
 function PageContent() {
-  const [path, setPath] = useState(() => (typeof window === "undefined" ? "/" : window.location.pathname))
+  const pathname = usePathname()
+  const router = useRouter()
+  const [path, setPath] = useState(pathname || "/")
   const { t } = useTranslation()
+
+  useEffect(() => {
+    if (pathname) {
+      setPath(pathname)
+    }
+  }, [pathname])
 
   const navigate = (next: string) => {
     const clean = next.split("?")[0]
     setPath(clean)
-    window.history.pushState({}, "", next)
+    router.push(next)
   }
 
   useEffect(() => {
     const sync = () => setPath(window.location.pathname)
-    sync()
     window.addEventListener("popstate", sync)
     return () => window.removeEventListener("popstate", sync)
   }, [])
@@ -885,7 +894,7 @@ function PageContent() {
   const page = useMemo(
     () =>
       path === "/analysis" ? (
-        <Workspace navigate={navigate} initialDemo={typeof window !== "undefined" && window.location.search.includes("demo=1")} />
+        <Workspace navigate={navigate} initialDemo={false} />
       ) : path === "/dashboard" ? (
         <Dashboard navigate={navigate} />
       ) : path === "/evaluation" ? (
