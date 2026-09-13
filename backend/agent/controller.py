@@ -317,18 +317,17 @@ class AgentController:
                 "json_report_url": f"/api/v1/reports/{trace.request_id}/json"
             }
         }
+        with trace_ctx.tool("generate-mission-reports", input_data={"request_id": trace.request_id}) as span:
+            MissionReportGenerator.generate_html_report(final_response, html_path)
+            MissionReportGenerator.generate_json_report(final_response, json_path)
+            span.update(output={"html_report": report_html_filename, "json_report": report_json_filename})
 
-            with trace_ctx.tool("generate-mission-reports", input_data={"request_id": trace.request_id}) as span:
-                MissionReportGenerator.generate_html_report(final_response, html_path)
-                MissionReportGenerator.generate_json_report(final_response, json_path)
-                span.update(output={"html_report": report_html_filename, "json_report": report_json_filename})
+        trace_ctx.finalize(output={
+            "status": "completed",
+            "task": task,
+            "confidence": result.get("confidence", 0.90),
+            "answer": (result.get("answer") or result.get("caption") or "")[:250],
+            "reports": final_response["reports"]
+        })
 
-            trace_ctx.finalize(output={
-                "status": "completed",
-                "task": task,
-                "confidence": result.get("confidence", 0.90),
-                "answer": (result.get("answer") or result.get("caption") or "")[:250],
-                "reports": final_response["reports"]
-            })
-
-            return final_response
+        return final_response

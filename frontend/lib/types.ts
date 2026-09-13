@@ -7,7 +7,17 @@ export interface ImageInput { id: string; name: string; size: number; url: strin
 export interface ExecutionStep { label: string; detail: string; duration: string; status: "complete" | "active" | "pending" }
 export interface AnalysisRequest { mode: AnalysisMode; images: ImageInput[]; query: string; response_language?: "en" | "hi" | "mr" }
 export interface GroundingAnnotation { label: string; x: number; y: number; width: number; height: number; color: "cyan" | "amber" }
-export interface AnalysisResponse { id: string; mode: AnalysisMode; query: string; answer: string; confidence: Confidence; confidenceScore: number; evidence: string[]; annotations: GroundingAnnotation[]; steps: ExecutionStep[]; model: string; processingTime: string; resolution: string; imageType: string; createdAt: string; images: ImageInput[]; reportUrl?: string; rawImageUrl?: string; overlayImageUrl?: string }
+export interface GeographicLocation {
+  has_location: boolean
+  lat?: number
+  lng?: number
+  height?: number
+  bounds?: [number, number, number, number]
+  crs?: string
+  location_name?: string
+  zoom?: number
+}
+export interface AnalysisResponse { id: string; mode: AnalysisMode; query: string; answer: string; confidence: Confidence; confidenceScore: number; evidence: string[]; annotations: GroundingAnnotation[]; steps: ExecutionStep[]; model: string; processingTime: string; resolution: string; imageType: string; createdAt: string; images: ImageInput[]; reportUrl?: string; rawImageUrl?: string; overlayImageUrl?: string; geographicLocation?: GeographicLocation }
 export const modes: { id: AnalysisMode; label: string; description: string; icon: string }[] = [{ id: "single", label: "Single image", description: "Explore one scene", icon: "◈" }, { id: "temporal", label: "Bi-temporal", description: "Detect change over time", icon: "◌" }, { id: "fusion", label: "Optical + SAR", description: "Fuse complementary sensors", icon: "⌘" }]
 export const examples: Record<AnalysisMode, string[]> = { single: ["What land use types are visible in this image?", "Describe the water bodies and vegetation coverage.", "Highlight the water body referred to in the query"], temporal: ["What changes are visible between these two dates?", "Has the built-up area increased, decreased, or remained unchanged?", "Show me areas of significant vegetation loss."], fusion: ["Identify flooded regions using combined modality data.", "Compare the optical and radar signatures of this area."] }
 export const formatBytes = (bytes: number) => `${(bytes / 1024 / 1024).toFixed(1)} MB`
@@ -52,6 +62,15 @@ export const getDemoResult = (request: AnalysisRequest): AnalysisResponse => {
     imageType: request.mode === "fusion" ? "Sentinel-2 MSI + Sentinel-1 SAR" : "Sentinel-2 MSI",
     createdAt: new Date().toISOString(),
     images: request.images,
+    geographicLocation: {
+      has_location: true,
+      lat: 28.6172,
+      lng: 77.2078,
+      height: 5000,
+      bounds: [77.1950, 28.6044, 77.2206, 28.6300],
+      crs: "EPSG:4326",
+      location_name: "Delhi NCR Focus Area"
+    },
   }
 }
 
@@ -271,6 +290,7 @@ export const analysisAPI = {
           reportUrl: data.request_id ? `/api/v1/reports/${data.request_id}/html` : undefined,
           rawImageUrl: rawUrl,
           overlayImageUrl: overlayUrl,
+          geographicLocation: data.geographic_location || undefined,
         };
       } catch (err: any) {
         console.error("[analysisAPI] Real satellite analysis failed:", err);

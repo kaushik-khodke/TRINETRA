@@ -1,9 +1,11 @@
 "use client"
 
 import { useEffect, useMemo, useRef, useState } from "react"
-import { Activity, ArrowRight, BarChart3, Check, ChevronDown, Clock3, FileImage, GitCompareArrows, Globe, ImagePlus, Layers3, Menu, PanelTop, Radar, Search, Send, ShieldCheck, Sparkles, Upload, X } from "lucide-react"
+import { usePathname } from "next/navigation"
+import { Activity, ArrowRight, BarChart3, Check, ChevronDown, Clock3, FileImage, GitCompareArrows, Globe, ImagePlus, Layers3, LogIn, LogOut, Menu, PanelTop, Radar, Search, Send, ShieldCheck, Sparkles, Upload, X } from "lucide-react"
 import {
   analysisAPI,
+  buildTrinetraUrl,
   checkBackendHealth,
   demoScenarios,
   formatBytes,
@@ -16,8 +18,11 @@ import {
   type AnalysisMode,
   type AnalysisResponse,
   type ImageInput,
+  type GeographicLocation,
 } from "@/lib/types"
 import { I18nProvider, useTranslation, type SupportedLanguage } from "@/lib/i18n"
+import { useAuth } from "@/context/AuthContext"
+import AuthGate from "@/components/AuthGate"
 
 const Icon = ({ mode }: { mode: AnalysisMode }) =>
   mode === "single" ? <FileImage /> : mode === "temporal" ? <GitCompareArrows /> : <Layers3 />
@@ -44,6 +49,7 @@ function LanguageSelector() {
 }
 
 function Header({ path, navigate }: { path: string; navigate: (path: string) => void }) {
+  const { isAuthenticated, displayName, avatarUrl, signOut } = useAuth()
   const { t } = useTranslation()
   const [health, setHealth] = useState<{ online: boolean; rawStatus?: string; model?: string; langfuse?: boolean }>({
     online: false,
@@ -113,6 +119,51 @@ function Header({ path, navigate }: { path: string; navigate: (path: string) => 
         />{" "}
         <span>{statusText}</span>
       </div>
+
+      {/* User Authentication & Profile Widget */}
+      <div style={{ display: "flex", alignItems: "center", gap: "0.75rem", marginLeft: "0.5rem" }}>
+        {isAuthenticated ? (
+          <div style={{ display: "flex", alignItems: "center", gap: "0.55rem", background: "rgba(255, 255, 255, 0.04)", border: "1px solid rgba(255, 255, 255, 0.1)", padding: "4px 10px 4px 6px", borderRadius: "99px" }}>
+            {avatarUrl ? (
+              <img
+                src={avatarUrl}
+                alt={displayName}
+                style={{ width: "26px", height: "26px", borderRadius: "50%", objectFit: "cover", border: "1px solid var(--cyan-400, #00f0ff)" }}
+              />
+            ) : (
+              <div style={{ width: "26px", height: "26px", borderRadius: "50%", background: "linear-gradient(135deg, rgba(86, 215, 223, 0.8), rgba(0, 160, 255, 0.8))", color: "#081016", display: "grid", placeItems: "center", fontSize: "11px", fontWeight: 700 }}>
+                {displayName ? displayName.charAt(0).toUpperCase() : "U"}
+              </div>
+            )}
+            <div style={{ display: "flex", flexDirection: "column", maxWidth: "120px" }}>
+              <span style={{ fontSize: "11px", fontWeight: 600, color: "#f1f5f9", overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap" }}>
+                {displayName || "Operator"}
+              </span>
+              <span style={{ fontSize: "8px", color: "var(--cyan-400, #00f0ff)", fontFamily: "monospace", letterSpacing: "0.05em" }}>
+                CLEARANCE ACTIVE
+              </span>
+            </div>
+            <button
+              onClick={() => signOut()}
+              title="Sign Out"
+              style={{ background: "none", border: "none", color: "rgba(255, 255, 255, 0.4)", padding: "4px", borderRadius: "6px", cursor: "pointer", display: "flex", alignItems: "center", marginLeft: "2px" }}
+              onMouseOver={(e) => (e.currentTarget.style.color = "#f87171")}
+              onMouseOut={(e) => (e.currentTarget.style.color = "rgba(255, 255, 255, 0.4)")}
+            >
+              <LogOut size={13} />
+            </button>
+          </div>
+        ) : (
+          <button
+            onClick={() => navigate("/analysis")}
+            className="primary compact"
+            style={{ display: "inline-flex", alignItems: "center", gap: "0.45rem", padding: "6px 14px", fontSize: "0.78rem" }}
+          >
+            <LogIn size={13} /> Sign In
+          </button>
+        )}
+      </div>
+
       <button className="mobile-menu" aria-label={t("aria.menu")}>
         <Menu />
       </button>
@@ -671,8 +722,56 @@ function ResultView({
           </div>
         ))}
       </div>
-      {result.reportUrl && (
-        <div style={{ marginTop: "1rem", marginBottom: "0.5rem" }}>
+      {/* Action Row: View on Globe (TRINETRA) & View Report */}
+      <div className="action-row" style={{ marginTop: "1.2rem", marginBottom: "0.6rem", display: "flex", flexWrap: "wrap", gap: "0.75rem", alignItems: "center" }}>
+        {result.geographicLocation?.has_location ? (
+          <button
+            type="button"
+            id="view-on-globe-btn"
+            className="primary compact"
+            style={{
+              display: "inline-flex",
+              alignItems: "center",
+              gap: "0.55rem",
+              padding: "0.65rem 1.25rem",
+              borderRadius: "8px",
+              background: "linear-gradient(135deg, rgba(0, 240, 255, 0.22), rgba(0, 160, 255, 0.15))",
+              border: "1px solid rgba(0, 240, 255, 0.5)",
+              color: "#00f0ff",
+              fontSize: "0.86rem",
+              fontWeight: 600,
+              boxShadow: "0 0 16px rgba(0, 240, 255, 0.15)",
+              cursor: "pointer",
+            }}
+            onClick={() => {
+              const url = buildTrinetraUrl(result.geographicLocation, result.images[0]?.name || "Analysis Target")
+              if (url) window.open(url, "_blank", "noopener,noreferrer")
+            }}
+          >
+            <Globe size={16} /> View on Globe (TRINETRA) <ArrowRight size={14} />
+          </button>
+        ) : (
+          <div
+            id="globe-disabled-notice"
+            style={{
+              display: "inline-flex",
+              alignItems: "center",
+              gap: "0.5rem",
+              padding: "0.55rem 0.95rem",
+              borderRadius: "8px",
+              background: "rgba(255, 255, 255, 0.03)",
+              border: "1px solid rgba(255, 255, 255, 0.08)",
+              color: "rgba(255, 255, 255, 0.45)",
+              fontSize: "0.78rem",
+            }}
+            title="This raster contains no OGC GeoTIFF georeferencing metadata. Real coordinates cannot be fabricated."
+          >
+            <Globe size={14} style={{ opacity: 0.5 }} />
+            <span>Georeferencing Unavailable (Non-geospatial image)</span>
+          </div>
+        )}
+
+        {result.reportUrl && (
           <a
             href={result.reportUrl}
             target="_blank"
@@ -694,8 +793,9 @@ function ResultView({
           >
             <PanelTop size={16} /> {t("btn.report")} <ArrowRight size={14} />
           </a>
-        </div>
-      )}
+        )}
+      </div>
+
       <button className="technical-toggle" onClick={() => setTechnical(!technical)}>
         <span>
           <span className="eyebrow">{t("meta.eyebrow")}</span>
@@ -710,6 +810,13 @@ function ResultView({
             [t("meta.resolution"), result.resolution],
             [t("meta.source"), result.imageType],
             [t("meta.processing"), result.processingTime],
+            [
+              "Georeferencing",
+              result.geographicLocation?.has_location && result.geographicLocation?.lat != null
+                ? `${result.geographicLocation.lat.toFixed(4)}°N, ${result.geographicLocation.lng?.toFixed(4)}°E (${result.geographicLocation.crs || "WGS84"})`
+                : "None (Un-georeferenced)",
+            ],
+            ["Location Target", result.geographicLocation?.location_name || "N/A"],
           ].map(([label, value]) => (
             <div key={label}>
               <span>{label}</span>
@@ -866,7 +973,10 @@ function Evaluation({ navigate }: { navigate: (path: string) => void }) {
 }
 
 function PageContent() {
-  const [path, setPath] = useState(() => (typeof window === "undefined" ? "/" : window.location.pathname))
+  const { isAuthenticated } = useAuth()
+  const pathname = usePathname()
+  const [path, setPath] = useState(pathname || "/")
+  const [initialDemo, setInitialDemo] = useState(false)
   const { t } = useTranslation()
 
   const navigate = (next: string) => {
@@ -876,25 +986,37 @@ function PageContent() {
   }
 
   useEffect(() => {
+    if (typeof window !== "undefined") {
+      setPath(window.location.pathname)
+      setInitialDemo(window.location.search.includes("demo=1"))
+    }
     const sync = () => setPath(window.location.pathname)
-    sync()
     window.addEventListener("popstate", sync)
     return () => window.removeEventListener("popstate", sync)
-  }, [])
+  }, [pathname])
 
-  const page = useMemo(
-    () =>
-      path === "/analysis" ? (
-        <Workspace navigate={navigate} initialDemo={typeof window !== "undefined" && window.location.search.includes("demo=1")} />
-      ) : path === "/dashboard" ? (
-        <Dashboard navigate={navigate} />
-      ) : path === "/evaluation" ? (
-        <Evaluation navigate={navigate} />
-      ) : (
-        <Landing navigate={navigate} />
-      ),
-    [path]
-  )
+  const page = useMemo(() => {
+    if (path === "/") {
+      return <Landing navigate={navigate} />
+    }
+
+    // Security clearance gate: require authentication for operational workspace, history, and telemetry
+    if (!isAuthenticated) {
+      return <AuthGate />
+    }
+
+    if (path === "/analysis") {
+      return <Workspace navigate={navigate} initialDemo={initialDemo} />
+    }
+    if (path === "/dashboard") {
+      return <Dashboard navigate={navigate} />
+    }
+    if (path === "/evaluation") {
+      return <Evaluation navigate={navigate} />
+    }
+
+    return <Landing navigate={navigate} />
+  }, [path, isAuthenticated, initialDemo])
 
   return (
     <div className="app-shell">

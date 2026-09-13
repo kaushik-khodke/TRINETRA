@@ -4044,11 +4044,21 @@ export class StyleManager {
     // focus, or click and collapses again after the interaction moves away.
     this.setPanelCollapsed('control-panel', true, { syncShare: false, persist: false });
     this.setPanelCollapsed('location-bar', true, { syncShare: false, persist: false });
-    this._initAutoHoverPanel('control-panel', { openDelayMs: 140, closeDelayMs: 420 });
     this._initAutoHoverPanel('location-bar', { openDelayMs: 140, closeDelayMs: 420 });
     this._initCommandDockPins();
     this._initCommandDockTrayMetrics();
     this._maybeNotifyLayoutReset();
+
+    document.querySelectorAll('.panel-collapsible .panel-header').forEach((header) => {
+      header.style.cursor = 'pointer';
+      header.addEventListener('click', (event) => {
+        if (event.target.closest('.panel-collapse-btn')) return;
+        const panel = header.closest('.panel-collapsible');
+        if (!panel) return;
+        const nextCollapsed = !panel.classList.contains('collapsed');
+        this.setPanelCollapsed(panel.id, nextCollapsed, { explicit: true });
+      });
+    });
   }
 
   /**
@@ -9490,15 +9500,15 @@ export class StyleManager {
     document.addEventListener('keydown', this._poiKeydownHandler);
 
     // Search toggle (expand/collapse)
-    this._searchToggle.addEventListener('click', () => {
-      this._locationSearch.classList.toggle('expanded');
-      if (this._locationSearch.classList.contains('expanded')) {
+    this._searchToggle?.addEventListener('click', () => {
+      this._locationSearch?.classList.toggle('expanded');
+      if (this._locationSearch?.classList.contains('expanded')) {
         this._locationSearch.focus();
       }
     });
 
     // Search submit on Enter
-    this._locationSearch.addEventListener('keydown', async (e) => {
+    this._locationSearch?.addEventListener('keydown', async (e) => {
       if (e.key === 'Enter') {
         const query = this._locationSearch.value.trim();
         if (!query) return;
