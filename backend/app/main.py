@@ -35,7 +35,15 @@ app = FastAPI(
 # CORS configuration
 app.add_middleware(
     CORSMiddleware,
-    allow_origins=["*"],
+    allow_origins=[
+        "http://localhost:3000",
+        "http://127.0.0.1:3000",
+        "http://localhost:4173",
+        "http://127.0.0.1:4173",
+        "http://localhost:5173",
+        "http://127.0.0.1:5173",
+    ],
+    allow_origin_regex=r"^https?://(localhost|127\.0\.0\.1)(:\d+)?$",
     allow_credentials=True,
     allow_methods=["*"],
     allow_headers=["*"],
@@ -182,13 +190,17 @@ async def analyze_preset(
             raise HTTPException(status_code=500, detail=f"Sample file {filename} not found.")
         local_paths.append(full_path)
 
-    result_payload = controller.process_request(
-        file_paths=local_paths,
-        query=preset["query"],
-        input_mode=preset["mode"]
-    )
-    JOBS_DB[result_payload["request_id"]] = result_payload
-    return result_payload
+    try:
+        result_payload = controller.process_request(
+            file_paths=local_paths,
+            query=preset["query"],
+            input_mode=preset["mode"]
+        )
+        JOBS_DB[result_payload["request_id"]] = result_payload
+        return result_payload
+    except Exception as e:
+        print(f"[AnalyzePreset] Error: {e}")
+        raise HTTPException(status_code=500, detail=str(e))
 
 @app.get("/api/v1/jobs/{request_id}")
 def get_job_status(request_id: str):

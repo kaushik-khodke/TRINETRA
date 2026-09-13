@@ -195,7 +195,30 @@ class AgentController:
         html_path = os.path.join(REPORTS_DIR, report_html_filename)
         json_path = os.path.join(REPORTS_DIR, report_json_filename)
 
-        trace.complete(status="completed")
+        # Determine primary geographic location from verified raster inputs
+        primary_geo = None
+        for m in loaded_metas:
+            if m.get("has_geographic_location") and m.get("center_lat") is not None:
+                primary_geo = {
+                    "has_location": True,
+                    "lat": m["center_lat"],
+                    "lng": m["center_lng"],
+                    "height": 5000,
+                    "bounds": m.get("bounds"),
+                    "crs": m.get("crs"),
+                    "location_name": m.get("location_name") or m.get("filename")
+                }
+                break
+
+        if not primary_geo:
+            primary_geo = {
+                "has_location": False,
+                "lat": None,
+                "lng": None,
+                "height": None,
+                "bounds": None,
+                "crs": None
+            }
 
         dump = trace.model_dump() if hasattr(trace, "model_dump") else trace.dict()
         final_response = {
@@ -207,6 +230,7 @@ class AgentController:
             "confidence": result.get("confidence", 0.90),
             "result": result,
             "inputs_metadata": loaded_metas,
+            "geographic_location": primary_geo,
             "image_previews": image_previews,
             "execution_trace": dump,
             "reports": {

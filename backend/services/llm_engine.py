@@ -35,13 +35,24 @@ class LLMReasoningEngine:
                 data = json.loads(resp.read().decode("utf-8"))
                 models = [m.get("name", "") for m in data.get("models", [])]
                 preferred = os.environ.get("OLLAMA_MODEL")
-                selected = preferred if (preferred and preferred in models) else (models[0] if models else None)
+                selected = None
+                if preferred and preferred in models:
+                    selected = preferred
+                else:
+                    # Prioritize fast, responsive lightweight models (llama3.2) over heavy 9b+ models to ensure snappy sub-8s inference
+                    fast_priority = ["llama3.2:latest", "llama3.2", "llama3.2:3b", "llama3.2:1b", "qwen2.5:3b", "qwen2.5:1.5b", "mistral"]
+                    for candidate in fast_priority:
+                        if candidate in models:
+                            selected = candidate
+                            break
+                    if not selected and models:
+                        selected = models[0]
                 return {
                     "available": True,
                     "url": ollama_url,
                     "models": models,
                     "selected_model": selected,
-                    "status_message": f"Connected ({len(models)} models available)" if models else "Connected (No models pulled yet)"
+                    "status_message": f"Connected ({len(models)} models available, using {selected})" if models else "Connected (No models pulled yet)"
                 }
         except Exception:
             return {
@@ -76,15 +87,15 @@ class LLMReasoningEngine:
         }
 
     @classmethod
-    def _execute_ollama_prompt(cls, ollama_url: str, model: str, prompt: str, max_tokens: int = 200) -> Optional[str]:
-        """Generic, reliable runner for local Ollama completion queries."""
+    def _execute_ollama_prompt(cls, ollama_url: str, model: str, prompt: str, max_tokens: int = 75) -> Optional[str]:
+        """Generic, reliable runner for local Ollama completion queries with timeout protection."""
         try:
             req_payload = {
                 "model": model,
                 "prompt": prompt,
                 "stream": False,
                 "options": {
-                    "temperature": 0.2,
+                    "temperature": 0.1,
                     "num_predict": max_tokens
                 }
             }
@@ -94,12 +105,12 @@ class LLMReasoningEngine:
                 data=data,
                 headers={"Content-Type": "application/json", "User-Agent": "SatQuery-AI"}
             )
-            with urllib.request.urlopen(req, timeout=35) as response:
+            with urllib.request.urlopen(req, timeout=15) as response:
                 res = json.loads(response.read().decode("utf-8"))
                 text = res.get("response", "").strip()
                 return text if text else None
         except Exception as e:
-            print(f"[LLMEngine] Ollama request error: {e}")
+            print(f"[LLMEngine] Ollama prompt notice ({model}): {e}. Seamlessly falling back to domain physics synthesis.")
             return None
 
     # ==========================================

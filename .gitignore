@@ -140,3 +140,29 @@ $RECYCLE.BIN/
 # Agent scratch files
 scratch/
 *.tmp
+
+# TypeScript build cache
+*.tsbuildinfo
+
+# ------------------------------------------------------------------------------
+# 7. Project B — TRINETRA / Shatnetra Globe Application (Vite + Cesium)
+# ------------------------------------------------------------------------------
+shatnetra/node_modules/
+shatnetra/dist/
+shatnetra/dist-ssr/
+shatnetra/.vite/
+shatnetra/.env
+shatnetra/.env.local
+shatnetra/.env.*.local
+shatnetra/*.log
+shatnetra/screenshots/
+shatnetra/qa-shots/
+shatnetra/output/
+shatnetra/.gev-logs/
+shatnetra/.gev-cache/
+shatnetra/.gstack/
+shatnetra/3d-models/
+shatnetra/pinokio/ENVIRONMENT
+shatnetra/pinokio/.installed
+shatnetra/test-results/
+shatnetra/coverage/

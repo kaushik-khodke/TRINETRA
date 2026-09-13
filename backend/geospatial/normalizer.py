@@ -91,11 +91,20 @@ class GeospatialNormalizer:
     def compute_spectral_breakdown(raster: np.ndarray) -> Dict[str, Any]:
         """
         Computes accurate land-cover percentages and spectral indices
-        from the actual image pixels.
+        from the actual image pixels. Subsamples ultra-high-resolution rasters
+        (e.g., 60MP Landsat/Sentinel) to maintain sub-second latency.
         """
-        arr = raster.astype(np.float32)
-        ndvi = GeospatialNormalizer.compute_ndvi(raster)
-        ndwi = GeospatialNormalizer.compute_ndwi(raster)
+        h, w = raster.shape[:2]
+        max_dim = max(h, w)
+        if max_dim > 1024:
+            step = int(np.ceil(max_dim / 1024))
+            sample = raster[::step, ::step]
+        else:
+            sample = raster
+
+        arr = sample.astype(np.float32)
+        ndvi = GeospatialNormalizer.compute_ndvi(sample)
+        ndwi = GeospatialNormalizer.compute_ndwi(sample)
 
         # Structural high-frequency edges (built-up detection)
         if arr.ndim == 3:
@@ -135,6 +144,14 @@ class GeospatialNormalizer:
         """
         h = min(arr_t1.shape[0], arr_t2.shape[0])
         w = min(arr_t1.shape[1], arr_t2.shape[1])
+
+        max_dim = max(h, w)
+        if max_dim > 1024:
+            step = int(np.ceil(max_dim / 1024))
+            arr_t1 = arr_t1[:h:step, :w:step]
+            arr_t2 = arr_t2[:h:step, :w:step]
+            h, w = arr_t1.shape[:2]
+
         t1 = arr_t1[:h, :w].astype(np.float32)
         t2 = arr_t2[:h, :w].astype(np.float32)
 
