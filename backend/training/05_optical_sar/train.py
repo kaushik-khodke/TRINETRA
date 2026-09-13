@@ -28,6 +28,8 @@ from common.reporting import TrainingReporter
 from dataset import OpticalSARGenuineDataset
 from model import OpticalSARCrossAttentionNet, OpticalOnlyBaseline, SAROnlyBaseline
 
+DATASET_NAME = "SEN1-2 (Paired Sentinel-1 SAR & Sentinel-2 Optical)"
+
 def evaluate_fusion(model: nn.Module, loader: DataLoader, device: torch.device) -> float:
     model.eval()
     correct = 0

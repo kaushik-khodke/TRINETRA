@@ -29,6 +29,8 @@ from common.reporting import TrainingReporter
 from dataset import RSGroundingGenuineDataset
 from model import RSGroundingDetector, GiouLoss
 
+DATASET_NAME = "DIOR-RSVG (Referring Remote Sensing Visual Grounding)"
+
 def evaluate_grounding(model: nn.Module, loader: DataLoader, device: torch.device) -> dict:
     """Evaluates grounding model on dataloader without data leakage."""
     model.eval()

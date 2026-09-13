@@ -28,6 +28,8 @@ from common.reporting import TrainingReporter
 from dataset import BigEarthNetS2Dataset, CORINE_19_CLASSES
 from model import BigEarthNetAdaptedResNet, get_baseline_rgb_model
 
+DATASET_NAME = "BigEarthNet-S2 v2.0 (Sentinel-2 Multispectral)"
+
 def evaluate_model(model: nn.Module, loader: DataLoader, device: torch.device) -> dict:
     """Evaluates multi-label model on a dataloader without data leakage."""
     model.eval()

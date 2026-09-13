@@ -28,6 +28,8 @@ from common.reporting import TrainingReporter
 from dataset import RSVqaGenuineDataset
 from model import RSVqaFusionNetwork
 
+DATASET_NAME = "RSVQA (Remote Sensing Visual Question Answering)"
+
 def evaluate_vqa(model: nn.Module, loader: DataLoader, device: torch.device) -> dict:
     """Evaluates VQA model on dataloader."""
     model.eval()
