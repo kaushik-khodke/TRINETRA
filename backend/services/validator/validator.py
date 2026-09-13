@@ -5,7 +5,8 @@ and pairing compatibility before AI specialist inference.
 """
 
 import os
-from typing import List, Dict, Any, Optional
+import numpy as np
+from typing import List, Dict, Any, Optional, Tuple
 from pydantic import BaseModel
 from geospatial.reader import GeospatialReader, RasterMetadata
 
@@ -69,8 +70,19 @@ class InputValidator:
 
             declared_mod = declared_modalities[i] if declared_modalities and i < len(declared_modalities) else None
             try:
-                _, meta = GeospatialReader.read_image(path, detected_modality=declared_mod)
+                arr, meta = GeospatialReader.read_image(path, detected_modality=declared_mod)
                 parsed_metadata.append(meta)
+
+                # Smart domain verification: check whether the image is Earth observation imagery
+                # vs a document screenshot, book page, or non-geospatial UI graphic
+                if not meta.is_geotiff:
+                    is_sat, reason = InputValidator.verify_satellite_domain(arr, os.path.basename(path))
+                    if not is_sat:
+                        return ValidationReport(
+                            valid=False,
+                            mode=requested_mode,
+                            error_message=f"Non-satellite imagery detected for '{os.path.basename(path)}': {reason}"
+                        )
             except Exception as e:
                 return ValidationReport(
                     valid=False,
@@ -125,3 +137,64 @@ class InputValidator:
             images_metadata=[m.to_dict() for m in parsed_metadata],
             compatibility=compatibility
         )
+
+    @staticmethod
+    def verify_satellite_domain(image_arr: np.ndarray, filename: str = "") -> Tuple[bool, Optional[str]]:
+        """
+        Smart nuance verification: checks whether the image exhibits radiometric and spatial
+        characteristics of satellite/aerial Earth observation imagery versus a document screenshot,
+        book text, or software diagram.
+        """
+        if image_arr is None or image_arr.size == 0:
+            return False, "Image array is empty or corrupt."
+
+        # Convert to float luminance for spatial texture analysis
+        if image_arr.ndim == 3:
+            if image_arr.shape[2] >= 3:
+                gray = 0.299 * image_arr[:, :, 0] + 0.587 * image_arr[:, :, 1] + 0.114 * image_arr[:, :, 2]
+            else:
+                gray = image_arr[:, :, 0].astype(float)
+        else:
+            gray = image_arr.astype(float)
+
+        total_pixels = gray.size
+
+        # 1. Text Document / Book Page Detection
+        white_bg_pct = float(np.sum(gray > 220) / total_pixels * 100.0)
+        dark_text_pct = float(np.sum(gray < 45) / total_pixels * 100.0)
+
+        if image_arr.ndim == 3 and image_arr.shape[2] >= 3:
+            r = image_arr[:, :, 0].astype(float)
+            g = image_arr[:, :, 1].astype(float)
+            b = image_arr[:, :, 2].astype(float)
+            max_c = np.maximum(np.maximum(r, g), b)
+            min_c = np.minimum(np.minimum(r, g), b)
+            saturation = np.where(max_c > 0, (max_c - min_c) / (max_c + 1e-5), 0.0)
+            mean_sat = float(np.mean(saturation))
+        else:
+            mean_sat = 0.0
+
+        # Characteristic of a book page / document screenshot:
+        # High white background (> 50%), dark text pixels (> 0.8%), and extremely low color saturation (< 0.12)
+        if white_bg_pct > 50.0 and dark_text_pct > 0.8 and mean_sat < 0.12:
+            return False, (
+                "The image has characteristics of a printed book page or text document "
+                f"({round(white_bg_pct)}% white paper background with dark printed text, saturation {round(mean_sat, 3)}). "
+                "SatQuery AI requires satellite or aerial Earth observation imagery (GeoTIFF, Sentinel, Landsat, or optical/SAR rasters)."
+            )
+
+        # 2. Predominantly blank image
+        if white_bg_pct > 85.0:
+            return False, "The uploaded image is predominantly blank white (>85% white pixels), not an Earth observation scene."
+        if float(np.sum(gray < 15) / total_pixels * 100.0) > 92.0:
+            return False, "The uploaded image is predominantly black (>92% dark pixels), not an Earth observation scene."
+
+        # 3. Screen Capture / UI Diagram heuristic
+        clean_name = filename.lower()
+        if "screenshot" in clean_name and (white_bg_pct > 35.0 or mean_sat < 0.05):
+            return False, (
+                "The file appears to be a desktop/application screenshot rather than an Earth observation scene. "
+                "Please upload actual satellite or aerial imagery to perform radiometric and geospatial analysis."
+            )
+
+        return True, None

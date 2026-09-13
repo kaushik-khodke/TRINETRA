@@ -21,6 +21,10 @@ class TraceStep(BaseModel):
 
 class ExecutionTrace(BaseModel):
     request_id: str = Field(default_factory=lambda: str(uuid.uuid4()))
+    trace_id: Optional[str] = None
+    langfuse_url: Optional[str] = None
+    llm_model: Optional[str] = None
+    agent_framework: str = "langchain"
     input_mode: str
     query: str
     detected_task: str

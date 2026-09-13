@@ -10,6 +10,7 @@ from geospatial.normalizer import GeospatialNormalizer
 from geospatial.overlays import EvidenceOverlayEngine
 from geospatial.reader import GeospatialReader
 from models.loader import ModelManager
+from services.llm_engine import LLMReasoningEngine
 
 class RSGroundingSpecialist:
     def __init__(self):
@@ -84,13 +85,27 @@ class RSGroundingSpecialist:
         evidence_b64 = EvidenceOverlayEngine.to_base64(overlay_img)
         raw_b64 = EvidenceOverlayEngine.to_base64(rgb_preview)
 
+        # Synthesize domain-grounded response via LLM reasoning engine
+        metrics = GeospatialNormalizer.compute_spectral_breakdown(image_arr)
+        synthesis = LLMReasoningEngine.synthesize_grounding_answer(
+            query=query,
+            modality=meta.get("modality", "optical"),
+            boxes=boxes,
+            spectral_metrics=metrics,
+            image_shape=image_arr.shape
+        )
+
+        engine_name = f"PyTorch Checkpoint ({ckpt})" if ckpt else synthesis.get("engine", engine_type)
+
         return {
             "task": "grounding",
             "tool": self.tool_id,
             "version": self.version,
-            "engine": engine_type,
+            "engine": engine_name,
             "target_query": query,
+            "answer": synthesis.get("answer"),
             "detected_regions": len(boxes),
+            "bounding_box": boxes[0]["bbox"] if boxes else [0.15, 0.15, 0.85, 0.85],
             "regions": boxes,
             "confidence": max((b["score"] for b in boxes), default=0.70),
             "evidence_image": evidence_b64,

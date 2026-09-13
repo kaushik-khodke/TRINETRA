@@ -34,11 +34,13 @@ class RSVqaSpecialist:
         }
 
         # Synthesize evidence-grounded answer via LLM reasoning engine
+        response_lang = parameters.get("response_language", "en") if parameters else "en"
         synthesis = LLMReasoningEngine.synthesize_vqa_answer(
             query=query,
             modality=modality,
             spectral_metrics=metrics,
-            detected_features=features
+            detected_features=features,
+            response_language=response_lang
         )
 
         engine_name = f"PyTorch Checkpoint ({ckpt})" if has_neural_weights else synthesis["engine"]

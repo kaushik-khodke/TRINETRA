@@ -40,10 +40,12 @@ class BiTemporalChangeSpecialist:
             "trend": stats.get("trend", "expansion")
         }
 
+        response_lang = parameters.get("response_language", "en") if parameters else "en"
         synthesis = LLMReasoningEngine.synthesize_change_answer(
             query=query,
             change_stats=stats,
-            spatial_distribution=spatial_dist
+            spatial_distribution=spatial_dist,
+            response_language=response_lang
         )
 
         engine_type = f"PyTorch Checkpoint ({ckpt})" if ckpt else synthesis["engine"]
