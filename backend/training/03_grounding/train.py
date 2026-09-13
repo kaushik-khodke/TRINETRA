@@ -35,10 +35,11 @@ def evaluate_grounding(model: nn.Module, loader: DataLoader, device: torch.devic
     """Evaluates grounding model on dataloader without data leakage."""
     model.eval()
     all_preds, all_gts = [], []
+    device_type = "cuda" if device.type == "cuda" else "cpu"
     with torch.no_grad():
         for imgs, tokens, gt_boxes in loader:
             imgs, tokens = imgs.to(device), tokens.to(device)
-            with autocast():
+            with torch.amp.autocast(device_type=device_type, enabled=(device_type == "cuda")):
                 pred_boxes = model(imgs, tokens)
             all_preds.append(pred_boxes.cpu().numpy())
             all_gts.append(gt_boxes.numpy())
@@ -66,9 +67,14 @@ def save_visual_examples(model: nn.Module, dataset: RSGroundingGenuineDataset, o
             w, h = pil_img.size
 
             # GT in Green: [ymin, xmin, ymax, xmax]
-            draw.rectangle([gt_np[1]*w, gt_np[0]*h, gt_np[3]*w, gt_np[2]*h], outline="#10B981", width=3)
+            gx0, gx1 = min(gt_np[1], gt_np[3]) * w, max(gt_np[1], gt_np[3]) * w
+            gy0, gy1 = min(gt_np[0], gt_np[2]) * h, max(gt_np[0], gt_np[2]) * h
+            draw.rectangle([gx0, gy0, gx1, gy1], outline="#10B981", width=3)
+
             # Pred in Red:
-            draw.rectangle([pred_box[1]*w, pred_box[0]*h, pred_box[3]*w, pred_box[2]*h], outline="#EF4444", width=2)
+            px0, px1 = min(pred_box[1], pred_box[3]) * w, max(pred_box[1], pred_box[3]) * w
+            py0, py1 = min(pred_box[0], pred_box[2]) * h, max(pred_box[0], pred_box[2]) * h
+            draw.rectangle([px0, py0, px1, py1], outline="#EF4444", width=2)
 
             out_file = os.path.join(examples_dir, f"grounding_sample_{idx+1:03d}.png")
             pil_img.save(out_file)
@@ -100,11 +106,15 @@ def train_grounding(args):
     val_ds = RSGroundingGenuineDataset(args.data_dir, val_manifest, image_size=profile.image_size, max_samples=profile.max_val_samples)
     test_ds = RSGroundingGenuineDataset(args.data_dir, test_manifest, image_size=profile.image_size, max_samples=profile.max_test_samples)
 
-    train_loader = DataLoader(train_ds, batch_size=batch_size, shuffle=True, num_workers=profile.num_workers, pin_memory=True)
+    train_loader = DataLoader(train_ds, batch_size=batch_size, shuffle=True, num_workers=profile.num_workers, pin_memory=torch.cuda.is_available())
     val_loader = DataLoader(val_ds, batch_size=batch_size, shuffle=False, num_workers=profile.num_workers)
     test_loader = DataLoader(test_ds, batch_size=batch_size, shuffle=False, num_workers=profile.num_workers)
 
     model = RSGroundingDetector().to(device)
+    if args.weights and os.path.exists(args.weights):
+        weights = torch.load(args.weights, map_location=device)
+        model.load_state_dict(weights, strict=False)
+        print(f"[WARM-START] Continuing finetuning from existing checkpoint: {args.weights}")
 
     # 2. Section 16 Mandatory: BASELINE EVALUATION (Untrained / Center Prior)
     print("------------------------------------------------------------")
@@ -117,14 +127,21 @@ def train_grounding(args):
     l1_crit = nn.SmoothL1Loss()
     giou_crit = GiouLoss()
     optimizer = torch.optim.AdamW(model.parameters(), lr=lr, weight_decay=1e-4)
-    scaler = GradScaler(enabled=profile.use_amp)
+    device_type = "cuda" if device.type == "cuda" else "cpu"
+    use_scaler = profile.use_amp and (device_type == "cuda")
+    scaler = torch.amp.GradScaler('cuda', enabled=True) if use_scaler else None
 
     ckpt_mgr = CheckpointManager(output_dir, "rs_grounding_model")
     reporter = TrainingReporter(output_dir)
 
     history = {"train_loss": [], "val_loss": [], "val_metric": []}
-    best_miou = -1.0
+    best_miou = baseline_metrics["mean_iou"] if args.weights else -1.0
+    patience = args.patience if getattr(args, "patience", None) is not None else profile.patience
     patience_counter = 0
+
+    if args.weights:
+        ckpt_mgr.save_checkpoint(model, 0, is_best=True, metric_val=best_miou)
+        print(f"[WARM-START LOCKED] Initial best model preserved at mIoU: {best_miou:.4f} (patience={patience})")
 
     t_start = time.time()
     for epoch in range(1, epochs + 1):
@@ -135,13 +152,17 @@ def train_grounding(args):
         for imgs, tokens, gt_boxes in train_loader:
             imgs, tokens, gt_boxes = imgs.to(device), tokens.to(device), gt_boxes.to(device)
             optimizer.zero_grad()
-            with autocast(enabled=profile.use_amp):
+            with torch.amp.autocast(device_type=device_type, enabled=use_scaler):
                 preds = model(imgs, tokens)
                 loss = l1_crit(preds, gt_boxes) + 0.5 * giou_crit(preds, gt_boxes)
 
-            scaler.scale(loss).backward()
-            scaler.step(optimizer)
-            scaler.update()
+            if scaler is not None:
+                scaler.scale(loss).backward()
+                scaler.step(optimizer)
+                scaler.update()
+            else:
+                loss.backward()
+                optimizer.step()
             total_loss += loss.item()
 
         avg_loss = total_loss / len(train_loader)
@@ -164,8 +185,8 @@ def train_grounding(args):
 
         ckpt_mgr.save_checkpoint(model, epoch, is_best, cur_miou)
 
-        if patience_counter >= profile.patience:
-            print(f"\n[EARLY STOPPING] Validation mIoU plateaued for {profile.patience} epochs.")
+        if patience_counter >= patience:
+            print(f"\n[EARLY STOPPING] Validation mIoU started decreasing / plateaued for {patience} epochs. Stopping to keep the best model.")
             break
 
     total_time = time.time() - t_start
@@ -216,6 +237,8 @@ if __name__ == "__main__":
     parser.add_argument("--lr", type=float, default=None)
     parser.add_argument("--output_dir", type=str, default=None)
     parser.add_argument("--seed", type=int, default=42)
+    parser.add_argument("--weights", type=str, default=None, help="Path to existing checkpoint to continue finetuning from.")
+    parser.add_argument("--patience", type=int, default=None, help="Early stopping patience (epochs to wait when metric decreases).")
     parser.add_argument("--export", action="store_true", help="Deploy best model directly to backend/models/checkpoints/rs_grounding_model/")
     args = parser.parse_args()
 

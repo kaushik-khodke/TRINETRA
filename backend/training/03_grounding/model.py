@@ -38,14 +38,21 @@ class RSGroundingDetector(nn.Module):
         b_feat = self.backbone(img).flatten(1)
         t_feat = self.text_embed(tokens).mean(dim=1)
         fused = torch.cat([b_feat, t_feat], dim=-1)
-        return self.box_head(fused)
+        raw = self.box_head(fused)
+        ymin = torch.min(raw[:, 0], raw[:, 2])
+        xmin = torch.min(raw[:, 1], raw[:, 3])
+        ymax = torch.max(raw[:, 0], raw[:, 2])
+        xmax = torch.max(raw[:, 1], raw[:, 3])
+        return torch.stack([ymin, xmin, ymax, xmax], dim=-1)
 
 class GiouLoss(nn.Module):
     """Generalized IoU loss for bounding box regression."""
     def forward(self, preds: torch.Tensor, targets: torch.Tensor) -> torch.Tensor:
         # Format: [ymin, xmin, ymax, xmax]
-        pred_y1, pred_x1, pred_y2, pred_x2 = preds[:, 0], preds[:, 1], preds[:, 2], preds[:, 3]
-        target_y1, target_x1, target_y2, target_x2 = targets[:, 0], targets[:, 1], targets[:, 2], targets[:, 3]
+        pred_y1, pred_y2 = torch.min(preds[:, 0], preds[:, 2]), torch.max(preds[:, 0], preds[:, 2])
+        pred_x1, pred_x2 = torch.min(preds[:, 1], preds[:, 3]), torch.max(preds[:, 1], preds[:, 3])
+        target_y1, target_y2 = torch.min(targets[:, 0], targets[:, 2]), torch.max(targets[:, 0], targets[:, 2])
+        target_x1, target_x2 = torch.min(targets[:, 1], targets[:, 3]), torch.max(targets[:, 1], targets[:, 3])
 
         inter_y1 = torch.max(pred_y1, target_y1)
         inter_x1 = torch.max(pred_x1, target_x1)

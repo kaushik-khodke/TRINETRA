@@ -222,7 +222,8 @@ async def analyze_preset(
         result_payload = controller.process_request(
             file_paths=local_paths,
             query=preset["query"],
-            input_mode=preset["mode"]
+            input_mode=preset["mode"],
+            response_language=response_language or "en"
         )
         JOBS_DB[result_payload["request_id"]] = result_payload
         return result_payload

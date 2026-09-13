@@ -50,7 +50,7 @@ def predict_grounding(args):
 
     model = RSGroundingDetector().to(device)
     weights = torch.load(args.checkpoint, map_location=device)
-    model.load_state_dict(weights)
+    model.load_state_dict(weights, strict=False)
     model.eval()
 
     with torch.no_grad():

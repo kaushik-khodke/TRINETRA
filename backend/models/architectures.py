@@ -137,7 +137,12 @@ class RSGroundingDetector(nn.Module):
         b_feat = self.backbone(img).flatten(1)
         t_feat = self.text_embed(tokens).mean(dim=1)
         fused = torch.cat([b_feat, t_feat], dim=-1)
-        return self.box_head(fused)
+        raw = self.box_head(fused)
+        ymin = torch.min(raw[:, 0], raw[:, 2])
+        xmin = torch.min(raw[:, 1], raw[:, 3])
+        ymax = torch.max(raw[:, 0], raw[:, 2])
+        xmax = torch.max(raw[:, 1], raw[:, 3])
+        return torch.stack([ymin, xmin, ymax, xmax], dim=-1)
 
 
 # ==============================================================================

@@ -41,26 +41,57 @@ def prepare_grounding(data_dir: str, manifest_dir: str, verify_only: bool = Fals
         print("[SUCCESS] Grounding dataset verified. Ready for training.")
         return
 
-    # Read official split manifests
+    # Read official split index manifests
     with open(data_path / "train.txt", "r", encoding="utf-8") as f:
-        train_ids = [line.strip() for line in f if line.strip()]
+        train_indices = [int(line.strip()) for line in f if line.strip()]
     with open(data_path / "val.txt", "r", encoding="utf-8") as f:
-        val_ids = [line.strip() for line in f if line.strip()]
+        val_indices = [int(line.strip()) for line in f if line.strip()]
     with open(data_path / "test.txt", "r", encoding="utf-8") as f:
-        test_ids = [line.strip() for line in f if line.strip()]
+        test_indices = [int(line.strip()) for line in f if line.strip()]
 
     # Strictly Verify Zero Split Leakage (Rule 2 & 38)
-    verify_split_leakage(train_ids, val_ids, test_ids)
+    verify_split_leakage([str(i) for i in train_indices], [str(i) for i in val_indices], [str(i) for i in test_indices])
+
+    # Index all genuine XML annotations in official sorted order (matches official IEEE TGRS 2023 RSVG dataloader)
+    import glob
+    import re
+    xml_files = sorted(glob.glob(os.path.join(data_dir, "Annotations", "*.xml")))
+    print(f"[+] Indexing genuine DIOR-RSVG annotations from {len(xml_files):,} XML files...")
+
+    reg_fn = re.compile(r'<filename>(.*?)</filename>')
+    reg_obj = re.compile(
+        r'<object>.*?<xmin>(\d+)</xmin>.*?<ymin>(\d+)</ymin>.*?<xmax>(\d+)</xmax>.*?<ymax>(\d+)</ymax>.*?(?:<description>|<query>)(.*?)(?:</description>|</query>).*?</object>',
+        re.DOTALL
+    )
+
+    all_objects = []
+    for f in xml_files:
+        try:
+            with open(f, 'r', encoding='utf-8') as xf:
+                content = xf.read()
+            fn_match = reg_fn.search(content)
+            fn = fn_match.group(1).strip() if fn_match else os.path.basename(f).replace('.xml', '.jpg')
+            for m in reg_obj.findall(content):
+                xmin, ymin, xmax, ymax, desc = m[0], m[1], m[2], m[3], m[4].strip()
+                all_objects.append(f"{fn}\t{xmin}\t{ymin}\t{xmax}\t{ymax}\t{desc}")
+        except Exception as e:
+            continue
+
+    print(f"[+] Successfully indexed {len(all_objects):,} genuine referring expressions across all XMLs.")
+
+    train_records = [all_objects[i] for i in train_indices if i < len(all_objects)]
+    val_records = [all_objects[i] for i in val_indices if i < len(all_objects)]
+    test_records = [all_objects[i] for i in test_indices if i < len(all_objects)]
 
     out_dir = manifest_dir or os.path.join(os.path.dirname(__file__), "manifests")
-    save_manifest(out_dir, "grounding_train", train_ids)
-    save_manifest(out_dir, "grounding_val", val_ids)
-    save_manifest(out_dir, "grounding_test", test_ids)
+    save_manifest(out_dir, "grounding_train", train_records)
+    save_manifest(out_dir, "grounding_val", val_records)
+    save_manifest(out_dir, "grounding_test", test_records)
 
     print(f"\n[SUMMARY]")
-    print(f"  Training samples:   {len(train_ids):,}")
-    print(f"  Validation samples: {len(val_ids):,}")
-    print(f"  Test samples:       {len(test_ids):,}")
+    print(f"  Training samples:   {len(train_records):,}")
+    print(f"  Validation samples: {len(val_records):,}")
+    print(f"  Test samples:       {len(test_records):,}")
     print("=================================================================\n")
 
 if __name__ == "__main__":
