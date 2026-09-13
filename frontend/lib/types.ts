@@ -87,11 +87,11 @@ export interface BackendHealth {
 
 export const checkBackendHealth = async (): Promise<BackendHealth | null> => {
   try {
-    const res = await fetch("/api/v1/health", { signal: AbortSignal.timeout(3000) });
-    if (!res.ok) return null;
-    return await res.json();
+    const res = await fetch(`${getApiBaseUrl()}/api/v1/health`, { signal: AbortSignal.timeout(3500) })
+    if (!res.ok) return null
+    return await res.json()
   } catch {
-    return null;
+    return null
   }
 };
 
@@ -163,71 +163,73 @@ export const analysisAPI = {
           evidenceList.push("Spectral indices verified via normalized band ratios.");
         }
 
-        // Extract grounding annotations
-        const annotations: GroundingAnnotation[] = [];
-        if (resData.bounding_box) {
-          const bbox = resData.bounding_box;
-          const [ymin, xmin, ymax, xmax] = Array.isArray(bbox) ? bbox : [0.2, 0.2, 0.7, 0.7];
-          annotations.push({
-            label: resData.target_label || "Identified Target",
-            x: Math.round(xmin * 100),
-            y: Math.round(ymin * 100),
-            width: Math.max(10, Math.round((xmax - xmin) * 100)),
-            height: Math.max(10, Math.round((ymax - ymin) * 100)),
-            color: "cyan",
-          });
-        } else if (resData.predicted_regions && Array.isArray(resData.predicted_regions)) {
-          resData.predicted_regions.forEach((reg: any, i: number) => {
-            const bbox = reg.bbox || [0.2 + i * 0.1, 0.2 + i * 0.1, 0.5 + i * 0.1, 0.5 + i * 0.1];
-            annotations.push({
-              label: reg.label || `Region 0${i + 1}`,
-              x: Math.round(bbox[1] * 100),
-              y: Math.round(bbox[0] * 100),
-              width: Math.max(8, Math.round((bbox[3] - bbox[1]) * 100)),
-              height: Math.max(8, Math.round((bbox[2] - bbox[0]) * 100)),
-              color: i % 2 === 0 ? "cyan" : "amber",
-            });
-          });
-        } else if (Array.isArray(resData.regions)) {
-          resData.regions.forEach((r: any, idx: number) => {
-            const bbox = r.bbox || [0, 0, 1, 1]; // [ymin, xmin, ymax, xmax]
-            annotations.push({
-              label: r.label || `Region ${idx + 1}`,
-              x: Math.round(bbox[1] * 100),
-              y: Math.round(bbox[0] * 100),
-              width: Math.max(5, Math.round((bbox[3] - bbox[1]) * 100)),
-              height: Math.max(5, Math.round((bbox[2] - bbox[0]) * 100)),
-              color: idx === 0 ? "cyan" : "amber",
-            });
-          });
-        }
+  // Extract grounding annotations
+  const annotations: GroundingAnnotation[] = []
+  if (resData.bounding_box) {
+    const bbox = resData.bounding_box
+    const [ymin, xmin, ymax, xmax] = Array.isArray(bbox) ? bbox : [0.1, 0.1, 0.9, 0.9]
+    annotations.push({
+      label: resData.target_label || "Identified Target",
+      x: Math.round(xmin * 100),
+      y: Math.round(ymin * 100),
+      width: Math.max(8, Math.round((xmax - xmin) * 100)),
+      height: Math.max(8, Math.round((ymax - ymin) * 100)),
+      color: "cyan"
+    })
+  } else if (resData.predicted_regions && Array.isArray(resData.predicted_regions)) {
+    resData.predicted_regions.forEach((reg: any, i: number) => {
+      const bbox = reg.bbox || [0.2 + i * 0.1, 0.2 + i * 0.1, 0.5 + i * 0.1, 0.5 + i * 0.1]
+      annotations.push({
+        label: reg.label || `Region 0${i + 1}`,
+        x: Math.round(bbox[1] * 100),
+        y: Math.round(bbox[0] * 100),
+        width: Math.max(8, Math.round((bbox[3] - bbox[1]) * 100)),
+        height: Math.max(8, Math.round((bbox[2] - bbox[0]) * 100)),
+        color: i % 2 === 0 ? "cyan" : "amber"
+      })
+    })
+  } else if (Array.isArray(resData.regions)) {
+    resData.regions.forEach((r: any, idx: number) => {
+      const bbox = r.bbox || [0, 0, 1, 1]
+      annotations.push({
+        label: r.label || `Region ${idx + 1}`,
+        x: Math.round(bbox[1] * 100),
+        y: Math.round(bbox[0] * 100),
+        width: Math.max(5, Math.round((bbox[3] - bbox[1]) * 100)),
+        height: Math.max(5, Math.round((bbox[2] - bbox[0]) * 100)),
+        color: idx === 0 ? "cyan" : "amber"
+      })
+    })
+  }
 
-        // Map execution steps
-        const traceSteps = data.execution_trace?.steps || [];
-        const executionSteps: ExecutionStep[] = traceSteps.map((s: any) => ({
-          label: s.action?.replace(/_/g, " ")?.toUpperCase() || "PIPELINE STEP",
-          detail: s.details || "Validated radiometric inputs",
-          duration: "0.3s",
-          status: "complete" as const,
-        }));
+  // Map execution steps from backend trace
+  const traceSteps = data.execution_trace?.steps || []
+  const executionSteps: ExecutionStep[] = traceSteps.map((s: any) => ({
+    label: s.action?.replace(/_/g, " ")?.toUpperCase() || "PIPELINE STEP",
+    detail: s.details || "Validated radiometric inputs",
+    duration: "0.3s",
+    status: "complete" as const
+  }))
 
-        if (executionSteps.length === 0) {
-          executionSteps.push({ label: "INPUT VALIDATION", detail: "Verified multi-spectral dimensions and CRS", duration: "0.2s", status: "complete" });
-          executionSteps.push({ label: "TASK CLASSIFICATION", detail: `Routed intent to ${data.task}`, duration: "0.2s", status: "complete" });
-          executionSteps.push({ label: "SPECIALIST EXECUTION", detail: resData.engine || "PyTorch Remote-Sensing Specialist", duration: "0.5s", status: "complete" });
-        }
+  if (executionSteps.length === 0) {
+    executionSteps.push({ label: "INPUT VALIDATION", detail: "Verified raster dimensions and CRS", duration: "0.2s", status: "complete" })
+    executionSteps.push({ label: "TASK ROUTING", detail: `Specialist assigned to ${data.task || "vqa"}`, duration: "0.2s", status: "complete" })
+    executionSteps.push({ label: "REASONING SYNTHESIS", detail: resData.engine || "Multimodal Remote-Sensing Engine", duration: "0.5s", status: "complete" })
+  }
 
-        // Determine display evidence image
-        let primaryUrl = request.images[0]?.url || "/satellite-optical.svg";
-        if (resData.evidence_image) {
-          primaryUrl = resData.evidence_image;
-        } else if (resData.evidence?.change_heatmap) {
-          primaryUrl = resData.evidence.change_heatmap;
-        } else if (resData.evidence?.fused_composite) {
-          primaryUrl = resData.evidence.fused_composite;
-        } else if (data.image_previews && data.image_previews[0]) {
-          primaryUrl = data.image_previews[0];
-        }
+  // Determine evidence image URL
+  let primaryUrl = ""
+  if (resData.evidence_image) {
+    primaryUrl = resData.evidence_image
+  } else if (resData.evidence?.change_heatmap) {
+    primaryUrl = resData.evidence.change_heatmap
+  } else if (resData.evidence?.fused_composite) {
+    primaryUrl = resData.evidence.fused_composite
+  } else if (data.image_previews && data.image_previews[0]) {
+    primaryUrl = data.image_previews[0]
+  } else if (initialImages[0]?.url) {
+    primaryUrl = initialImages[0].url
+  }
 
         const updatedImages: ImageInput[] = request.images.map((img, idx) => ({
           ...img,
@@ -282,14 +284,109 @@ export const analysisAPI = {
   },
 };
 
-export const saveHistory = (item: AnalysisResponse) => { if (typeof window === "undefined") return; const history = JSON.parse(localStorage.getItem("satquery-history") || "[]") as AnalysisResponse[]; localStorage.setItem("satquery-history", JSON.stringify([item, ...history].slice(0, 12))) }
-export const loadHistory = (): AnalysisResponse[] => { if (typeof window === "undefined") return []; try { return JSON.parse(localStorage.getItem("satquery-history") || "[]") as AnalysisResponse[] } catch { return [] } }
-export const confidenceCopy: Record<Confidence, string> = { high: "High confidence — verified radiometric evidence", medium: "Medium confidence — some features uncertain", low: "Low confidence — requires expert manual inspection" }
-export const modeRequirements: Record<AnalysisMode, string> = { single: "1 image required", temporal: "2 dated images required", fusion: "Optical + SAR pair required" }
-export const modeSlots = (mode: AnalysisMode) => mode === "single" ? [{ label: "Satellite image", hint: "Optical or SAR" }] : mode === "temporal" ? [{ label: "Earlier image", hint: "BEFORE" }, { label: "Later image", hint: "AFTER" }] : [{ label: "Optical image", hint: "OPTICAL" }, { label: "Radar image", hint: "SAR" }]
-export const isReady = (mode: AnalysisMode, images: ImageInput[], query: string) => images.length === (mode === "single" ? 1 : 2) && Boolean(query.trim())
-export const formatDate = (value: string) => new Intl.DateTimeFormat("en", { month: "short", day: "numeric", hour: "2-digit", minute: "2-digit" }).format(new Date(value))
-export const normalizeFile = (file: File, label: string, modality?: "OPTICAL" | "SAR"): ImageInput => ({ id: `${file.name}-${file.lastModified}`, name: file.name, size: file.size, url: URL.createObjectURL(file), label, modality, file })
-export const navItems = [{ href: "/", label: "Overview" }, { href: "/analysis", label: "Workspace" }, { href: "/dashboard", label: "History" }, { href: "/evaluation", label: "Evaluation" }]
-export const metricCards = [{ label: "Analyses run", value: "24", delta: "+8 this week" }, { label: "Images processed", value: "58", delta: "Optical & SAR" }, { label: "Avg. confidence", value: "93%", delta: "Across verified runs" }]
-export const evaluationMetrics = [{ label: "Grounding coverage", value: 96, note: "Claims linked to visible pixel regions" }, { label: "Workflow routing", value: 100, note: "Task correctly routed by agent controller" }, { label: "Radiometric verification", value: 94, note: "Physical indices (NDVI/NDWI/dB) validated" }]
+export const saveHistory = (item: AnalysisResponse) => {
+  if (typeof window === "undefined") return
+  const history = JSON.parse(localStorage.getItem("satquery-history") || "[]") as AnalysisResponse[]
+  localStorage.setItem("satquery-history", JSON.stringify([item, ...history].slice(0, 20)))
+}
+
+export const loadHistory = (): AnalysisResponse[] => {
+  if (typeof window === "undefined") return []
+  try {
+    return JSON.parse(localStorage.getItem("satquery-history") || "[]") as AnalysisResponse[]
+  } catch {
+    return []
+  }
+}
+
+export function getDynamicMetrics(history: AnalysisResponse[]) {
+  const totalRuns = history.length
+  const highConf = history.filter((h) => h.confidence === "high").length
+  const avgScore = totalRuns > 0
+    ? Math.round((history.reduce((acc, h) => acc + (h.confidenceScore || 0.9), 0) / totalRuns) * 100)
+    : 0
+
+  return [
+    {
+      label: "Analyses run",
+      value: totalRuns.toString(),
+      delta: totalRuns > 0 ? "Stored in local mission trail" : "Awaiting first analysis"
+    },
+    {
+      label: "Verified runs",
+      value: highConf.toString(),
+      delta: totalRuns > 0 ? `${Math.round((highConf / totalRuns) * 100)}% high confidence` : "No runs recorded"
+    },
+    {
+      label: "Avg. confidence",
+      value: totalRuns > 0 ? `${avgScore}%` : "—",
+      delta: totalRuns > 0 ? "Telemetry verified" : "Pending execution"
+    }
+  ]
+}
+
+export const confidenceCopy: Record<Confidence, string> = {
+  high: "High confidence — verified radiometric evidence",
+  medium: "Medium confidence — some features uncertain",
+  low: "Low confidence — requires expert manual inspection"
+}
+
+export const modeRequirements: Record<AnalysisMode, string> = {
+  single: "1 image required",
+  temporal: "2 dated images required",
+  fusion: "Optical + SAR pair required"
+}
+
+export const modeSlots = (mode: AnalysisMode) =>
+  mode === "single"
+    ? [{ label: "Satellite image", hint: "Optical or SAR" }]
+    : mode === "temporal"
+    ? [{ label: "Earlier image", hint: "BEFORE" }, { label: "Later image", hint: "AFTER" }]
+    : [{ label: "Optical image", hint: "OPTICAL" }, { label: "Radar image", hint: "SAR" }]
+
+export const isReady = (mode: AnalysisMode, images: ImageInput[], query: string) =>
+  images.length === (mode === "single" ? 1 : 2) && Boolean(query.trim())
+
+export const formatDate = (value: string) =>
+  new Intl.DateTimeFormat("en", { month: "short", day: "numeric", hour: "2-digit", minute: "2-digit" }).format(new Date(value))
+
+export const normalizeFile = (file: File, label: string, modality?: "OPTICAL" | "SAR"): ImageInput => ({
+  id: `${file.name}-${file.lastModified}`,
+  name: file.name,
+  size: file.size,
+  url: URL.createObjectURL(file),
+  label,
+  modality,
+  file
+})
+
+export const navItems = [
+  { href: "/", label: "Overview" },
+  { href: "/analysis", label: "Workspace" },
+  { href: "/dashboard", label: "History" },
+  { href: "/evaluation", label: "Evaluation" }
+]
+
+/**
+ * Constructs a secure, validated exploration URL for TRINETRA (Project B).
+ * Uses NEXT_PUBLIC_TRINETRA_URL (defaulting to http://localhost:4173 in development).
+ */
+export function buildTrinetraUrl(geo?: GeographicLocation, label?: string): string {
+  if (!geo || !geo.has_location || typeof geo.lat !== "number" || typeof geo.lng !== "number") {
+    return ""
+  }
+  const baseUrl = (typeof process !== "undefined" && process.env?.NEXT_PUBLIC_TRINETRA_URL) || "http://localhost:4173"
+  const params = new URLSearchParams()
+  params.set("lat", geo.lat.toFixed(5))
+  params.set("lng", geo.lng.toFixed(5))
+  params.set("height", (geo.height || 5000).toString())
+  params.set("source", "satquery")
+  const targetName = label || geo.location_name || "SatQuery Analysis Target"
+  params.set("name", targetName)
+  if (geo.bounds && geo.bounds.length === 4) {
+    params.set("bbox", geo.bounds.map((b) => b.toFixed(4)).join(","))
+  }
+  return `${baseUrl}/explore?${params.toString()}`
+}
+
+

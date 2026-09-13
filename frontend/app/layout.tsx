@@ -1,27 +1,25 @@
 import { Analytics } from '@vercel/analytics/next'
 import type { Metadata, Viewport } from 'next'
 import './globals.css'
+import { AuthProvider } from '@/context/AuthContext'
 
 export const metadata: Metadata = {
-  title: 'v0 App',
-  description: 'Created with v0',
-  generator: 'v0.app',
+  title: 'SatQuery AI — Agentic Multimodal Earth Observation Intelligence',
+  description: 'Grounded Vision-Language Reasoning and Multimodal Satellite Analysis Platform for ISRO Earth Observation.',
+  generator: 'SatQuery AI',
   icons: {
     icon: [
       {
-        url: '/icon-light-32x32.png',
-        media: '(prefers-color-scheme: light)',
+        url: '/trinetra-logo1.webp',
+        type: 'image/webp',
       },
       {
-        url: '/icon-dark-32x32.png',
-        media: '(prefers-color-scheme: dark)',
-      },
-      {
-        url: '/icon.svg',
-        type: 'image/svg+xml',
+        url: '/favicon.ico',
+        sizes: 'any',
       },
     ],
-    apple: '/apple-icon.png',
+    shortcut: '/trinetra-logo1.webp',
+    apple: '/trinetra-logo1.webp',
   },
 }
 
@@ -41,7 +39,9 @@ export default function RootLayout({
   return (
     <html lang="en">
       <body className="antialiased">
-        {children}
+        <AuthProvider>
+          {children}
+        </AuthProvider>
         {process.env.NODE_ENV === 'production' && <Analytics />}
       </body>
     </html>

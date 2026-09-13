@@ -25,51 +25,63 @@ class RSGroundingSpecialist:
         boxes: List[Dict[str, Any]] = []
 
         h, w = image_arr.shape[:2]
+        max_dim = max(h, w)
+        if max_dim > 1024:
+            step = int(np.ceil(max_dim / 1024))
+            sample_arr = image_arr[::step, ::step]
+        else:
+            sample_arr = image_arr
+        sh, sw = sample_arr.shape[:2]
 
         # 1. Target: Water bodies / rivers / lakes
         if any(w in clean_q for w in ["water", "river", "lake", "reservoir", "ocean"]):
-            ndwi = GeospatialNormalizer.compute_ndwi(image_arr)
+            ndwi = GeospatialNormalizer.compute_ndwi(sample_arr)
             mask = ndwi > 0.10
-            boxes = self._extract_contour_boxes(mask, h, w, "Hydrological Water Feature")
+            boxes = self._extract_contour_boxes(mask, sh, sw, "Hydrological Water Feature")
 
         # 2. Target: Vegetation / Forest / Crop
         elif any(w in clean_q for w in ["vegetation", "forest", "tree", "crop", "farm", "green"]):
-            ndvi = GeospatialNormalizer.compute_ndvi(image_arr)
+            ndvi = GeospatialNormalizer.compute_ndvi(sample_arr)
             mask = ndvi > 0.20
-            boxes = self._extract_contour_boxes(mask, h, w, "Vegetation Canopy / Agricultural Stand")
+            boxes = self._extract_contour_boxes(mask, sh, sw, "Vegetation Canopy / Agricultural Stand")
 
         # 3. Target: Urban / Built-up / Buildings
         elif any(w in clean_q for w in ["built-up", "urban", "building", "structure", "city", "house"]):
-            if image_arr.ndim == 3:
-                gray = 0.299 * image_arr[:, :, 0] + 0.587 * image_arr[:, :, 1] + 0.114 * image_arr[:, :, 2]
+            if sample_arr.ndim == 3:
+                gray = 0.299 * sample_arr[:, :, 0] + 0.587 * sample_arr[:, :, 1] + 0.114 * sample_arr[:, :, 2]
             else:
-                gray = image_arr if image_arr.ndim == 2 else image_arr[:, :, 0]
+                gray = sample_arr if sample_arr.ndim == 2 else sample_arr[:, :, 0]
             grad_y, grad_x = np.gradient(gray.astype(float))
             edge_mag = np.sqrt(grad_x**2 + grad_y**2)
             mask = edge_mag > 25.0
-            boxes = self._extract_contour_boxes(mask, h, w, "High-Density Built-Up Corridor")
+            boxes = self._extract_contour_boxes(mask, sh, sw, "High-Density Built-Up Corridor")
 
         # 4. Target: Runway / Airport / Linear transport corridor
         elif any(w in clean_q for w in ["runway", "airport", "airfield", "aircraft", "landing"]):
-            if image_arr.ndim == 3:
-                gray = np.mean(image_arr[:, :, :3], axis=-1)
+            if sample_arr.ndim == 3:
+                gray = np.mean(sample_arr[:, :, :3], axis=-1)
             else:
-                gray = image_arr if image_arr.ndim == 2 else image_arr[:, :, 0]
+                gray = sample_arr if sample_arr.ndim == 2 else sample_arr[:, :, 0]
             # High brightness corridor
             mask = gray > 180
-            boxes = self._extract_contour_boxes(mask, h, w, "Paved Transport Corridor / Runway")
+            boxes = self._extract_contour_boxes(mask, sh, sw, "Paved Transport Corridor / Runway")
 
-        # Fallback if no specific feature mask matched or pixels not found
+        # If no specific semantic feature mask matched, dynamically identify high-contrast spatial anomaly
         if not boxes:
-            boxes.append({
-                "bbox": [0.15, 0.15, 0.85, 0.85],
-                "score": 0.86,
-                "label": "Salient Geospatial Area of Interest"
-            })
+            if sample_arr.ndim == 3:
+                gray = np.mean(sample_arr[:, :, :3], axis=-1)
+            else:
+                gray = sample_arr if sample_arr.ndim == 2 else sample_arr[:, :, 0]
+            grad_y, grad_x = np.gradient(gray.astype(float))
+            edge_mag = np.sqrt(grad_x**2 + grad_y**2)
+            high_contrast_threshold = float(np.percentile(edge_mag, 92))
+            if high_contrast_threshold > 5.0:
+                saliency_mask = edge_mag >= high_contrast_threshold
+                boxes = self._extract_contour_boxes(saliency_mask, sh, sw, "Identified Salient Feature")
 
         # Render tactical visual bounding overlay on the user's actual image
         rgb_preview = GeospatialReader.to_rgb_preview(image_arr, meta.get("modality", "optical"))
-        overlay_img = EvidenceOverlayEngine.render_bounding_boxes(rgb_preview, boxes, color="#10B981")
+        overlay_img = EvidenceOverlayEngine.render_bounding_boxes(rgb_preview, boxes, color="#10B981") if boxes else rgb_preview
         evidence_b64 = EvidenceOverlayEngine.to_base64(overlay_img)
         raw_b64 = EvidenceOverlayEngine.to_base64(rgb_preview)
 
@@ -95,7 +107,7 @@ class RSGroundingSpecialist:
             "detected_regions": len(boxes),
             "bounding_box": boxes[0]["bbox"] if boxes else [0.15, 0.15, 0.85, 0.85],
             "regions": boxes,
-            "confidence": synthesis.get("confidence", max(b["score"] for b in boxes)),
+            "confidence": max((b["score"] for b in boxes), default=0.70),
             "evidence_image": evidence_b64,
             "raw_preview": raw_b64
         }
