@@ -27,6 +27,8 @@ from models.loader import ModelRegistryStatus
 from services.llm_engine import LLMReasoningEngine
 from llm.model_registry import local_registry
 from observability.langfuse_tracer import LangfuseTracer
+from qml.config import qml_config
+from qml.backends.simulator import get_quantum_backend
 
 app = FastAPI(
     title="SatQuery AI — Vision-Language Assistant API",
@@ -96,7 +98,26 @@ def health_check():
             "host": os.environ.get("LANGFUSE_HOST", "https://cloud.langfuse.com")
         },
         "models_status": ModelRegistryStatus.get_status(),
-        "llm_status": local_registry.get_status_summary()
+        "llm_status": local_registry.get_status_summary(),
+        "qml_status": {
+            "enabled": qml_config.enabled,
+            "device": qml_config.device_name,
+            "qubits": qml_config.num_qubits,
+            "layers": qml_config.num_layers
+        }
+    }
+
+@app.get("/api/v1/qml/status")
+def get_qml_status():
+    backend = get_quantum_backend()
+    return {
+        "enabled": qml_config.enabled,
+        "mode": qml_config.mode,
+        "device": qml_config.device_name,
+        "qubits": qml_config.num_qubits,
+        "layers": qml_config.num_layers,
+        "supported_tasks": qml_config.supported_tasks,
+        "telemetry": backend.get_telemetry()
     }
 
 @app.get("/api/v1/llm-status")
@@ -108,7 +129,8 @@ def get_tool_registry():
     return {
         "tools": list_tools(),
         "checkpoint_status": ModelRegistryStatus.get_status(),
-        "llm_status": local_registry.get_status_summary()
+        "llm_status": local_registry.get_status_summary(),
+        "qml_enabled": qml_config.enabled
     }
 
 @app.get("/api/v1/samples")

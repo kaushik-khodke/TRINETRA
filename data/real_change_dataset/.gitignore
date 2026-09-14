@@ -167,4 +167,6 @@ shatnetra/pinokio/.installed
 shatnetra/test-results/
 shatnetra/coverage/
 
-.png
+*.png
+SatQuery AI\data\real_change_dataset\train
+SatQuery AI\data\real_change_dataset\val

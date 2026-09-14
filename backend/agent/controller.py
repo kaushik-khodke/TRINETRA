@@ -29,6 +29,7 @@ from services.optical_sar.optical_sar_service import OpticalSarFusionSpecialist
 from services.reports.report_service import MissionReportGenerator
 from geospatial.reader import GeospatialReader
 from geospatial.overlays import EvidenceOverlayEngine
+from qml.integration.qml_service import QMLService
 
 REPORTS_DIR = os.path.join(os.path.dirname(os.path.dirname(os.path.abspath(__file__))), "outputs", "reports")
 os.makedirs(REPORTS_DIR, exist_ok=True)
@@ -256,6 +257,35 @@ class AgentController:
                     details="Integrated textual conclusions, visual evidence overlays, and confidence metrics."
                 )
 
+                # Step 5b: Experimental PennyLane QML Research Branch
+                qml_comparison_payload = None
+                try:
+                    with trace_ctx.tool("qml-quantum-validation", input_data={"task": task, "device": "default.qubit"}) as qml_span:
+                        trace.add_step(
+                            stage="execution",
+                            action="quantum_validation",
+                            tool="quantum_validation",
+                            details=f"Executing PennyLane VQC circuit and cross-paradigm agreement analysis for '{task}'."
+                        )
+                        qml_comparison_payload = QMLService.run_comparative_analysis(
+                            task=task,
+                            query=query,
+                            images_arr=loaded_arrays,
+                            metas=loaded_metas,
+                            classical_result=result,
+                            response_language=response_language
+                        )
+                        if qml_comparison_payload and "classical_vs_qml_comparison" in qml_comparison_payload:
+                            comp = qml_comparison_payload["classical_vs_qml_comparison"]
+                            qml_span.update(output={
+                                "agrees": comp.get("agrees"),
+                                "verdict": comp.get("verdict"),
+                                "qml_prediction": comp.get("qml_prediction"),
+                                "calibrated_score": comp.get("calibrated_agreement_score")
+                            })
+                except Exception as qml_err:
+                    print(f"[AgentController] Non-fatal QML execution notice: {qml_err}")
+
             except Exception as e:
                 trace_ctx.record_error(str(e))
                 trace.fail(f"Specialist tool execution error: {str(e)}")
@@ -311,6 +341,8 @@ class AgentController:
             "inputs_metadata": loaded_metas,
             "geographic_location": primary_geo,
             "image_previews": image_previews,
+            "qml_analysis": qml_comparison_payload.get("qml_research_branch") if qml_comparison_payload else None,
+            "classical_vs_qml_comparison": qml_comparison_payload.get("classical_vs_qml_comparison") if qml_comparison_payload else None,
             "execution_trace": dump,
             "reports": {
                 "html_report_url": f"/api/v1/reports/{trace.request_id}/html",

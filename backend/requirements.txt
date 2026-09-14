@@ -24,3 +24,7 @@ langchain-ollama>=1.0.0
 langchain-core>=0.3.0
 langfuse>=2.50.0
 
+# Quantum Machine Learning (PennyLane Research Branch)
+pennylane>=0.35.0
+
+

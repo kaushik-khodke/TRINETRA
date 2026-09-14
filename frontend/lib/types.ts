@@ -17,7 +17,68 @@ export interface GeographicLocation {
   location_name?: string
   zoom?: number
 }
-export interface AnalysisResponse { id: string; mode: AnalysisMode; query: string; answer: string; confidence: Confidence; confidenceScore: number; evidence: string[]; annotations: GroundingAnnotation[]; steps: ExecutionStep[]; model: string; processingTime: string; resolution: string; imageType: string; createdAt: string; images: ImageInput[]; reportUrl?: string; rawImageUrl?: string; overlayImageUrl?: string; geographicLocation?: GeographicLocation }
+export interface QMLAnalysisResult {
+  enabled: boolean
+  device: string
+  task: string
+  qubits: number
+  layers: number
+  circuit_depth: number
+  parameters: number
+  prediction: string
+  confidence: number
+  class_probabilities?: Record<string, number>
+  quantum_features?: number[]
+  simulation_latency_ms: number
+  total_latency_ms: number
+}
+export interface ClassicalVsQMLComparison {
+  agrees: boolean | null
+  verdict: string
+  classical_prediction: string
+  qml_prediction: string
+  classical_confidence: number
+  qml_confidence: number
+  confidence_delta: number
+  calibrated_agreement_score: number
+  status_message: string
+  parameter_comparison?: {
+    classical_model_parameters: number
+    quantum_circuit_parameters: number
+    quantum_parameter_reduction: string
+    "quantum_bits (qubits)"?: number
+    quantum_circuit_depth?: number
+  }
+  latency_comparison?: {
+    classical_inference_ms: number
+    quantum_simulation_ms: number
+    simulation_delta_ms: number
+  }
+  insights?: string[]
+}
+export interface AnalysisResponse {
+  id: string
+  mode: AnalysisMode
+  query: string
+  answer: string
+  confidence: Confidence
+  confidenceScore: number
+  evidence: string[]
+  annotations: GroundingAnnotation[]
+  steps: ExecutionStep[]
+  model: string
+  processingTime: string
+  resolution: string
+  imageType: string
+  createdAt: string
+  images: ImageInput[]
+  reportUrl?: string
+  rawImageUrl?: string
+  overlayImageUrl?: string
+  geographicLocation?: GeographicLocation
+  qml_analysis?: QMLAnalysisResult
+  classical_vs_qml_comparison?: ClassicalVsQMLComparison
+}
 export const modes: { id: AnalysisMode; label: string; description: string; icon: string }[] = [{ id: "single", label: "Single image", description: "Explore one scene", icon: "◈" }, { id: "temporal", label: "Bi-temporal", description: "Detect change over time", icon: "◌" }, { id: "fusion", label: "Optical + SAR", description: "Fuse complementary sensors", icon: "⌘" }]
 export const examples: Record<AnalysisMode, string[]> = { single: ["What land use types are visible in this image?", "Describe the water bodies and vegetation coverage.", "Highlight the water body referred to in the query"], temporal: ["What changes are visible between these two dates?", "Has the built-up area increased, decreased, or remained unchanged?", "Show me areas of significant vegetation loss."], fusion: ["Identify flooded regions using combined modality data.", "Compare the optical and radar signatures of this area."] }
 export const formatBytes = (bytes: number) => `${(bytes / 1024 / 1024).toFixed(1)} MB`
@@ -71,6 +132,48 @@ export const getDemoResult = (request: AnalysisRequest): AnalysisResponse => {
       crs: "EPSG:4326",
       location_name: "Delhi NCR Focus Area"
     },
+    qml_analysis: {
+      enabled: true,
+      device: "PennyLane default.qubit",
+      task: request.mode === "temporal" ? "change_analysis" : "vqa",
+      qubits: 4,
+      layers: 2,
+      circuit_depth: 5,
+      parameters: 35,
+      prediction: request.mode === "temporal" ? "Increased" : "Detected",
+      confidence: 0.81,
+      simulation_latency_ms: 18.4,
+      total_latency_ms: 22.1
+    },
+    classical_vs_qml_comparison: {
+      agrees: true,
+      verdict: "FULL_AGREEMENT",
+      classical_prediction: request.mode === "temporal" ? "Increased" : "Detected",
+      qml_prediction: request.mode === "temporal" ? "Increased" : "Detected",
+      classical_confidence: 0.91,
+      qml_confidence: 0.81,
+      confidence_delta: 0.10,
+      calibrated_agreement_score: 0.95,
+      status_message: "✓ Quantum circuit corroborates the operational classical model prediction.",
+      parameter_comparison: {
+        classical_model_parameters: 1245000,
+        quantum_circuit_parameters: 35,
+        quantum_parameter_reduction: "99.997%",
+        "quantum_bits (qubits)": 4,
+        quantum_circuit_depth: 5
+      },
+      latency_comparison: {
+        classical_inference_ms: 450.0,
+        quantum_simulation_ms: 18.4,
+        simulation_delta_ms: -431.6
+      },
+      insights: [
+        "Operational Baseline: Classical specialist (1.2M params) remains the validated operational truth.",
+        "Parameter Efficiency: The QML circuit achieves classification using only 35 trainable angles (99.997% fewer parameters).",
+        "Hilbert Space Expressivity: 4 qubits span a 16-dimensional complex state space capable of modeling non-linear feature entanglements.",
+        "Hardware Scalability: On future fault-tolerant QPUs (FTQC), execution time scales with circuit depth rather than input image resolution."
+      ]
+    }
   }
 }
 
@@ -291,6 +394,8 @@ export const analysisAPI = {
           rawImageUrl: rawUrl,
           overlayImageUrl: overlayUrl,
           geographicLocation: data.geographic_location || undefined,
+          qml_analysis: data.qml_analysis || undefined,
+          classical_vs_qml_comparison: data.classical_vs_qml_comparison || undefined,
         };
       } catch (err: any) {
         console.error("[analysisAPI] Real satellite analysis failed:", err);

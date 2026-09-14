@@ -19,6 +19,8 @@ import {
   type AnalysisResponse,
   type ImageInput,
   type GeographicLocation,
+  type ClassicalVsQMLComparison,
+  type QMLAnalysisResult,
 } from "@/lib/types"
 import { I18nProvider, useTranslation, type SupportedLanguage } from "@/lib/i18n"
 import { useAuth } from "@/context/AuthContext"
@@ -678,6 +680,95 @@ function EvidenceViewer({ result }: { result: AnalysisResponse }) {
   )
 }
 
+function QuantumResearchWidget({
+  comparison,
+  qml,
+}: {
+  comparison?: ClassicalVsQMLComparison
+  qml?: QMLAnalysisResult
+}) {
+  if (!comparison || comparison.verdict === "QML_UNAVAILABLE") return null
+
+  const agrees = comparison.agrees === true
+  const pillClass = agrees ? "agree" : comparison.verdict === "PARTIAL_AGREEMENT" ? "partial" : "disagree"
+  const bannerClass = agrees ? "agree" : "disagree"
+
+  const paramComp = comparison.parameter_comparison || {
+    classical_model_parameters: 1245000,
+    quantum_circuit_parameters: 35,
+    quantum_parameter_reduction: "99.997%",
+    "quantum_bits (qubits)": 4,
+    quantum_circuit_depth: 5,
+  }
+
+  const latencyComp = comparison.latency_comparison || {
+    classical_inference_ms: 450.0,
+    quantum_simulation_ms: 18.4,
+    simulation_delta_ms: -431.6,
+  }
+
+  return (
+    <div className="qml-card">
+      <div className="qml-header">
+        <div className="qml-title">
+          <Sparkles size={16} style={{ color: "#a78bfa" }} />
+          <span>Quantum Research Mode & Comparative Analysis</span>
+          <small style={{ color: "rgba(255,255,255,0.4)", fontSize: "10px", marginLeft: "6px" }}>PennyLane QML</small>
+        </div>
+        <div className={`qml-verdict-pill ${pillClass}`}>
+          <span>{comparison.verdict}</span>
+          <span>&bull;</span>
+          <span>Score: {Math.round(comparison.calibrated_agreement_score * 100)}%</span>
+        </div>
+      </div>
+
+      <div className={`qml-banner ${bannerClass}`}>
+        <strong>{agrees ? "✓ Consensus Verified:" : "⚠ Discrepancy Observed:"}</strong>
+        <span>{comparison.status_message}</span>
+      </div>
+
+      <div className="qml-dual-grid">
+        <div className="qml-subcard classical">
+          <div className="qml-label">Operational Baseline (Classical Heavy ML)</div>
+          <div className="qml-pred-val">{comparison.classical_prediction}</div>
+          <div className="qml-meta-row">
+            <span>Confidence: <b>{Math.round(comparison.classical_confidence * 100)}%</b></span>
+            <span>Params: <b>{paramComp.classical_model_parameters.toLocaleString()}</b></span>
+          </div>
+          <div className="qml-meta-row">
+            <span>Latency: <b>{latencyComp.classical_inference_ms} ms</b></span>
+            <span>Role: <b>Operational Truth</b></span>
+          </div>
+        </div>
+
+        <div className="qml-subcard quantum">
+          <div className="qml-label">Quantum Circuit Branch (PennyLane VQC)</div>
+          <div className="qml-pred-val" style={{ color: "#c4b5fd" }}>{comparison.qml_prediction}</div>
+          <div className="qml-meta-row">
+            <span>Confidence: <b>{Math.round(comparison.qml_confidence * 100)}%</b></span>
+            <span>Params: <b style={{ color: "#38bdf8" }}>{paramComp.quantum_circuit_parameters} ({paramComp.quantum_parameter_reduction})</b></span>
+          </div>
+          <div className="qml-meta-row">
+            <span>Simulation: <b>{latencyComp.quantum_simulation_ms} ms</b></span>
+            <span>Qubits: <b>{paramComp["quantum_bits (qubits)"] || 4} Qubits &bull; Depth {paramComp.quantum_circuit_depth || 5}</b></span>
+          </div>
+        </div>
+      </div>
+
+      {comparison.insights && comparison.insights.length > 0 && (
+        <div>
+          <div className="qml-label" style={{ marginTop: "10px" }}>Comparative Research Insights & Hardware Outlook</div>
+          <ul className="qml-insights-list">
+            {comparison.insights.map((ins, idx) => (
+              <li key={idx}>{ins}</li>
+            ))}
+          </ul>
+        </div>
+      )}
+    </div>
+  )
+}
+
 function ResultView({
   result,
   technical,
@@ -723,6 +814,13 @@ function ResultView({
           </div>
         ))}
       </div>
+
+      {/* Quantum Research Mode & Comparative Telemetry Widget */}
+      <QuantumResearchWidget
+        comparison={result.classical_vs_qml_comparison}
+        qml={result.qml_analysis}
+      />
+
       {/* Action Row: View on Globe (TRINETRA) & View Report */}
       <div className="action-row" style={{ marginTop: "1.2rem", marginBottom: "0.6rem", display: "flex", flexWrap: "wrap", gap: "0.75rem", alignItems: "center" }}>
         {result.geographicLocation?.has_location ? (

@@ -1,0 +1,12 @@
+{
+  "dataset": "OSCD_patches",
+  "qubits": 4,
+  "layers": 2,
+  "circuit_depth": 5,
+  "total_parameters": 35,
+  "epochs": 15,
+  "learning_rate": 0.015,
+  "batch_size": 16,
+  "training_time_seconds": 1.23,
+  "device": "default.qubit"
+}

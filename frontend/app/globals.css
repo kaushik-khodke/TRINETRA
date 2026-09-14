@@ -234,3 +234,150 @@ nav { display: flex; gap: 6px; flex: 1; } nav button { border: 0; color: rgba(25
     height: 250px;
   }
 }
+
+/* Quantum Research Mode (PennyLane QML) */
+.qml-card {
+  margin: 22px 0;
+  border-radius: 14px;
+  border: 1px solid rgba(139, 92, 246, 0.4);
+  background: linear-gradient(180deg, rgba(19, 17, 39, 0.75) 0%, rgba(15, 23, 42, 0.85) 100%);
+  backdrop-filter: blur(16px);
+  padding: 22px;
+  box-shadow: 0 0 28px rgba(139, 92, 246, 0.1);
+  position: relative;
+  overflow: hidden;
+}
+.qml-card::before {
+  content: "";
+  position: absolute;
+  top: 0;
+  left: 0;
+  right: 0;
+  height: 2px;
+  background: linear-gradient(90deg, #8b5cf6, #06b6d4, #8b5cf6);
+  background-size: 200% 100%;
+  animation: qmlGlow 4s linear infinite;
+}
+@keyframes qmlGlow {
+  0% { background-position: 0% 50%; }
+  50% { background-position: 100% 50%; }
+  100% { background-position: 0% 50%; }
+}
+.qml-header {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  flex-wrap: wrap;
+  gap: 12px;
+  margin-bottom: 14px;
+}
+.qml-title {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  font-size: 14px;
+  font-weight: 700;
+  letter-spacing: 0.08em;
+  text-transform: uppercase;
+  color: #c4b5fd;
+}
+.qml-verdict-pill {
+  font: 10px monospace;
+  padding: 4px 10px;
+  border-radius: 99px;
+  font-weight: 600;
+  letter-spacing: 0.05em;
+  display: inline-flex;
+  align-items: center;
+  gap: 5px;
+}
+.qml-verdict-pill.agree {
+  background: rgba(16, 185, 129, 0.15);
+  border: 1px solid #10b981;
+  color: #34d399;
+}
+.qml-verdict-pill.partial {
+  background: rgba(245, 158, 11, 0.15);
+  border: 1px solid #f59e0b;
+  color: #fbbf24;
+}
+.qml-verdict-pill.disagree {
+  background: rgba(239, 68, 68, 0.15);
+  border: 1px solid #ef4444;
+  color: #f87171;
+}
+.qml-dual-grid {
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  gap: 12px;
+  margin: 14px 0;
+}
+.qml-subcard {
+  background: rgba(0, 0, 0, 0.35);
+  border: 1px solid rgba(255, 255, 255, 0.08);
+  border-radius: 10px;
+  padding: 14px;
+}
+.qml-subcard.classical {
+  border-left: 3px solid #56d7df;
+}
+.qml-subcard.quantum {
+  border-left: 3px solid #a78bfa;
+}
+.qml-label {
+  font: 10px monospace;
+  color: rgba(255, 255, 255, 0.45);
+  text-transform: uppercase;
+  margin-bottom: 4px;
+}
+.qml-pred-val {
+  font-size: 18px;
+  font-weight: 700;
+  margin: 4px 0;
+  color: #ffffff;
+}
+.qml-meta-row {
+  display: flex;
+  justify-content: space-between;
+  font: 11px monospace;
+  color: rgba(255, 255, 255, 0.6);
+  margin-top: 8px;
+  border-top: 1px dashed rgba(255, 255, 255, 0.08);
+  padding-top: 6px;
+}
+.qml-banner {
+  padding: 10px 14px;
+  border-radius: 8px;
+  font-size: 12px;
+  line-height: 1.4;
+  margin: 12px 0;
+  display: flex;
+  align-items: center;
+  gap: 8px;
+}
+.qml-banner.agree {
+  background: rgba(16, 185, 129, 0.1);
+  border: 1px solid rgba(16, 185, 129, 0.3);
+  color: #a7f3d0;
+}
+.qml-banner.disagree {
+  background: rgba(245, 158, 11, 0.1);
+  border: 1px solid rgba(245, 158, 11, 0.3);
+  color: #fde68a;
+}
+.qml-insights-list {
+  margin: 10px 0 0;
+  padding-left: 18px;
+  font-size: 11px;
+  line-height: 1.55;
+  color: rgba(255, 255, 255, 0.68);
+}
+.qml-insights-list li {
+  margin-bottom: 5px;
+}
+@media (max-width: 600px) {
+  .qml-dual-grid {
+    grid-template-columns: 1fr;
+  }
+}
+

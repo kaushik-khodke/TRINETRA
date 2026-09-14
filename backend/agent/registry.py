@@ -136,8 +136,27 @@ TOOL_REGISTRY: Dict[str, SpecialistTool] = {
             "include_spectral_metadata": True
         },
         output_types=["report_file"]
+    ),
+    "quantum_validation": SpecialistTool(
+        tool_id="quantum_validation",
+        name="PennyLane Quantum Validation Specialist (QML)",
+        version="1.0.0",
+        description="Executes experimental Variational Quantum Classifier (VQC) circuits on compact feature vectors and computes cross-paradigm agreement metrics.",
+        supported_tasks=["change_analysis", "optical_sar_fusion", "vqa"],
+        supported_modalities=["optical", "multispectral", "sar"],
+        min_inputs=1,
+        max_inputs=2,
+        requires_geospatial=False,
+        permitted_parameters={
+            "qubits": 4,
+            "layers": 2,
+            "simulator": "default.qubit",
+            "shots": None
+        },
+        output_types=["quantum_prediction", "agreement_report", "insights"]
     )
 }
+
 
 def get_tool(tool_id: str) -> SpecialistTool:
     if tool_id not in TOOL_REGISTRY:

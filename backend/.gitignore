@@ -167,4 +167,4 @@ shatnetra/pinokio/.installed
 shatnetra/test-results/
 shatnetra/coverage/
 
-.png
+*.png
