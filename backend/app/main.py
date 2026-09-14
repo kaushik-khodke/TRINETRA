@@ -18,8 +18,17 @@ from fastapi.responses import FileResponse, JSONResponse
 # Add backend and project root to sys.path
 BACKEND_DIR = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
 PROJECT_ROOT = os.path.dirname(BACKEND_DIR)
-sys.path.insert(0, BACKEND_DIR)
-sys.path.insert(0, PROJECT_ROOT)
+# Load backend/.env into environment
+_env_file = os.path.join(BACKEND_DIR, ".env")
+if os.path.exists(_env_file):
+    with open(_env_file, "r", encoding="utf-8") as _f:
+        for _line in _f:
+            _line = _line.strip()
+            if _line and not _line.startswith("#") and "=" in _line:
+                _k, _v = _line.split("=", 1)
+                _k = _k.strip()
+                _v = _v.strip().strip('"').strip("'")
+                os.environ[_k] = _v
 
 from agent.controller import AgentController
 from agent.registry import list_tools

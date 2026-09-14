@@ -1,6 +1,6 @@
 {
   "version": "1.0.0",
-  "last_updated": "2026-09-14T15:26:04Z",
+  "last_updated": "2026-09-14T15:46:52Z",
   "samples": [
     {
       "sample_id": "qml_smp_e5bad2ca",
@@ -47,6 +47,75 @@
       "verified": false,
       "model_version": "qml_change_levir10k",
       "timestamp": "2026-09-14T15:26:04Z"
+    },
+    {
+      "sample_id": "qml_smp_2b162d54",
+      "dataset": "LEVIR_CD_patches",
+      "task": "vqa",
+      "feature_vector": [
+        3.141571,
+        0.030825,
+        0.026554,
+        3.141269,
+        2e-06,
+        2.997193
+      ],
+      "ground_truth": null,
+      "classical_prediction": "Increased",
+      "classical_confidence": 0.9,
+      "qml_prediction": "Unchanged",
+      "qml_confidence": 0.9493,
+      "agreement": false,
+      "is_disagreement": true,
+      "verified": false,
+      "model_version": "qml_change_levir10k",
+      "timestamp": "2026-09-14T15:45:48Z"
+    },
+    {
+      "sample_id": "qml_smp_fce83bb0",
+      "dataset": "LEVIR_CD_patches",
+      "task": "vqa",
+      "feature_vector": [
+        3.141571,
+        0.030825,
+        0.026554,
+        3.141269,
+        2e-06,
+        2.997193
+      ],
+      "ground_truth": null,
+      "classical_prediction": "Increased",
+      "classical_confidence": 0.94,
+      "qml_prediction": "Unchanged",
+      "qml_confidence": 0.9493,
+      "agreement": false,
+      "is_disagreement": true,
+      "verified": false,
+      "model_version": "qml_change_levir10k",
+      "timestamp": "2026-09-14T15:46:09Z"
+    },
+    {
+      "sample_id": "qml_smp_1f52d2d8",
+      "dataset": "LEVIR_CD_patches",
+      "task": "change_analysis",
+      "feature_vector": [
+        3.139179,
+        2.570922,
+        0.002843,
+        0.024014,
+        1.635461,
+        1.754716
+      ],
+      "ground_truth": null,
+      "classical_prediction": "Increased",
+      "classical_confidence": 0.91,
+      "qml_prediction": "Unchanged",
+      "qml_confidence": 0.7766,
+      "agreement": false,
+      "is_disagreement": true,
+      "verified": false,
+      "model_version": "qml_change_levir10k",
+      "timestamp": "2026-09-14T15:46:52Z"
     }
   ]
 }
