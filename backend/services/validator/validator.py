@@ -40,11 +40,18 @@ class InputValidator:
             )
 
         if requested_mode == "single" and count != 1:
-            return ValidationReport(
-                valid=False,
-                mode=requested_mode,
-                error_message=f"Single-image mode expects exactly 1 image, but received {count}."
-            )
+            if count == 2:
+                # Auto-promote to paired workflow instead of rejecting
+                if declared_modalities and any("sar" in str(m).lower() for m in declared_modalities):
+                    requested_mode = "optical_sar"
+                else:
+                    requested_mode = "bi_temporal"
+            else:
+                return ValidationReport(
+                    valid=False,
+                    mode=requested_mode,
+                    error_message=f"Single-image mode expects exactly 1 image, but received {count}."
+                )
 
         if requested_mode in ["bi_temporal", "optical_sar"] and count != 2:
             return ValidationReport(

@@ -246,7 +246,8 @@ class DomainDetector:
                 )
 
         # 3.5 Portrait / Selfie / Human Skin Tone Heuristic
-        if c >= 3:
+        # Distinguishes smooth human flesh from textured terrestrial terrain/clay/soil
+        if not is_geotiff and c >= 3 and h >= 64 and w >= 64:
             sum_rgb = r + g + b + 1e-5
             norm_r = r / sum_rgb
             norm_g = g / sum_rgb
@@ -255,14 +256,24 @@ class DomainDetector:
 
             ch_start, ch_end = int(h * 0.25), int(h * 0.75)
             cw_start, cw_end = int(w * 0.25), int(w * 0.75)
-            center_skin_pct = float(np.sum(skin_mask[ch_start:ch_end, cw_start:cw_end]) / max(1, (ch_end - ch_start) * (cw_end - cw_start)) * 100.0)
+            center_skin = skin_mask[ch_start:ch_end, cw_start:cw_end]
+            center_skin_pct = float(np.sum(center_skin) / max(1, center_skin.size) * 100.0)
 
-            if skin_pct > 18.0 and center_skin_pct > 30.0:
-                return DomainValidationResult(
-                    is_remote_sensing=False,
-                    reasons=[f"High concentration of portrait skin tones detected ({skin_pct:.1f}% overall, {center_skin_pct:.1f}% central)"],
-                    rejection_message="Unsupported input: this image appears to be a portrait or selfie photograph. Remote-sensing models require Earth observation imagery."
-                )
+            if skin_pct > 22.0 and center_skin_pct > 32.0:
+                # Differentiate smooth human face vs textured satellite terrain (red/brown soil, clay, arid farmland)
+                gray_u8 = gray.astype(np.uint8)
+                gx = np.diff(gray_u8, axis=1)
+                gy = np.diff(gray_u8, axis=0)
+                edge_energy = float(np.mean(np.abs(gx)) + np.mean(np.abs(gy)))
+
+                # Real human portraits have smooth skin (edge energy < 6.0)
+                # Satellite terrain has sharp parcel boundaries, roads, waterlines, structures (edge energy > 15.0)
+                if edge_energy < 6.0:
+                    return DomainValidationResult(
+                        is_remote_sensing=False,
+                        reasons=[f"Smooth portrait skin tones detected ({skin_pct:.1f}% skin tone, edge energy {edge_energy:.1f})"],
+                        rejection_message="Unsupported input: this image appears to be a portrait or selfie photograph. Remote-sensing models require Earth observation imagery."
+                    )
 
         # =====================================================================
         # 4. Verified Nadir Optical Satellite Imagery

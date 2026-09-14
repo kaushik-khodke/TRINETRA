@@ -158,6 +158,7 @@ class LangGraphOrchestrator:
 
         return {
             "is_valid": True,
+            "input_mode": val_report.mode,
             "validation_report": report_dict,
             "error": None,
             "execution_steps": steps
@@ -417,7 +418,7 @@ class LangGraphOrchestrator:
             "status": "completed"
         }
 
-        # Extract geographic location for TRINETRA 3D Earth Globe integration
+        # Extract geographic location for TRINETRA 3D Earth Globe integration (supports 1 or multiple rasters)
         files = state.get("file_paths", [])
         geo_location = {
             "has_location": False,
@@ -425,24 +426,64 @@ class LangGraphOrchestrator:
             "lng": None,
             "height": 5000,
             "bounds": None,
-            "crs": None
+            "crs": None,
+            "location_name": None
         }
-        if files and os.path.exists(files[0]):
-            try:
-                from geospatial.reader import GeospatialReader
-                meta = GeospatialReader.read_metadata(files[0])
-                if meta.has_geographic_location:
-                    geo_location = {
-                        "has_location": True,
-                        "lat": meta.center_lat,
-                        "lng": meta.center_lng,
-                        "height": 5000,
-                        "bounds": list(meta.bounds) if meta.bounds else None,
-                        "crs": meta.crs or "EPSG:4326",
-                        "location_name": meta.location_name
-                    }
-            except Exception:
-                pass
+        valid_metas = []
+        for f in files:
+            if f and os.path.exists(f):
+                try:
+                    from geospatial.reader import GeospatialReader
+                    m = GeospatialReader.read_metadata(f)
+                    if m.has_geographic_location:
+                        valid_metas.append(m)
+                except Exception as e:
+                    print(f"[LangGraph] Metadata extraction notice for {f}: {e}")
+
+        if valid_metas:
+            if len(valid_metas) == 1:
+                m = valid_metas[0]
+                geo_location = {
+                    "has_location": True,
+                    "lat": m.center_lat,
+                    "lng": m.center_lng,
+                    "height": 5000,
+                    "bounds": list(m.bounds) if m.bounds else None,
+                    "crs": m.crs or "EPSG:4326",
+                    "location_name": m.location_name or "Satellite Target"
+                }
+            else:
+                # Two or more observations (e.g., bi-temporal change or optical-SAR pair)
+                lats = [m.center_lat for m in valid_metas if m.center_lat is not None]
+                lngs = [m.center_lng for m in valid_metas if m.center_lng is not None]
+                avg_lat = round(sum(lats) / len(lats), 6) if lats else None
+                avg_lng = round(sum(lngs) / len(lngs), 6) if lngs else None
+                
+                # Compute bounding box encompassing both scenes
+                all_b = [m.bounds for m in valid_metas if m.bounds]
+                if all_b:
+                    min_x = min(b[0] for b in all_b)
+                    min_y = min(b[1] for b in all_b)
+                    max_x = max(b[2] for b in all_b)
+                    max_y = max(b[3] for b in all_b)
+                    combined_bounds = [round(min_x, 6), round(min_y, 6), round(max_x, 6), round(max_y, 6)]
+                else:
+                    combined_bounds = None
+
+                names = [m.location_name for m in valid_metas if m.location_name]
+                loc_name = " & ".join(names) if names else ("Bi-Temporal Study Target" if state.get("input_mode") == "bi_temporal" else "Optical-SAR Target Area")
+
+                geo_location = {
+                    "has_location": True,
+                    "lat": avg_lat,
+                    "lng": avg_lng,
+                    "height": 6000,
+                    "bounds": combined_bounds,
+                    "crs": valid_metas[0].crs or "EPSG:4326",
+                    "location_name": loc_name
+                }
+
+        out["geographic_location"] = geo_location
 
         final_resp = {
             "request_id": state["request_id"],

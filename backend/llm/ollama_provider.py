@@ -110,7 +110,7 @@ class OllamaProvider:
                 data=req_data,
                 headers={"Content-Type": "application/json", "User-Agent": "SatQuery-AI/LocalOllama"}
             )
-            with urllib.request.urlopen(req, timeout=8.0) as resp:
+            with urllib.request.urlopen(req, timeout=45.0) as resp:
                 data = json.loads(resp.read().decode("utf-8"))
                 latency = (time.time() - t0) * 1000.0
                 raw_text = data.get("response", "").strip()
@@ -151,18 +151,17 @@ class OllamaProvider:
                         token_usage=usage,
                         success=True
                     )
-        except Exception:
-            pass
+        except Exception as e:
+            print(f"[OllamaProvider] Generation notice ({model_tag}): {e}")
 
-        # 2. Return fallback response cleanly without blocking
+        # 2. Return fallback response cleanly signaling that caller should use domain-grounded synthesis
         latency = (time.time() - t0) * 1000.0
-        fallback_text = "Analysis completed using grounded radiometric physics engine."
         return LLMGenerationResponse(
-            text=fallback_text,
-            model=f"{model_tag} (fallback: deterministic physics)",
+            text="",
+            model=f"{model_tag} (deterministic physics fallback)",
             role=role,
             latency_ms=round(latency, 2),
-            success=True,
+            success=False,
             error="Ollama local generation timed out or busy; engaged deterministic physics fallback."
         )
 

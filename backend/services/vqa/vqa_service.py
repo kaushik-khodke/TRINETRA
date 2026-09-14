@@ -79,11 +79,30 @@ class RSVqaSpecialist:
         metrics = GeospatialNormalizer.compute_spectral_breakdown(image_arr)
         modality = meta.get("modality", "optical")
 
-        # Feature detection
+        # Clean natural language feature observations (prevent leaking raw boolean keys into LLM)
+        observations = []
+        if metrics["water_body_pct"] > 1.5:
+            observations.append(f"open surface water detected ({metrics['water_body_pct']}%)")
+        else:
+            observations.append("no significant surface water detected")
+
+        if metrics["vegetation_cover_pct"] > 25.0:
+            observations.append(f"dense canopy vegetation ({metrics['vegetation_cover_pct']}%)")
+        elif metrics["vegetation_cover_pct"] > 5.0:
+            observations.append(f"scattered vegetation ({metrics['vegetation_cover_pct']}%)")
+        else:
+            observations.append("sparse or negligible green vegetation")
+
+        if metrics["built_up_density_pct"] > 8.0:
+            observations.append(f"anthropogenic infrastructure present ({metrics['built_up_density_pct']}%)")
+        else:
+            observations.append("low built-up density")
+
         features = {
-            "has_water": metrics["water_body_pct"] > 1.5,
-            "has_dense_veg": metrics["vegetation_cover_pct"] > 25.0,
-            "has_urban": metrics["built_up_density_pct"] > 12.0
+            "terrain_summary": "; ".join(observations),
+            "water_detected": metrics["water_body_pct"] > 1.5,
+            "vegetation_detected": metrics["vegetation_cover_pct"] > 5.0,
+            "built_up_detected": metrics["built_up_density_pct"] > 8.0
         }
         if neural_pred and neural_pred["top_answer"]:
             features["neural_vqa_prediction"] = neural_pred["top_answer"]

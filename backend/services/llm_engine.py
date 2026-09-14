@@ -60,6 +60,22 @@ class LLMReasoningEngine:
             return "\nLanguage Directive: Respond directly in Marathi (मराठी). Do not translate numbers, percentages (%), units (dB, m/pixel), CRS, coordinates, or technical sensor names (NDVI, NDWI, SAR, Optical, Landsat, Sentinel)."
         return ""
 
+    @staticmethod
+    def _sanitize_analyst_answer(text: str) -> str:
+        """Removes any leaked programming variables or robotic boolean phrases from model output."""
+        if not text:
+            return ""
+        import re
+        # Strip leaked internal boolean feature phrases
+        cleaned = re.sub(r"(?:,\s*and\s*)?(?:the\s*)?['\"]?has_\w+['\"]?\s*(?:feature\s*)?(?:is\s*)?(?:reported\s+as\s+)?(?:True|False)\.?", "", text, flags=re.I)
+        cleaned = re.sub(r"['\"]?has_\w+['\"]?\s*:\s*(?:True|False)", "", cleaned, flags=re.I)
+        cleaned = re.sub(r"\bfeature\s+is\s+reported\s+as\s+(?:True|False)\b", "", cleaned, flags=re.I)
+        # Clean up double punctuation or awkward whitespace
+        cleaned = re.sub(r"\s+", " ", cleaned).strip()
+        cleaned = re.sub(r",\s*\.", ".", cleaned)
+        cleaned = re.sub(r"\.\s*\.", ".", cleaned)
+        return cleaned
+
     # ==========================================
     # 1. Single-Image VQA Reasoning
     # ==========================================
@@ -85,27 +101,30 @@ class LLMReasoningEngine:
 
         # 1. Attempt Local Ollama inference
         if LocalModelRegistry.is_ollama_online():
-            prompt = f"""You are SatQuery AI, an ISRO remote-sensing vision-language assistant.
-Answer the user's question directly and concisely based on these real satellite sensor measurements:
+            terrain_desc = detected_features.get("terrain_summary") if isinstance(detected_features, dict) else str(detected_features)
+            prompt = f"""You are SatQuery AI, an ISRO remote-sensing earth observation analyst.
+Answer the user's question directly, concisely, and naturally based on these real satellite sensor measurements:
 - Sensor Modality: {modality.upper()}
 - Vegetation Cover (NDVI/VARI): {spectral_metrics.get('vegetation_cover_pct', 0)}% (Mean: {spectral_metrics.get('mean_ndvi', 0)})
 - Hydrological Surface Water (NDWI): {spectral_metrics.get('water_body_pct', 0)}% (Mean: {spectral_metrics.get('mean_ndwi', 0)})
 - Urban / Built-Up Density: {spectral_metrics.get('built_up_density_pct', 0)}%
 - Bare Soil / Substrate: {spectral_metrics.get('bare_soil_pct', 0)}%
 - Spatial Quadrant Distribution: {spatial_dist}
-- Observable Structural Features: {detected_features}
+- Terrain Observations: {terrain_desc}
 
 User Question: "{query}"
 
 Instructions:
-- Provide a concise, direct answer (2 sentences max) strictly grounded in the remote sensing measurements above.
-- Guardrail: If the query or imagery indicates non-satellite, indoor, or non-earth-observation content, explicitly declare: "This image does not display authentic satellite Earth observation imagery."{lang_directive}"""
+- Speak in a natural, authoritative earth-observation analyst tone.
+- CRITICAL GUARDRAIL: NEVER mention programming variables, internal code flags, or boolean literals (such as 'has_water', 'has_urban', 'True', 'False', or 'feature is reported as'). Explain what is physically observed in the image naturally (e.g. "From the satellite image, no significant surface water was detected").
+- Provide a direct, user-friendly answer (1 to 2 sentences max).{lang_directive}"""
 
             resp = OllamaProvider.generate(prompt, role="planner", max_tokens=240)
             if resp.success and resp.text:
+                sanitized_text = cls._sanitize_analyst_answer(resp.text)
                 conf = 0.94 if spectral_metrics.get("is_geotiff") else 0.88
                 return {
-                    "answer": resp.text,
+                    "answer": sanitized_text or resp.text,
                     "engine": f"Local Ollama ({resp.model}) Grounded VQA",
                     "confidence": conf,
                     "model_role": resp.role,
@@ -680,22 +699,28 @@ Provide a concise 2-sentence confirmation explaining the spatial location of the
                 conf = 0.92
 
         # Question: Urban / buildings / roads / structures
-        elif any(w in clean_q for w in ["building", "built-up", "urban", "city", "infrastructure", "road", "house", "concrete", "इमारत", "शहर", "सड़क", "बांधकाम"]):
-            if urban_pct > 15.0:
+        elif any(w in clean_q for w in ["building", "built-up", "urban", "city", "infrastructure", "road", "house", "concrete", "structure", "settlement", "इमारत", "शहर", "सड़क", "बांधकाम"]):
+            urban_quads = metrics.get("quadrants", {}).get("urban", {})
+            top_sectors = [f"{k} quadrant ({v}%)" for k, v in sorted(urban_quads.items(), key=lambda x: x[1], reverse=True) if v > 1.0]
+            loc_en = f", concentrated primarily in the {', '.join(top_sectors[:2])}" if top_sectors else ""
+            loc_hi = f", जो मुख्य रूप से {', '.join(top_sectors[:2])} में केंद्रित है" if top_sectors else ""
+            loc_mr = f", जे प्रामुख्याने {', '.join(top_sectors[:2])} मध्ये केंद्रित आहे" if top_sectors else ""
+
+            if urban_pct > 3.0:
                 if response_language == "hi":
                     answer = (
-                        f"पर्याप्त मानवजनित बुनियादी ढांचा और निर्मित संरचनाएं पाई गई हैं ({urban_pct}% संरचनात्मक घनत्व)। "
-                        f"उच्च स्थानिक ढाल और ज्यामितीय पैटर्न घनी बस्तियों और सड़क नेटवर्क को दर्शाते हैं।"
+                        f"हाँ, निर्मित संरचनाएं और मानवजनित बुनियादी ढांचा मौजूद हैं ({urban_pct}% संरचनात्मक घनत्व){loc_hi}। "
+                        f"उच्च स्थानिक ढाल और ज्यामितीय किनारे बस्तियों, औद्योगिक सुविधाओं और सड़क नेटवर्क को दर्शाते हैं।"
                     )
                 elif response_language == "mr":
                     answer = (
-                        f"मोठ्या प्रमाणात मानवनिर्मित पायाभूत सुविधा आणि बांधकामे आढळली आहेत ({urban_pct}% संरचनात्मक घनता). "
-                        f"उच्च अवकाशीय ग्रेडियंट आणि भौमितिक रचना दाट वस्त्या आणि रस्ते नेटवर्क दर्शवतात."
+                        f"होय, मानवनिर्मित बांधकामे आणि पायाभूत सुविधा उपस्थित आहेत ({urban_pct}% संरचनात्मक घनता){loc_mr}. "
+                        f"उच्च अवकाशीय ग्रेडियंट आणि कडा वस्त्या, औद्योगिक रचना आणि रस्ते नेटवर्क दर्शवतात."
                     )
                 else:
                     answer = (
-                        f"Substantial anthropogenic infrastructure and built-up structures are detected ({urban_pct}% structural density). "
-                        f"High spatial edge gradients and rectilinear geometric patterns denote dense settlements and roadway networks."
+                        f"Yes, built-up structures and anthropogenic infrastructure are present ({urban_pct}% structural density){loc_en}. "
+                        f"High spatial edge gradients and geometric patterns denote settlements, facility compounds, and connecting roadways."
                     )
                 conf = 0.93
             else:

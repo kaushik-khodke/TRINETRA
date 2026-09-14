@@ -171,6 +171,59 @@ def get_demo_samples():
         }
     ]
 
+@app.post("/api/v1/inspect-image")
+async def inspect_image(file: UploadFile = File(...)):
+    """Fast pre-inspection of raster to extract coordinates, CRS, and Shatnetra 3D Globe URL immediately on upload."""
+    temp_dir = os.path.join(UPLOAD_DIR, "inspect")
+    os.makedirs(temp_dir, exist_ok=True)
+    temp_file = os.path.join(temp_dir, f"{uuid.uuid4()}_{file.filename}")
+    try:
+        with open(temp_file, "wb") as buffer:
+            shutil.copyfileobj(file.file, buffer)
+
+        from geospatial.reader import GeospatialReader
+        meta = GeospatialReader.read_metadata(temp_file)
+
+        geo = {
+            "has_location": meta.has_geographic_location,
+            "lat": meta.center_lat,
+            "lng": meta.center_lng,
+            "height": 5000,
+            "bounds": list(meta.bounds) if meta.bounds else None,
+            "crs": meta.crs or "EPSG:4326",
+            "location_name": meta.location_name or os.path.splitext(file.filename)[0]
+        }
+
+        globe_url = None
+        if geo["has_location"] and geo["lat"] is not None and geo["lng"] is not None:
+            globe_base = os.environ.get("NEXT_PUBLIC_TRINETRA_URL", "http://localhost:4173")
+            target_name = geo["location_name"] or "Satellite Target"
+            globe_url = f"{globe_base}/?lat={geo['lat']:.5f}&lng={geo['lng']:.5f}&lon={geo['lng']:.5f}&height=5000&source=satquery&name={target_name}"
+
+        return {
+            "filename": file.filename,
+            "width": meta.width,
+            "height": meta.height,
+            "bands": meta.bands,
+            "modality": meta.modality,
+            "is_geotiff": meta.is_geotiff,
+            "geographic_location": geo,
+            "globe_url": globe_url
+        }
+    except Exception as e:
+        return {
+            "filename": file.filename,
+            "error": str(e),
+            "geographic_location": {"has_location": False},
+            "globe_url": None
+        }
+    finally:
+        if os.path.exists(temp_file):
+            try:
+                os.remove(temp_file)
+            except Exception:
+                pass
+
 @app.post("/api/v1/analyze")
 async def analyze_request(
     files: List[UploadFile] = File(...),
@@ -192,6 +245,14 @@ async def analyze_request(
             saved_paths.append(dest_path)
 
         declared_mods = [m.strip() for m in modalities.split(",")] if modalities else None
+
+        # Auto-detect paired mode if 2 files are uploaded under default/single mode
+        if len(saved_paths) == 2 and input_mode == "single":
+            q_lower = query.lower()
+            if (declared_mods and any("sar" in str(m).lower() for m in declared_mods)) or ("sar" in q_lower or "radar" in q_lower):
+                input_mode = "optical_sar"
+            else:
+                input_mode = "bi_temporal"
 
         # Execute through master agent controller
         result_payload = controller.process_request(

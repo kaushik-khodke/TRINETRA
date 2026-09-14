@@ -3,7 +3,7 @@ import { translations, type SupportedLanguage } from "@/lib/i18n"
 export type AnalysisMode = "single" | "temporal" | "fusion"
 export type Confidence = "high" | "medium" | "low"
 export type AnalysisStatus = "idle" | "running" | "complete" | "error"
-export interface ImageInput { id: string; name: string; size: number; url: string; label: string; modality?: "OPTICAL" | "SAR"; date?: string; file?: File }
+export interface ImageInput { id: string; name: string; size: number; url: string; label: string; modality?: "OPTICAL" | "SAR"; date?: string; file?: File; geographicLocation?: GeographicLocation; globeUrl?: string; }
 export interface ExecutionStep { label: string; detail: string; duration: string; status: "complete" | "active" | "pending" }
 export interface AnalysisRequest { mode: AnalysisMode; images: ImageInput[]; query: string; response_language?: "en" | "hi" | "mr" }
 export interface GroundingAnnotation { label: string; x: number; y: number; width: number; height: number; color: "cyan" | "amber" }
@@ -26,6 +26,8 @@ export interface AnalysisResponse {
   reportUrl?: string;
   rawImageUrl?: string;
   overlayImageUrl?: string;
+  geographicLocation?: GeographicLocation;
+  globeUrl?: string;
   hsiData?: {
     isHsi: boolean;
     cubeMetadata?: {
@@ -153,7 +155,15 @@ export const analysisAPI = {
           }
         });
         formData.append("query", request.query);
-        const backendMode = request.mode === "temporal" ? "bi_temporal" : request.mode === "fusion" ? "optical_sar" : "single";
+        let backendMode = request.mode === "temporal" ? "bi_temporal" : request.mode === "fusion" ? "optical_sar" : "single";
+        if (request.images.length === 2 && backendMode === "single") {
+          const qLower = (request.query || "").toLowerCase();
+          if (qLower.includes("sar") || qLower.includes("radar")) {
+            backendMode = "optical_sar";
+          } else {
+            backendMode = "bi_temporal";
+          }
+        }
         formData.append("input_mode", backendMode);
         formData.append("response_language", request.response_language || "en");
 
@@ -320,6 +330,10 @@ export const analysisAPI = {
           topClasses: resData.top_classes
         } : undefined;
 
+        const geo = data.geographic_location || resData.geographic_location;
+        const targetLabel = resData.target_label || (request.images[0]?.name ? `Satellite Target: ${request.images[0].name}` : "Earth Observation Scene");
+        const globeUrl = buildTrinetraUrl(geo, targetLabel);
+
         return {
           id: data.request_id || `analysis-${Date.now()}`,
           mode: request.mode,
@@ -339,6 +353,8 @@ export const analysisAPI = {
           reportUrl: data.request_id ? `/api/v1/reports/${data.request_id}/html` : undefined,
           rawImageUrl: rawUrl,
           overlayImageUrl: overlayUrl,
+          geographicLocation: geo,
+          globeUrl: globeUrl || undefined,
           hsiData: hsiData,
         };
       } catch (err: any) {
@@ -350,6 +366,27 @@ export const analysisAPI = {
     // Only synthetic/demo requests without uploaded files proceed to demo scenario simulation
     await new Promise((resolve) => setTimeout(resolve, 800));
     return getDemoResult(request);
+  },
+
+  inspectImage: async (file: File): Promise<{ geographicLocation?: GeographicLocation; globeUrl?: string }> => {
+    try {
+      const formData = new FormData();
+      formData.append("file", file);
+      const res = await fetch("/api/v1/inspect-image", {
+        method: "POST",
+        body: formData,
+      });
+      if (res.ok) {
+        const data = await res.json();
+        return {
+          geographicLocation: data.geographic_location,
+          globeUrl: data.globe_url,
+        };
+      }
+    } catch (e) {
+      console.warn("[analysisAPI.inspectImage] Error inspecting image:", e);
+    }
+    return {};
   },
 };
 
@@ -501,6 +538,7 @@ export function buildTrinetraUrl(geo?: GeographicLocation, label?: string): stri
   const params = new URLSearchParams()
   params.set("lat", geo.lat.toFixed(5))
   params.set("lng", geo.lng.toFixed(5))
+  params.set("lon", geo.lng.toFixed(5))
   params.set("height", (geo.height || 5000).toString())
   params.set("source", "satquery")
   const targetName = label || geo.location_name || "SatQuery Analysis Target"
@@ -508,7 +546,7 @@ export function buildTrinetraUrl(geo?: GeographicLocation, label?: string): stri
   if (geo.bounds && geo.bounds.length === 4) {
     params.set("bbox", geo.bounds.map((b: number) => b.toFixed(4)).join(","))
   }
-  return `${baseUrl}/explore?${params.toString()}`
+  return `${baseUrl}/?${params.toString()}`
 }
 
 
