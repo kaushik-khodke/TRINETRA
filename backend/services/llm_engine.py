@@ -60,6 +60,22 @@ class LLMReasoningEngine:
             return "\nLanguage Directive: Respond directly in Marathi (मराठी). Do not translate numbers, percentages (%), units (dB, m/pixel), CRS, coordinates, or technical sensor names (NDVI, NDWI, SAR, Optical, Landsat, Sentinel)."
         return ""
 
+    @staticmethod
+    def _sanitize_analyst_answer(text: str) -> str:
+        """Removes any leaked programming variables or robotic boolean phrases from model output."""
+        if not text:
+            return ""
+        import re
+        # Strip leaked internal boolean feature phrases
+        cleaned = re.sub(r"(?:,\s*and\s*)?(?:the\s*)?['\"]?has_\w+['\"]?\s*(?:feature\s*)?(?:is\s*)?(?:reported\s+as\s+)?(?:True|False)\.?", "", text, flags=re.I)
+        cleaned = re.sub(r"['\"]?has_\w+['\"]?\s*:\s*(?:True|False)", "", cleaned, flags=re.I)
+        cleaned = re.sub(r"\bfeature\s+is\s+reported\s+as\s+(?:True|False)\b", "", cleaned, flags=re.I)
+        # Clean up double punctuation or awkward whitespace
+        cleaned = re.sub(r"\s+", " ", cleaned).strip()
+        cleaned = re.sub(r",\s*\.", ".", cleaned)
+        cleaned = re.sub(r"\.\s*\.", ".", cleaned)
+        return cleaned
+
     # ==========================================
     # 1. Single-Image VQA Reasoning
     # ==========================================
@@ -85,26 +101,32 @@ class LLMReasoningEngine:
 
         # 1. Attempt Local Ollama inference
         if LocalModelRegistry.is_ollama_online():
-            prompt = f"""You are SatQuery AI, an ISRO remote-sensing vision-language assistant.
-Answer the user's question directly and concisely based on these real satellite sensor measurements:
+            terrain_desc = detected_features.get("terrain_summary") if isinstance(detected_features, dict) else str(detected_features)
+            prompt = f"""You are SatQuery AI, an ISRO remote-sensing earth observation analyst.
+Answer the user's question directly, concisely, and naturally based on these real satellite sensor measurements:
 - Sensor Modality: {modality.upper()}
 - Vegetation Cover (NDVI/VARI): {spectral_metrics.get('vegetation_cover_pct', 0)}% (Mean: {spectral_metrics.get('mean_ndvi', 0)})
 - Hydrological Surface Water (NDWI): {spectral_metrics.get('water_body_pct', 0)}% (Mean: {spectral_metrics.get('mean_ndwi', 0)})
 - Urban / Built-Up Density: {spectral_metrics.get('built_up_density_pct', 0)}%
 - Bare Soil / Substrate: {spectral_metrics.get('bare_soil_pct', 0)}%
 - Spatial Quadrant Distribution: {spatial_dist}
-- Observable Structural Features: {detected_features}
+- Terrain Observations: {terrain_desc}
 
 User Question: "{query}"
 
-Provide a concise, direct answer (2 sentences max) answering the question using the radiometric measurements above.{lang_directive}"""
+Instructions:
+- Speak in a natural, authoritative earth-observation analyst tone.
+- CRITICAL GUARDRAIL: NEVER mention programming variables, internal code flags, or boolean literals (such as 'has_water', 'has_urban', 'True', 'False', or 'feature is reported as'). Explain what is physically observed in the image naturally (e.g. "From the satellite image, no significant surface water was detected").
+- Provide a direct, user-friendly answer (1 to 2 sentences max).{lang_directive}"""
 
             resp = OllamaProvider.generate(prompt, role="planner", max_tokens=240)
             if resp.success and resp.text:
+                sanitized_text = cls._sanitize_analyst_answer(resp.text)
+                conf = 0.94 if spectral_metrics.get("is_geotiff") else 0.88
                 return {
-                    "answer": resp.text,
+                    "answer": sanitized_text or resp.text,
                     "engine": f"Local Ollama ({resp.model}) Grounded VQA",
-                    "confidence": 0.95,
+                    "confidence": conf,
                     "model_role": resp.role,
                     "latency_ms": resp.latency_ms
                 }
@@ -562,6 +584,75 @@ Provide a direct, concise (1-2 sentence) confirmation describing where the featu
             )
 
     # ==========================================
+    # 4.5. Visual Grounding Reasoning
+    # ==========================================
+
+    @classmethod
+    def synthesize_grounding_answer(
+        cls,
+        query: str,
+        modality: str,
+        boxes: List[Dict[str, Any]],
+        spectral_metrics: Dict[str, Any],
+        image_shape: tuple,
+        response_language: str = "en"
+    ) -> Dict[str, Any]:
+        """
+        Synthesizes an explanation of grounded bounding boxes located from the user's text query.
+        """
+        num_boxes = len(boxes)
+        box_desc = []
+        for i, b in enumerate(boxes[:3]):
+            bbox = b.get("bbox", [0, 0, 0, 0])
+            box_desc.append(f"Region {i+1} [{b.get('label', 'Target')}]: [Ymin: {bbox[0]}, Xmin: {bbox[1]}, Ymax: {bbox[2]}, Xmax: {bbox[3]}] (Score: {b.get('score', 0.9)})")
+        box_summary = "; ".join(box_desc) if box_desc else "No distinct bounding region extracted"
+
+        lang_directive = cls._get_lang_directive(response_language)
+
+        # 1. Attempt Local Ollama inference
+        if LocalModelRegistry.is_ollama_online() and num_boxes > 0:
+            prompt = f"""You are SatQuery AI, an ISRO remote-sensing specialist in visual grounding and object localization.
+Explain the localized target region directly and concisely based on these detection coordinates:
+- Sensor Modality: {modality.upper()}
+- Target Query: "{query}"
+- Detected Bounding Regions: {box_summary}
+- Image Shape: {image_shape}
+- Dominant Vegetation: {spectral_metrics.get('vegetation_cover_pct', 0)}%, Water: {spectral_metrics.get('water_body_pct', 0)}%
+
+Provide a concise 2-sentence confirmation explaining the spatial location of the detected target.{lang_directive}"""
+
+            resp = OllamaProvider.generate(prompt, role="planner", max_tokens=180)
+            if resp.success and resp.text:
+                return {
+                    "answer": resp.text,
+                    "engine": f"Local Ollama ({resp.model}) Grounding Synthesis",
+                    "confidence": 0.94,
+                    "model_role": resp.role,
+                    "latency_ms": resp.latency_ms
+                }
+
+        # 2. Deterministic physics & coordinates fallback
+        if num_boxes > 0:
+            b0 = boxes[0]
+            bbox = b0.get("bbox", [0.2, 0.2, 0.8, 0.8])
+            label = b0.get("label", query)
+            answer = (
+                f"Successfully localized '{query}' within the scene at normalized coordinates "
+                f"[Y: {bbox[0]}–{bbox[2]}, X: {bbox[1]}–{bbox[3]}]. "
+                f"Classified as '{label}' with {int(b0.get('score', 0.9) * 100)}% spatial alignment confidence."
+            )
+        else:
+            answer = f"No localized region matching '{query}' met the required confidence threshold across the scene."
+
+        return {
+            "answer": answer,
+            "engine": "Remote-Sensing Visual Grounding Engine",
+            "confidence": 0.92,
+            "model_role": "local_grounding",
+            "latency_ms": 15.0
+        }
+
+    # ==========================================
     # 5. Deterministic Physics Domain Fallbacks
     # ==========================================
 
@@ -680,22 +771,28 @@ Provide a direct, concise (1-2 sentence) confirmation describing where the featu
                 conf = 0.92
 
         # Question: Urban / buildings / roads / structures
-        elif any(w in clean_q for w in ["building", "built-up", "urban", "city", "infrastructure", "road", "house", "concrete", "इमारत", "शहर", "सड़क", "बांधकाम"]):
-            if urban_pct > 15.0:
+        elif any(w in clean_q for w in ["building", "built-up", "urban", "city", "infrastructure", "road", "house", "concrete", "structure", "settlement", "इमारत", "शहर", "सड़क", "बांधकाम"]):
+            urban_quads = metrics.get("quadrants", {}).get("urban", {})
+            top_sectors = [f"{k} quadrant ({v}%)" for k, v in sorted(urban_quads.items(), key=lambda x: x[1], reverse=True) if v > 1.0]
+            loc_en = f", concentrated primarily in the {', '.join(top_sectors[:2])}" if top_sectors else ""
+            loc_hi = f", जो मुख्य रूप से {', '.join(top_sectors[:2])} में केंद्रित है" if top_sectors else ""
+            loc_mr = f", जे प्रामुख्याने {', '.join(top_sectors[:2])} मध्ये केंद्रित आहे" if top_sectors else ""
+
+            if urban_pct > 3.0:
                 if response_language == "hi":
                     answer = (
-                        f"पर्याप्त मानवजनित बुनियादी ढांचा और निर्मित संरचनाएं पाई गई हैं ({urban_pct}% संरचनात्मक घनत्व)। "
-                        f"उच्च स्थानिक ढाल और ज्यामितीय पैटर्न घनी बस्तियों और सड़क नेटवर्क को दर्शाते हैं।"
+                        f"हाँ, निर्मित संरचनाएं और मानवजनित बुनियादी ढांचा मौजूद हैं ({urban_pct}% संरचनात्मक घनत्व){loc_hi}। "
+                        f"उच्च स्थानिक ढाल और ज्यामितीय किनारे बस्तियों, औद्योगिक सुविधाओं और सड़क नेटवर्क को दर्शाते हैं।"
                     )
                 elif response_language == "mr":
                     answer = (
-                        f"मोठ्या प्रमाणात मानवनिर्मित पायाभूत सुविधा आणि बांधकामे आढळली आहेत ({urban_pct}% संरचनात्मक घनता). "
-                        f"उच्च अवकाशीय ग्रेडियंट आणि भौमितिक रचना दाट वस्त्या आणि रस्ते नेटवर्क दर्शवतात."
+                        f"होय, मानवनिर्मित बांधकामे आणि पायाभूत सुविधा उपस्थित आहेत ({urban_pct}% संरचनात्मक घनता){loc_mr}. "
+                        f"उच्च अवकाशीय ग्रेडियंट आणि कडा वस्त्या, औद्योगिक रचना आणि रस्ते नेटवर्क दर्शवतात."
                     )
                 else:
                     answer = (
-                        f"Substantial anthropogenic infrastructure and built-up structures are detected ({urban_pct}% structural density). "
-                        f"High spatial edge gradients and rectilinear geometric patterns denote dense settlements and roadway networks."
+                        f"Yes, built-up structures and anthropogenic infrastructure are present ({urban_pct}% structural density){loc_en}. "
+                        f"High spatial edge gradients and geometric patterns denote settlements, facility compounds, and connecting roadways."
                     )
                 conf = 0.93
             else:

@@ -10,6 +10,8 @@ from typing import List, Dict, Any, Optional, Tuple
 from pydantic import BaseModel
 from geospatial.reader import GeospatialReader, RasterMetadata
 
+from services.validator.domain_detector import DomainDetector, DomainValidationResult
+
 class ValidationReport(BaseModel):
     valid: bool
     mode: str
@@ -17,9 +19,10 @@ class ValidationReport(BaseModel):
     warning_message: Optional[str] = None
     images_metadata: List[Dict[str, Any]] = []
     compatibility: Dict[str, Any] = {}
+    validation_object: Optional[Dict[str, Any]] = None
 
 class InputValidator:
-    SUPPORTED_EXTENSIONS = [".tif", ".tiff", ".png", ".jpg", ".jpeg"]
+    SUPPORTED_EXTENSIONS = [".tif", ".tiff", ".png", ".jpg", ".jpeg", ".mat", ".hdr", ".dat"]
 
     @staticmethod
     def validate(
@@ -37,11 +40,18 @@ class InputValidator:
             )
 
         if requested_mode == "single" and count != 1:
-            return ValidationReport(
-                valid=False,
-                mode=requested_mode,
-                error_message=f"Single-image mode expects exactly 1 image, but received {count}."
-            )
+            if count == 2:
+                # Auto-promote to paired workflow instead of rejecting
+                if declared_modalities and any("sar" in str(m).lower() for m in declared_modalities):
+                    requested_mode = "optical_sar"
+                else:
+                    requested_mode = "bi_temporal"
+            else:
+                return ValidationReport(
+                    valid=False,
+                    mode=requested_mode,
+                    error_message=f"Single-image mode expects exactly 1 image, but received {count}."
+                )
 
         if requested_mode in ["bi_temporal", "optical_sar"] and count != 2:
             return ValidationReport(
@@ -50,8 +60,10 @@ class InputValidator:
                 error_message=f"Paired workflow '{requested_mode}' expects exactly 2 images, but received {count}."
             )
 
-        # 2. File readability & format checks
+        # 2. File readability, format, and intelligent domain checks
         parsed_metadata: List[RasterMetadata] = []
+        last_val_obj: Optional[Dict[str, Any]] = None
+
         for i, path in enumerate(file_paths):
             if not os.path.exists(path):
                 return ValidationReport(
@@ -65,24 +77,44 @@ class InputValidator:
                 return ValidationReport(
                     valid=False,
                     mode=requested_mode,
-                    error_message=f"Unsupported format '{ext}'. Must be GeoTIFF/TIFF or benchmark PNG/JPEG."
+                    error_message=f"Unsupported format '{ext}'. Must be GeoTIFF, HSI (.mat/.hdr), or benchmark PNG/JPEG."
                 )
 
             declared_mod = declared_modalities[i] if declared_modalities and i < len(declared_modalities) else None
             try:
                 arr, meta = GeospatialReader.read_image(path, detected_modality=declared_mod)
+
+                # Tiered Intelligent Domain Validation Agent
+                domain_res = DomainDetector.inspect(
+                    image_arr=arr,
+                    filename=os.path.basename(path),
+                    is_geotiff=meta.is_geotiff,
+                    crs=meta.crs,
+                    bounds=meta.bounds
+                )
+
+                last_val_obj = {
+                    "is_remote_sensing": domain_res.is_remote_sensing,
+                    "modality": domain_res.modality,
+                    "confidence": domain_res.confidence,
+                    "reasons": domain_res.reasons
+                }
+
+                if not domain_res.is_remote_sensing:
+                    rej_msg = domain_res.rejection_message or "Unsupported input: this image does not appear to be a supported remote-sensing product."
+                    return ValidationReport(
+                        valid=False,
+                        mode=requested_mode,
+                        error_message=rej_msg,
+                        validation_object=last_val_obj
+                    )
+
+                # Update modality with detector's verified classification (e.g. hyperspectral)
+                if domain_res.modality != "unknown":
+                    meta.modality = domain_res.modality
+
                 parsed_metadata.append(meta)
 
-                # Smart domain verification: check whether the image is Earth observation imagery
-                # vs a document screenshot, book page, or non-geospatial UI graphic
-                if not meta.is_geotiff:
-                    is_sat, reason = InputValidator.verify_satellite_domain(arr, os.path.basename(path))
-                    if not is_sat:
-                        return ValidationReport(
-                            valid=False,
-                            mode=requested_mode,
-                            error_message=f"Non-satellite imagery detected for '{os.path.basename(path)}': {reason}"
-                        )
             except Exception as e:
                 return ValidationReport(
                     valid=False,

@@ -1,8 +1,8 @@
 "use client"
 
 import { useEffect, useMemo, useRef, useState } from "react"
-import { usePathname, useRouter} from "next/navigation"
-import { Activity, ArrowRight, BarChart3, Check, ChevronDown, Clock3, Cpu, FileImage, GitCompareArrows, Globe, ImagePlus, Layers3, LogIn, LogOut, Menu, PanelTop, Radar, Search, Send, ShieldCheck, Sparkles, Upload, X } from "lucide-react"
+import { usePathname, useRouter } from "next/navigation"
+import { Activity, ArrowRight, BarChart3, Check, ChevronDown, Clock3, Cpu, ExternalLink, FileImage, GitCompareArrows, Globe, ImagePlus, Layers3, LogIn, LogOut, Maximize2, Menu, MoveHorizontal, PanelTop, Radar, Search, Send, ShieldCheck, Sparkles, Upload, X } from "lucide-react"
 import {
   analysisAPI,
   buildTrinetraUrl,
@@ -25,6 +25,7 @@ import {
   type QMLBenchmarkData,
 } from "@/lib/types"
 import { I18nProvider, useTranslation, type SupportedLanguage } from "@/lib/i18n"
+import { HsiViewer } from "@/components/hyperspectral/HsiViewer"
 import { useAuth } from "@/context/AuthContext"
 import AuthGate from "@/components/AuthGate"
 
@@ -295,12 +296,104 @@ function UploadSlot({
     >
       {image ? (
         <>
-          <img src={image.url} alt={t("aria.preview")} />
+          {image.name.toLowerCase().endsWith(".mat") ||
+          image.name.toLowerCase().endsWith(".hdr") ||
+          image.name.toLowerCase().endsWith(".dat") ? (
+            <div
+              style={{
+                width: "100%",
+                height: "100%",
+                display: "flex",
+                flexDirection: "column",
+                alignItems: "center",
+                justifyContent: "center",
+                background: "linear-gradient(135deg, #064e3b 0%, #022c22 100%)",
+                color: "#10b981",
+                gap: "8px",
+              }}
+            >
+              <Layers3 size={40} />
+              <span
+                style={{
+                  fontSize: "11px",
+                  fontWeight: 600,
+                  letterSpacing: "1px",
+                  textTransform: "uppercase",
+                }}
+              >
+                Hyperspectral Cube
+              </span>
+            </div>
+          ) : image.name.toLowerCase().endsWith(".tif") ||
+            image.name.toLowerCase().endsWith(".tiff") ? (
+            <div
+              style={{
+                width: "100%",
+                height: "100%",
+                display: "flex",
+                flexDirection: "column",
+                alignItems: "center",
+                justifyContent: "center",
+                background: "linear-gradient(135deg, #0c2d38 0%, #071920 100%)",
+                color: "#56d7df",
+                gap: "8px",
+              }}
+            >
+              <Globe size={40} />
+              <span
+                style={{
+                  fontSize: "11px",
+                  fontWeight: 600,
+                  letterSpacing: "1px",
+                  textTransform: "uppercase",
+                }}
+              >
+                GeoTIFF Satellite Raster
+              </span>
+            </div>
+          ) : (
+            <img src={image.url} alt={t("aria.preview")} onError={(e) => { (e.target as HTMLElement).style.display = "none" }} />
+          )}
           <div className="slot-overlay">
             <Pill tone="dark">{slot.hint}</Pill>
             <strong>{image.name}</strong>
             <span>{formatBytes(image.size)}</span>
+            {image.geographicLocation?.has_location && (
+              <span style={{ fontSize: "10px", color: "#56d7df", marginTop: "2px", fontFamily: "monospace" }}>
+                📍 {image.geographicLocation.lat?.toFixed(3)}°N, {image.geographicLocation.lng?.toFixed(3)}°E
+              </span>
+            )}
           </div>
+          {image.globeUrl && (
+            <a
+              href={image.globeUrl}
+              target="_blank"
+              rel="noreferrer"
+              onClick={(e) => e.stopPropagation()}
+              title="View in Shatnetra 3D Earth Globe"
+              style={{
+                position: "absolute",
+                top: "8px",
+                right: "38px",
+                display: "inline-flex",
+                alignItems: "center",
+                gap: "4px",
+                padding: "4px 9px",
+                borderRadius: "6px",
+                background: "linear-gradient(135deg, rgba(86, 215, 223, 0.25) 0%, rgba(16, 185, 129, 0.25) 100%)",
+                border: "1px solid #56d7df",
+                color: "#56d7df",
+                fontSize: "11px",
+                fontWeight: 700,
+                textDecoration: "none",
+                zIndex: 10,
+                backdropFilter: "blur(4px)",
+                boxShadow: "0 0 12px rgba(86, 215, 223, 0.35)",
+              }}
+            >
+              <Globe size={12} /> 3D Globe <ArrowRight size={10} />
+            </a>
+          )}
           <button
             className="remove"
             onClick={(e) => {
@@ -317,7 +410,7 @@ function UploadSlot({
           <input
             ref={ref}
             type="file"
-            accept="image/png,image/jpeg,image/tiff,.tif,.tiff"
+            accept="image/png,image/jpeg,image/tiff,.tif,.tiff,.mat,.hdr,.dat"
             hidden
             onChange={(e) => e.target.files?.[0] && onFile(e.target.files[0])}
           />
@@ -389,16 +482,40 @@ function Workspace({ navigate, initialDemo = false }: { navigate: (path: string)
     setErrorMessage(null)
   }
 
-  const addImage = (file: File, index: number) =>
+  const addImage = async (file: File, index: number) => {
+    const norm = normalizeFile(
+      file,
+      slots[index]?.label || "Image",
+      mode === "fusion" ? (index === 0 ? "OPTICAL" : "SAR") : undefined
+    )
     setImages((current) => {
       const next = [...current]
-      next[index] = normalizeFile(
-        file,
-        slots[index]?.label || "Image",
-        mode === "fusion" ? (index === 0 ? "OPTICAL" : "SAR") : undefined
-      )
+      next[index] = norm
       return next
     })
+
+    // Pre-inspect raster asynchronously to extract coordinates and 3D globe link immediately
+    if (file.name.match(/\.(tif|tiff|mat|hdr|png|jpe?g)$/i)) {
+      try {
+        const inspectRes = await analysisAPI.inspectImage(file)
+        if (inspectRes.globeUrl || inspectRes.geographicLocation?.has_location) {
+          setImages((current) => {
+            const next = [...current]
+            if (next[index]) {
+              next[index] = {
+                ...next[index],
+                globeUrl: inspectRes.globeUrl,
+                geographicLocation: inspectRes.geographicLocation,
+              }
+            }
+            return next
+          })
+        }
+      } catch (err) {
+        console.warn("[Workspace] Pre-inspect error:", err)
+      }
+    }
+  }
 
   const run = async () => {
     if (!ready) return
@@ -413,7 +530,11 @@ function Workspace({ navigate, initialDemo = false }: { navigate: (path: string)
         response_language: language,
       })
       setResult(response)
-      saveHistory(response)
+      try {
+        saveHistory(response)
+      } catch (storageErr) {
+        console.warn("[Workspace] Failed to persist history in localStorage:", storageErr)
+      }
     } catch (err: any) {
       setErrorMessage(err.message || "Satellite analysis failed on local backend.")
     } finally {
@@ -513,6 +634,12 @@ function Workspace({ navigate, initialDemo = false }: { navigate: (path: string)
               </button>
             ))}
           </div>
+          {!query.trim() && images.filter(Boolean).length > 0 && (
+            <div style={{ fontSize: "11px", color: "rgba(86, 215, 223, 0.75)", margin: "4px 0 14px", display: "flex", alignItems: "center", gap: "6px" }}>
+              <Sparkles size={13} style={{ flexShrink: 0 }} />
+              <span>Type your question above or click one of the suggested prompts to enable analysis.</span>
+            </div>
+          )}
           <button className="analyze primary" disabled={!ready || running} onClick={run}>
             {running ? (
               <>
@@ -632,6 +759,27 @@ function EvidenceViewer({ result }: { result: AnalysisResponse }) {
   const headEyebrow =
     result.mode === "fusion" ? t("evidence.eyebrow.fused") : t("evidence.eyebrow.grounded")
 
+  const [viewMode, setViewMode] = useState<"single" | "side_by_side" | "overlay">("single")
+  const [sliderPos, setSliderPos] = useState<number>(50)
+  const [isDragging, setIsDragging] = useState<boolean>(false)
+  const containerRef = useRef<HTMLDivElement>(null)
+
+  const handlePointerMove = (e: React.PointerEvent<HTMLDivElement>) => {
+    if (!isDragging || !containerRef.current) return
+    const rect = containerRef.current.getBoundingClientRect()
+    const x = e.clientX - rect.left
+    const pct = Math.max(0, Math.min(100, (x / rect.width) * 100))
+    setSliderPos(Math.round(pct))
+  }
+
+  const baseImg = result.rawImageUrl || (result.images && result.images[0]?.url) || "/satellite-optical.svg"
+  const overlayImg = result.overlayImageUrl || (result.images && result.images.length > 1 ? result.images[1]?.url : null) || baseImg
+  const baseLabel = result.mode === "temporal" ? "TIME 1 (BEFORE)" : result.mode === "fusion" ? "OPTICAL (MSI)" : "ORIGINAL RASTER"
+  const overlayLabel = result.mode === "temporal" ? "TIME 2 (AFTER)" : result.mode === "fusion" ? "SAR (RADAR)" : "GROUNDED EVIDENCE"
+
+  const globeUrl = result.globeUrl || (result.images && (result.images[0] as any)?.globeUrl)
+  const geo = result.geographicLocation || (result.images && (result.images[0] as any)?.geographicLocation)
+
   return (
     <div className="evidence">
       <div className="evidence-head">
@@ -639,36 +787,206 @@ function EvidenceViewer({ result }: { result: AnalysisResponse }) {
           <span className="eyebrow">{headEyebrow}</span>
           <h3>{t("evidence.head.title")}</h3>
         </div>
-        <div className="viewer-controls">
-          <button>
-            <PanelTop /> {t("viewer.side_by_side")}
-          </button>
-          <button>
-            <Layers3 /> {t("viewer.overlay")}
-          </button>
-        </div>
-      </div>
-      <div className="viewer">
-        <img src={result.images[0]?.url || "/satellite-optical.svg"} alt={t("aria.preview")} />
-        {result.annotations.map((annotation) => (
-          <div
-            key={annotation.label}
-            className={`annotation ${annotation.color}`}
-            style={{
-              left: `${annotation.x}%`,
-              top: `${annotation.y}%`,
-              width: `${annotation.width}%`,
-              height: `${annotation.height}%`,
-            }}
+        <div className="viewer-controls" style={{ display: "flex", alignItems: "center", gap: "6px", flexWrap: "wrap" }}>
+          <button
+            type="button"
+            className={viewMode === "single" ? "active" : ""}
+            onClick={() => setViewMode("single")}
+            title="Single primary raster view"
           >
-            <span>{annotation.label}</span>
-          </div>
-        ))}
-        <div className="viewer-badge">
-          <Pill tone="dark">{result.imageType}</Pill>
-          <span>10 m / px</span>
+            <Maximize2 size={13} /> Single
+          </button>
+          <button
+            type="button"
+            className={viewMode === "side_by_side" ? "active" : ""}
+            onClick={() => setViewMode(viewMode === "side_by_side" ? "single" : "side_by_side")}
+            title="Side-by-side comparison"
+          >
+            <PanelTop size={13} /> {t("viewer.side_by_side")}
+          </button>
+          <button
+            type="button"
+            className={viewMode === "overlay" ? "active" : ""}
+            onClick={() => setViewMode(viewMode === "overlay" ? "single" : "overlay")}
+            title="Curtain swipe overlay comparison"
+          >
+            <Layers3 size={13} /> {t("viewer.overlay")}
+          </button>
+          {globeUrl && (
+            <a
+              href={globeUrl}
+              target="_blank"
+              rel="noreferrer"
+              title="Fly directly to this satellite scene in Shatnetra 3D Earth Globe"
+              style={{
+                display: "inline-flex",
+                alignItems: "center",
+                gap: "5px",
+                padding: "6px 12px",
+                borderRadius: "6px",
+                background: "linear-gradient(135deg, rgba(86, 215, 223, 0.25) 0%, rgba(16, 185, 129, 0.25) 100%)",
+                border: "1px solid #56d7df",
+                color: "#56d7df",
+                fontSize: "12px",
+                fontWeight: 700,
+                textDecoration: "none",
+                boxShadow: "0 0 16px rgba(86, 215, 223, 0.35)",
+                marginLeft: "4px",
+                cursor: "pointer",
+                transition: "all 0.15s ease",
+              }}
+            >
+              <Globe size={14} style={{ color: "#56d7df" }} /> 3D Globe (Shatnetra) <ExternalLink size={11} />
+            </a>
+          )}
         </div>
       </div>
+
+      {viewMode === "side_by_side" ? (
+        <div className="side-by-side-grid">
+          <div className="side-panel">
+            <img src={baseImg} alt={baseLabel} />
+            <div className="side-badge">
+              <i className="cyan-dot" /> {baseLabel}
+            </div>
+          </div>
+          <div className="side-panel">
+            <img src={overlayImg} alt={overlayLabel} />
+            {result.annotations.map((annotation) => (
+              <div
+                key={annotation.label}
+                className={`annotation ${annotation.color}`}
+                style={{
+                  left: `${annotation.x}%`,
+                  top: `${annotation.y}%`,
+                  width: `${annotation.width}%`,
+                  height: `${annotation.height}%`,
+                }}
+              >
+                <span>{annotation.label}</span>
+              </div>
+            ))}
+            <div className="side-badge">
+              <i className="amber-dot" /> {overlayLabel}
+            </div>
+          </div>
+        </div>
+      ) : viewMode === "overlay" ? (
+        <div>
+          <div
+            ref={containerRef}
+            className="curtain-viewer"
+            onPointerDown={(e) => {
+              setIsDragging(true)
+              if (containerRef.current) {
+                const rect = containerRef.current.getBoundingClientRect()
+                const pct = Math.max(0, Math.min(100, ((e.clientX - rect.left) / rect.width) * 100))
+                setSliderPos(Math.round(pct))
+              }
+            }}
+            onPointerMove={handlePointerMove}
+            onPointerUp={() => setIsDragging(false)}
+            onPointerCancel={() => setIsDragging(false)}
+          >
+            <img className="curtain-base-img" src={baseImg} alt={baseLabel} />
+            <div
+              className="curtain-overlay-wrap"
+              style={{ clipPath: `inset(0 ${100 - sliderPos}% 0 0)` }}
+            >
+              <img className="curtain-overlay-img" src={overlayImg} alt={overlayLabel} />
+            </div>
+            <div className="curtain-divider" style={{ left: `${sliderPos}%` }}>
+              <div className="curtain-handle">
+                <MoveHorizontal size={14} />
+              </div>
+            </div>
+            <div className="curtain-tag left">{baseLabel} ({sliderPos}%)</div>
+            <div className="curtain-tag right">{overlayLabel}</div>
+          </div>
+          <div style={{ display: "flex", alignItems: "center", gap: "10px", marginTop: "10px", padding: "0 4px" }}>
+            <span style={{ fontSize: "11px", color: "#56d7df", fontFamily: "monospace", minWidth: "75px" }}>
+              {sliderPos}% Split
+            </span>
+            <input
+              type="range"
+              min="0"
+              max="100"
+              value={sliderPos}
+              onChange={(e) => setSliderPos(Number(e.target.value))}
+              style={{ flex: 1, accentColor: "#56d7df", cursor: "ew-resize" }}
+            />
+            <span style={{ fontSize: "11px", color: "rgba(255, 255, 255, 0.5)", fontFamily: "monospace" }}>
+              100% Overlay
+            </span>
+          </div>
+        </div>
+      ) : (
+        <div className="viewer">
+          <img src={result.images[0]?.url || "/satellite-optical.svg"} alt={t("aria.preview")} />
+          {result.annotations.map((annotation) => (
+            <div
+              key={annotation.label}
+              className={`annotation ${annotation.color}`}
+              style={{
+                left: `${annotation.x}%`,
+                top: `${annotation.y}%`,
+                width: `${annotation.width}%`,
+                height: `${annotation.height}%`,
+              }}
+            >
+              <span>{annotation.label}</span>
+            </div>
+          ))}
+          <div className="viewer-badge">
+            <Pill tone="dark">{result.imageType}</Pill>
+            <span>10 m / px</span>
+          </div>
+        </div>
+      )}
+
+      {geo?.has_location && (
+        <div
+          style={{
+            display: "flex",
+            justifyContent: "space-between",
+            alignItems: "center",
+            padding: "8px 12px",
+            background: "rgba(86, 215, 223, 0.08)",
+            border: "1px solid rgba(86, 215, 223, 0.25)",
+            borderRadius: "6px",
+            marginTop: "10px",
+            fontSize: "12px",
+          }}
+        >
+          <div style={{ display: "flex", alignItems: "center", gap: "8px", flexWrap: "wrap" }}>
+            <span style={{ color: "#56d7df", fontWeight: 700 }}>📍 Geospatial Target:</span>
+            <code style={{ color: "#ffffff", background: "rgba(0,0,0,0.4)", padding: "2px 6px", borderRadius: "4px" }}>
+              {geo.lat?.toFixed(4)}°N, {geo.lng?.toFixed(4)}°E
+            </code>
+            <span style={{ color: "rgba(255, 255, 255, 0.7)", fontSize: "11px" }}>
+              ({geo.location_name || "Satellite Target"})
+            </span>
+          </div>
+          {globeUrl && (
+            <a
+              href={globeUrl}
+              target="_blank"
+              rel="noreferrer"
+              style={{
+                color: "#56d7df",
+                fontWeight: 600,
+                display: "inline-flex",
+                alignItems: "center",
+                gap: "4px",
+                textDecoration: "underline",
+              }}
+            >
+              Launch Cesium 3D Flight <ArrowRight size={12} />
+            </a>
+          )}
+        </div>
+      )}
+
       <div className="evidence-legend">
         <span>
           <i className="cyan-dot" /> {t("legend.connected")}
@@ -806,7 +1124,11 @@ function ResultView({
           )
         )}
       </div>
-      <EvidenceViewer result={result} />
+      {result.hsiData?.isHsi ? (
+        <HsiViewer {...result.hsiData} />
+      ) : (
+        <EvidenceViewer result={result} />
+      )}
       <div className="evidence-list">
         {result.evidence.map((item, index) => (
           <div key={item}>
@@ -816,41 +1138,39 @@ function ResultView({
           </div>
         ))}
       </div>
-
       {/* Quantum Research Mode & Comparative Telemetry Widget */}
       <QuantumResearchWidget
         comparison={result.classical_vs_qml_comparison}
         qml={result.qml_analysis}
       />
 
-      {/* Action Row: View on Globe (TRINETRA) & View Report */}
+      {/* Action Row: View on Globe (TRINETRA / Shatnetra) & View Report */}
       <div className="action-row" style={{ marginTop: "1.2rem", marginBottom: "0.6rem", display: "flex", flexWrap: "wrap", gap: "0.75rem", alignItems: "center" }}>
-        {result.geographicLocation?.has_location ? (
-          <button
-            type="button"
+        {result.globeUrl || result.geographicLocation?.has_location ? (
+          <a
+            href={result.globeUrl || (result.geographicLocation ? buildTrinetraUrl(result.geographicLocation, result.images[0]?.name || "Analysis Target") : "#")}
+            target="_blank"
+            rel="noreferrer"
             id="view-on-globe-btn"
-            className="primary compact"
+            className="compact"
             style={{
               display: "inline-flex",
               alignItems: "center",
               gap: "0.55rem",
               padding: "0.65rem 1.25rem",
               borderRadius: "8px",
-              background: "linear-gradient(135deg, rgba(0, 240, 255, 0.22), rgba(0, 160, 255, 0.15))",
-              border: "1px solid rgba(0, 240, 255, 0.5)",
-              color: "#00f0ff",
+              textDecoration: "none",
+              background: "linear-gradient(135deg, rgba(86, 215, 223, 0.22) 0%, rgba(16, 185, 129, 0.18) 100%)",
+              border: "1px solid rgba(86, 215, 223, 0.5)",
+              color: "#56d7df",
               fontSize: "0.86rem",
-              fontWeight: 600,
-              boxShadow: "0 0 16px rgba(0, 240, 255, 0.15)",
-              cursor: "pointer",
-            }}
-            onClick={() => {
-              const url = buildTrinetraUrl(result.geographicLocation, result.images[0]?.name || "Analysis Target")
-              if (url) window.open(url, "_blank", "noopener,noreferrer")
+              fontWeight: 700,
+              boxShadow: "0 0 20px rgba(86, 215, 223, 0.18)",
+              transition: "all 0.2s ease",
             }}
           >
-            <Globe size={16} /> View on Globe (TRINETRA) <ArrowRight size={14} />
-          </button>
+            <Globe size={16} style={{ color: "#56d7df" }} /> View in 3D Earth Globe (Shatnetra) <ArrowRight size={14} />
+          </a>
         ) : (
           <div
             id="globe-disabled-notice"
@@ -882,11 +1202,11 @@ function ResultView({
               display: "inline-flex",
               alignItems: "center",
               gap: "0.5rem",
-              padding: "0.6rem 1.2rem",
+              padding: "0.65rem 1.2rem",
               borderRadius: "8px",
               textDecoration: "none",
-              background: "rgba(0, 240, 255, 0.1)",
-              border: "1px solid rgba(0, 240, 255, 0.3)",
+              background: "rgba(0, 240, 255, 0.08)",
+              border: "1px solid rgba(0, 240, 255, 0.25)",
               color: "var(--cyan-400, #00f0ff)",
               fontSize: "0.85rem",
               fontWeight: 600,
@@ -895,8 +1215,26 @@ function ResultView({
             <PanelTop size={16} /> {t("btn.report")} <ArrowRight size={14} />
           </a>
         )}
-      </div>
 
+        {result.geographicLocation?.has_location && (
+          <span
+            style={{
+              display: "inline-flex",
+              alignItems: "center",
+              gap: "5px",
+              fontFamily: "monospace",
+              fontSize: "11px",
+              color: "rgba(86, 215, 223, 0.8)",
+              background: "rgba(0, 0, 0, 0.35)",
+              border: "1px solid rgba(86, 215, 223, 0.2)",
+              padding: "5px 9px",
+              borderRadius: "6px",
+            }}
+          >
+            📍 {result.geographicLocation.lat?.toFixed(4)}°N, {result.geographicLocation.lng?.toFixed(4)}°E
+          </span>
+        )}
+      </div>
       <button className="technical-toggle" onClick={() => setTechnical(!technical)}>
         <span>
           <span className="eyebrow">{t("meta.eyebrow")}</span>
@@ -1302,6 +1640,7 @@ function Evaluation({ navigate }: { navigate: (path: string) => void }) {
 
 function PageContent() {
   const { isAuthenticated } = useAuth()
+  const router = useRouter()
   const pathname = usePathname()
   const [path, setPath] = useState(pathname || "/")
   const [initialDemo, setInitialDemo] = useState(false)

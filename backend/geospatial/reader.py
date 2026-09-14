@@ -82,8 +82,25 @@ class GeospatialReader:
         # 2. Benchmark PNG / JPEG reading
         elif ext in [".png", ".jpg", ".jpeg"]:
             return GeospatialReader._read_standard(file_path, detected_modality)
+        # 3. Hyperspectral MATLAB (.mat) or ENVI (.hdr) reading
+        elif ext in [".mat", ".hdr", ".dat"]:
+            from geospatial.hsi_reader import HsiReader
+            hsi_data = HsiReader.read(file_path)
+            meta = RasterMetadata(
+                width=hsi_data.width,
+                height=hsi_data.height,
+                bands=hsi_data.bands,
+                dtype=str(hsi_data.cube.dtype),
+                crs=hsi_data.crs or "Sensor Coordinate System",
+                bounds=hsi_data.bounds,
+                is_geotiff=bool(hsi_data.crs is not None),
+                modality="hyperspectral",
+                filename=os.path.basename(file_path),
+                location_name=hsi_data.sensor_name
+            )
+            return hsi_data.cube, meta
         else:
-            raise ValueError(f"Unsupported file format '{ext}'. Must be GeoTIFF/TIFF or benchmark PNG/JPEG.")
+            raise ValueError(f"Unsupported file format '{ext}'. Must be GeoTIFF/TIFF, HSI (.mat/.hdr), or benchmark PNG/JPEG.")
 
     @staticmethod
     def _read_tiff(file_path: str, detected_modality: Optional[str] = None) -> Tuple[np.ndarray, RasterMetadata]:
@@ -296,7 +313,11 @@ class GeospatialReader:
 
         if arr.ndim == 3:
             bands = arr.shape[2]
-            if bands == 1:
+            if bands >= 40 or modality == "hyperspectral":
+                from geospatial.hsi_reader import HsiCubeData
+                hsi = HsiCubeData(arr)
+                return Image.fromarray(hsi.to_rgb_composite())
+            elif bands == 1:
                 norm = GeospatialReader._normalize_band(arr[:, :, 0])
                 return Image.fromarray(norm).convert("RGB")
             elif bands >= 3:

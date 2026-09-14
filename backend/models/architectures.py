@@ -138,11 +138,17 @@ class RSGroundingDetector(nn.Module):
         t_feat = self.text_embed(tokens).mean(dim=1)
         fused = torch.cat([b_feat, t_feat], dim=-1)
         raw = self.box_head(fused)
-        ymin = torch.min(raw[:, 0], raw[:, 2])
-        xmin = torch.min(raw[:, 1], raw[:, 3])
-        ymax = torch.max(raw[:, 0], raw[:, 2])
-        xmax = torch.max(raw[:, 1], raw[:, 3])
-        return torch.stack([ymin, xmin, ymax, xmax], dim=-1)
+        # Enforce canonical [ymin, xmin, ymax, xmax] ordering where ymin < ymax and xmin < xmax
+        y_min = torch.min(raw[:, 0], raw[:, 2])
+        y_max = torch.max(raw[:, 0], raw[:, 2])
+        x_min = torch.min(raw[:, 1], raw[:, 3])
+        x_max = torch.max(raw[:, 1], raw[:, 3])
+
+        # Guarantee non-zero positive area to eliminate inverted boxes
+        y_max = torch.maximum(y_max, y_min + 1e-3).clamp(max=1.0)
+        x_max = torch.maximum(x_max, x_min + 1e-3).clamp(max=1.0)
+
+        return torch.stack([y_min, x_min, y_max, x_max], dim=-1)
 
 
 # ==============================================================================

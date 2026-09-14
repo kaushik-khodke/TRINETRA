@@ -74,7 +74,12 @@ if __name__ == "__main__":
     parser = argparse.ArgumentParser(description="Predict land cover from co-registered Optical + SAR images.")
     parser.add_argument("--optical", type=str, required=True, help="Path to Optical image.")
     parser.add_argument("--sar", type=str, required=True, help="Path to SAR radar image.")
-    parser.add_argument("--checkpoint", type=str, required=True, help="Path to trained model.")
+    default_ckpt = os.path.join(os.path.dirname(__file__), "runs", "run_balanced", "checkpoints", "best_model.pt")
+    if not os.path.exists(default_ckpt):
+        fallback_ckpt = os.path.join(os.path.dirname(__file__), "..", "..", "models", "checkpoints", "optical_sar_model", "model.pt")
+        if os.path.exists(fallback_ckpt):
+            default_ckpt = fallback_ckpt
+    parser.add_argument("--checkpoint", type=str, default=default_ckpt, help=f"Path to trained model (default: {default_ckpt}).")
     args = parser.parse_args()
 
     predict_optical_sar(args)

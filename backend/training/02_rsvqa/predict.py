@@ -78,8 +78,13 @@ if __name__ == "__main__":
     parser = argparse.ArgumentParser(description="Answer question about a satellite image.")
     parser.add_argument("--image", type=str, required=True, help="Path to real satellite image.")
     parser.add_argument("--question", type=str, required=True, help="Natural language query.")
-    parser.add_argument("--checkpoint", type=str, required=True, help="Path to trained model.")
-    parser.add_argument("--vocab", type=str, default=None)
+    default_ckpt = os.path.join(os.path.dirname(__file__), "..", "..", "models", "checkpoints", "rs_vqa_model", "model.pt")
+    if not os.path.exists(default_ckpt):
+        default_ckpt = os.path.join(os.path.dirname(__file__), "runs", "run_balanced", "best_model.pt")
+    default_vocab = os.path.join(os.path.dirname(__file__), "manifests", "rsvqa_vocab.json")
+
+    parser.add_argument("--checkpoint", type=str, default=default_ckpt, help=f"Path to trained model (default: {default_ckpt}).")
+    parser.add_argument("--vocab", type=str, default=default_vocab, help="Path to vocabulary JSON.")
     args = parser.parse_args()
 
     predict_vqa(args)

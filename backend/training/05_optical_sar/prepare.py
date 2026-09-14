@@ -59,12 +59,18 @@ def prepare_optical_sar(data_dir: str, manifest_dir: str, verify_only: bool = Fa
     rng.shuffle(shuffled)
 
     n = len(shuffled)
-    n_train = int(0.70 * n)
-    n_val = int(0.15 * n)
-
-    train_ids = shuffled[:n_train]
-    val_ids = shuffled[n_train:n_train + n_val]
-    test_ids = shuffled[n_train + n_val:]
+    if n >= 3:
+        n_train = max(1, int(0.70 * n))
+        n_val = max(1, int(0.15 * n))
+        train_ids = shuffled[:n_train]
+        val_ids = shuffled[n_train:n_train + n_val]
+        test_ids = shuffled[n_train + n_val:]
+        if not test_ids:
+            test_ids = val_ids
+    else:
+        train_ids = shuffled
+        val_ids = shuffled
+        test_ids = shuffled
 
     verify_split_leakage(train_ids, val_ids, test_ids)
 

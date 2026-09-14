@@ -122,7 +122,9 @@ class QMLService:
             ndwi_t2 = float(np.mean(GeospatialNormalizer.compute_ndwi(t2)))
             delta_ndwi = ndwi_t2 - ndwi_t1
 
-            shift_sign = float(np.mean(t2.astype(float) - t1.astype(float))) / 255.0
+            t1_gray = np.mean(t1, axis=-1) if t1.ndim == 3 else t1
+            t2_gray = np.mean(t2, axis=-1) if t2.ndim == 3 else t2
+            shift_sign = float(np.mean(t2_gray.astype(float) - t1_gray.astype(float))) / 255.0
             max_diff = float(stats.get("max_difference", np.max(diff_matrix)))
 
             features = np.array([

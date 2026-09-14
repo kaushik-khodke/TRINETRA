@@ -13,8 +13,10 @@ import numpy as np
 import torch
 import torch.nn as nn
 from torch.utils.data import DataLoader
-from torch.cuda.amp import autocast, GradScaler
 from PIL import Image, ImageDraw
+
+if hasattr(sys.stdout, "reconfigure"):
+    sys.stdout.reconfigure(line_buffering=True)
 
 training_dir = os.path.abspath(os.path.join(os.path.dirname(__file__), ".."))
 if training_dir not in sys.path:
@@ -66,15 +68,19 @@ def save_visual_examples(model: nn.Module, dataset: RSGroundingGenuineDataset, o
             draw = ImageDraw.Draw(pil_img)
             w, h = pil_img.size
 
-            # GT in Green: [ymin, xmin, ymax, xmax]
-            gx0, gx1 = min(gt_np[1], gt_np[3]) * w, max(gt_np[1], gt_np[3]) * w
-            gy0, gy1 = min(gt_np[0], gt_np[2]) * h, max(gt_np[0], gt_np[2]) * h
-            draw.rectangle([gx0, gy0, gx1, gy1], outline="#10B981", width=3)
+            # GT in Green: [ymin, xmin, ymax, xmax] -> [x0, y0, x1, y1]
+            gt_x0 = float(min(gt_np[1], gt_np[3]) * w)
+            gt_y0 = float(min(gt_np[0], gt_np[2]) * h)
+            gt_x1 = float(max(gt_np[1], gt_np[3]) * w)
+            gt_y1 = float(max(gt_np[0], gt_np[2]) * h)
+            draw.rectangle([gt_x0, gt_y0, gt_x1, gt_y1], outline="#10B981", width=3)
 
-            # Pred in Red:
-            px0, px1 = min(pred_box[1], pred_box[3]) * w, max(pred_box[1], pred_box[3]) * w
-            py0, py1 = min(pred_box[0], pred_box[2]) * h, max(pred_box[0], pred_box[2]) * h
-            draw.rectangle([px0, py0, px1, py1], outline="#EF4444", width=2)
+            # Pred in Red: [ymin, xmin, ymax, xmax] -> [x0, y0, x1, y1]
+            pred_x0 = float(min(pred_box[1], pred_box[3]) * w)
+            pred_y0 = float(min(pred_box[0], pred_box[2]) * h)
+            pred_x1 = float(max(pred_box[1], pred_box[3]) * w)
+            pred_y1 = float(max(pred_box[0], pred_box[2]) * h)
+            draw.rectangle([pred_x0, pred_y0, pred_x1, pred_y1], outline="#EF4444", width=2)
 
             out_file = os.path.join(examples_dir, f"grounding_sample_{idx+1:03d}.png")
             pil_img.save(out_file)
@@ -97,12 +103,15 @@ def train_grounding(args):
     print(f"Hardware: {device} ({torch.cuda.get_device_name(0) if torch.cuda.is_available() else 'CPU'})")
     print("============================================================\n")
 
+    patience = args.patience if args.patience is not None else profile.patience
+    max_train = args.max_train_samples if args.max_train_samples is not None else profile.max_train_samples
+
     # 1. Load Genuine Datasets
     train_manifest = os.path.join(manifest_dir, "grounding_train.txt")
     val_manifest = os.path.join(manifest_dir, "grounding_val.txt")
     test_manifest = os.path.join(manifest_dir, "grounding_test.txt")
 
-    train_ds = RSGroundingGenuineDataset(args.data_dir, train_manifest, image_size=profile.image_size, max_samples=profile.max_train_samples)
+    train_ds = RSGroundingGenuineDataset(args.data_dir, train_manifest, image_size=profile.image_size, max_samples=max_train)
     val_ds = RSGroundingGenuineDataset(args.data_dir, val_manifest, image_size=profile.image_size, max_samples=profile.max_val_samples)
     test_ds = RSGroundingGenuineDataset(args.data_dir, test_manifest, image_size=profile.image_size, max_samples=profile.max_test_samples)
 
@@ -123,10 +132,11 @@ def train_grounding(args):
     baseline_metrics = evaluate_grounding(model, val_loader, device)
     print(f"BASELINE Validation -> Mean IoU: {baseline_metrics['mean_iou']:.4f} | Recall@0.5: {baseline_metrics['recall_at_0.50_pct']:.2f}%")
 
-    # 3. Training Loop with SmoothL1 + GIoU Loss
+    # 3. Training Loop with SmoothL1 + GIoU Loss + Cosine LR Scheduler
     l1_crit = nn.SmoothL1Loss()
     giou_crit = GiouLoss()
     optimizer = torch.optim.AdamW(model.parameters(), lr=lr, weight_decay=1e-4)
+    scheduler = torch.optim.lr_scheduler.CosineAnnealingLR(optimizer, T_max=epochs, eta_min=lr * 0.05)
     device_type = "cuda" if device.type == "cuda" else "cpu"
     use_scaler = profile.use_amp and (device_type == "cuda")
     scaler = torch.amp.GradScaler('cuda', enabled=True) if use_scaler else None
@@ -136,7 +146,6 @@ def train_grounding(args):
 
     history = {"train_loss": [], "val_loss": [], "val_metric": []}
     best_miou = baseline_metrics["mean_iou"] if args.weights else -1.0
-    patience = args.patience if getattr(args, "patience", None) is not None else profile.patience
     patience_counter = 0
 
     if args.weights:
@@ -154,7 +163,7 @@ def train_grounding(args):
             optimizer.zero_grad()
             with torch.amp.autocast(device_type=device_type, enabled=use_scaler):
                 preds = model(imgs, tokens)
-                loss = l1_crit(preds, gt_boxes) + 0.5 * giou_crit(preds, gt_boxes)
+                loss = 2.0 * l1_crit(preds, gt_boxes) + 1.0 * giou_crit(preds, gt_boxes)
 
             if scaler is not None:
                 scaler.scale(loss).backward()
@@ -165,6 +174,7 @@ def train_grounding(args):
                 optimizer.step()
             total_loss += loss.item()
 
+        scheduler.step()
         avg_loss = total_loss / len(train_loader)
         val_metrics = evaluate_grounding(model, val_loader, device)
         cur_miou = val_metrics["mean_iou"]
@@ -174,7 +184,8 @@ def train_grounding(args):
         history["val_metric"].append(cur_miou)
 
         elapsed = time.time() - e_start
-        print(f"Epoch [{epoch:02d}/{epochs:02d}] ({elapsed:.1f}s) - Loss: {avg_loss:.4f} | Val mIoU: {cur_miou:.4f} | Recall@0.5: {val_metrics['recall_at_0.50_pct']:.2f}%")
+        cur_lr = scheduler.get_last_lr()[0]
+        print(f"Epoch [{epoch:02d}/{epochs:02d}] ({elapsed:.1f}s, lr={cur_lr:.6f}) - Loss: {avg_loss:.4f} | Val mIoU: {cur_miou:.4f} | Recall@0.5: {val_metrics['recall_at_0.50_pct']:.2f}%")
 
         is_best = cur_miou > best_miou
         if is_best:
@@ -235,10 +246,11 @@ if __name__ == "__main__":
     parser.add_argument("--epochs", type=int, default=None)
     parser.add_argument("--batch_size", type=int, default=None)
     parser.add_argument("--lr", type=float, default=None)
+    parser.add_argument("--patience", type=int, default=None, help="Early stopping patience (epochs to wait when metric decreases).")
+    parser.add_argument("--max_train_samples", type=int, default=None)
     parser.add_argument("--output_dir", type=str, default=None)
     parser.add_argument("--seed", type=int, default=42)
     parser.add_argument("--weights", type=str, default=None, help="Path to existing checkpoint to continue finetuning from.")
-    parser.add_argument("--patience", type=int, default=None, help="Early stopping patience (epochs to wait when metric decreases).")
     parser.add_argument("--export", action="store_true", help="Deploy best model directly to backend/models/checkpoints/rs_grounding_model/")
     args = parser.parse_args()
 
