@@ -13,8 +13,8 @@ class QMLConfig:
     enabled: bool = field(default_factory=lambda: os.getenv("QML_ENABLED", "true").lower() in ("true", "1", "yes"))
     mode: str = field(default_factory=lambda: os.getenv("QML_MODE", "research"))
     device_name: str = field(default_factory=lambda: os.getenv("QML_DEVICE", "default.qubit"))
-    num_qubits: int = field(default_factory=lambda: int(os.getenv("QML_QUBITS", "4")))
-    num_layers: int = field(default_factory=lambda: int(os.getenv("QML_LAYERS", "2")))
+    num_qubits: int = field(default_factory=lambda: int(os.getenv("QML_QUBITS", "6")))
+    num_layers: int = field(default_factory=lambda: int(os.getenv("QML_LAYERS", "3")))
     shots: Optional[int] = field(default_factory=lambda: (
         int(os.getenv("QML_SHOTS")) if os.getenv("QML_SHOTS") and os.getenv("QML_SHOTS") != "0" else None
     ))

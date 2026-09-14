@@ -207,9 +207,77 @@ export interface BackendHealth {
   };
 }
 
+export const getApiBaseUrl = (): string => {
+  return process.env.NEXT_PUBLIC_API_URL || ""
+};
+
+export interface QMLComparisonRow {
+  metric: string;
+  classical: string;
+  qml: string;
+  delta: string;
+  qml_better: boolean;
+}
+
+export interface QMLBenchmarkData {
+  model_version: string;
+  dataset: string;
+  total_test_samples: number;
+  hardware_specs: {
+    simulator: string;
+    device: string;
+    qubits: number;
+    circuit_depth: number;
+    quantum_parameters: number;
+    total_parameters: number;
+    shots: string;
+  };
+  metrics: {
+    accuracy: number;
+    macro_f1: number;
+    precision: number;
+    recall: number;
+    roc_auc?: number;
+    latency_ms: number;
+    classical_agreement_rate: number;
+  };
+  parameter_efficiency: {
+    quantum_parameters: number;
+    classical_rf_parameters: number;
+    classical_cnn_parameters: number;
+    reduction_vs_rf: string;
+    reduction_vs_cnn: string;
+  };
+  comparison_table: QMLComparisonRow[];
+  confusion_matrix: number[][];
+  dataset_manifest?: Record<string, any>;
+  research_buffer_stats?: {
+    total_samples: number;
+    agreements: number;
+    disagreements: number;
+    agreement_rate: number;
+    verified_count: number;
+    unverified_disagreements: number;
+  };
+}
+
 export const checkBackendHealth = async (): Promise<BackendHealth | null> => {
   try {
-    const res = await fetch(`${getApiBaseUrl()}/api/v1/health`, { signal: AbortSignal.timeout(3500) })
+    const base = getApiBaseUrl()
+    const url = base ? `${base}/api/v1/health` : "/api/v1/health"
+    const res = await fetch(url, { signal: AbortSignal.timeout(3500) })
+    if (!res.ok) return null
+    return await res.json()
+  } catch {
+    return null
+  }
+};
+
+export const fetchQMLBenchmarks = async (): Promise<QMLBenchmarkData | null> => {
+  try {
+    const base = getApiBaseUrl()
+    const url = base ? `${base}/api/v1/qml/benchmarks` : "/api/v1/qml/benchmarks"
+    const res = await fetch(url, { signal: AbortSignal.timeout(4000) })
     if (!res.ok) return null
     return await res.json()
   } catch {

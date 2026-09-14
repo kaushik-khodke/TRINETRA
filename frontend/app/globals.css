@@ -381,3 +381,126 @@ nav { display: flex; gap: 6px; flex: 1; } nav button { border: 0; color: rgba(25
   }
 }
 
+/* Quantum Research Engine Dashboard & Benchmark Explorer */
+.qml-dashboard-card {
+  border: 1px solid rgba(167, 139, 250, 0.28);
+  border-radius: 18px;
+  background: radial-gradient(circle at 100% 0%, rgba(167, 139, 250, 0.09), transparent 28rem), rgba(255, 255, 255, 0.03);
+  padding: 26px;
+  margin-top: 24px;
+  position: relative;
+  overflow: hidden;
+  box-shadow: 0 8px 32px rgba(0, 0, 0, 0.35);
+}
+.qml-dashboard-card::before {
+  content: "";
+  position: absolute;
+  top: 0;
+  left: 0;
+  right: 0;
+  height: 2px;
+  background: linear-gradient(90deg, #56d7df, #a78bfa, #38bdf8);
+}
+.qml-kpi-grid {
+  display: grid;
+  grid-template-columns: repeat(4, 1fr);
+  gap: 12px;
+  margin: 18px 0;
+}
+@media (max-width: 900px) {
+  .qml-kpi-grid {
+    grid-template-columns: repeat(2, 1fr);
+  }
+}
+@media (max-width: 500px) {
+  .qml-kpi-grid {
+    grid-template-columns: 1fr;
+  }
+}
+.qml-kpi {
+  background: rgba(0, 0, 0, 0.38);
+  border: 1px solid rgba(255, 255, 255, 0.08);
+  border-radius: 12px;
+  padding: 14px;
+  display: flex;
+  flex-direction: column;
+  gap: 5px;
+}
+.qml-kpi span {
+  color: rgba(255, 255, 255, 0.45);
+  font: 10px monospace;
+  text-transform: uppercase;
+  letter-spacing: 0.06em;
+}
+.qml-kpi b {
+  font: 26px monospace;
+  color: #a78bfa;
+}
+.qml-kpi b.cyan {
+  color: #56d7df;
+}
+.qml-kpi b.green {
+  color: #6ee7b7;
+}
+.qml-kpi small {
+  font-size: 10px;
+  color: rgba(255, 255, 255, 0.4);
+}
+.qml-benchmark-table {
+  width: 100%;
+  border-collapse: collapse;
+  margin: 14px 0;
+  font-size: 12px;
+}
+.qml-benchmark-table th {
+  text-align: left;
+  padding: 10px 12px;
+  color: rgba(255, 255, 255, 0.4);
+  font: 10px monospace;
+  letter-spacing: 0.06em;
+  text-transform: uppercase;
+  border-bottom: 1px solid rgba(255, 255, 255, 0.1);
+}
+.qml-benchmark-table td {
+  padding: 10px 12px;
+  border-bottom: 1px solid rgba(255, 255, 255, 0.06);
+  color: #f1f5f9;
+}
+.qml-matrix-wrap {
+  display: flex;
+  gap: 16px;
+  align-items: center;
+  flex-wrap: wrap;
+  margin-top: 14px;
+}
+.qml-matrix-box {
+  display: grid;
+  grid-template-columns: repeat(3, 1fr);
+  gap: 6px;
+  background: rgba(0, 0, 0, 0.4);
+  padding: 10px;
+  border-radius: 10px;
+  border: 1px solid rgba(255, 255, 255, 0.08);
+}
+.qml-cell {
+  width: 72px;
+  height: 52px;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  border-radius: 6px;
+  font: 12px monospace;
+}
+.qml-cell.diag {
+  background: rgba(167, 139, 250, 0.2);
+  border: 1px solid rgba(167, 139, 250, 0.4);
+  color: #c4b5fd;
+  font-weight: 700;
+}
+.qml-cell.off {
+  background: rgba(255, 255, 255, 0.03);
+  color: rgba(255, 255, 255, 0.5);
+}
+
+

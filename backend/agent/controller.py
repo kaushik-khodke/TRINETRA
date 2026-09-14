@@ -30,6 +30,7 @@ from services.reports.report_service import MissionReportGenerator
 from geospatial.reader import GeospatialReader
 from geospatial.overlays import EvidenceOverlayEngine
 from qml.integration.qml_service import QMLService
+from qml.config import qml_config
 
 REPORTS_DIR = os.path.join(os.path.dirname(os.path.dirname(os.path.abspath(__file__))), "outputs", "reports")
 os.makedirs(REPORTS_DIR, exist_ok=True)
@@ -257,32 +258,83 @@ class AgentController:
                     details="Integrated textual conclusions, visual evidence overlays, and confidence metrics."
                 )
 
-                # Step 5b: Experimental PennyLane QML Research Branch
+                # Step 5b: Experimental PennyLane QML Research Branch (Section 27 Langfuse Hierarchy)
                 qml_comparison_payload = None
                 try:
-                    with trace_ctx.tool("qml-quantum-validation", input_data={"task": task, "device": "default.qubit"}) as qml_span:
+                    qml_is_supported = qml_config.is_task_supported(task)
+                    
+                    with trace_ctx.tool("qml_capability_check", input_data={"task": task, "qml_enabled": qml_config.enabled}) as cap_span:
+                        cap_span.update(output={
+                            "qml_enabled": qml_config.enabled,
+                            "task": task,
+                            "supported": qml_is_supported,
+                            "device": qml_config.device_name,
+                            "qubits": qml_config.num_qubits,
+                            "layers": qml_config.num_layers,
+                            "qml_model_version": "qml_change_levir10k"
+                        })
+
+                    if qml_is_supported and qml_config.enabled:
                         trace.add_step(
                             stage="execution",
                             action="quantum_validation",
                             tool="quantum_validation",
                             details=f"Executing PennyLane VQC circuit and cross-paradigm agreement analysis for '{task}'."
                         )
-                        qml_comparison_payload = QMLService.run_comparative_analysis(
-                            task=task,
-                            query=query,
-                            images_arr=loaded_arrays,
-                            metas=loaded_metas,
-                            classical_result=result,
-                            response_language=response_language
-                        )
-                        if qml_comparison_payload and "classical_vs_qml_comparison" in qml_comparison_payload:
-                            comp = qml_comparison_payload["classical_vs_qml_comparison"]
-                            qml_span.update(output={
-                                "agrees": comp.get("agrees"),
-                                "verdict": comp.get("verdict"),
-                                "qml_prediction": comp.get("qml_prediction"),
-                                "calibrated_score": comp.get("calibrated_agreement_score")
+
+                        # Feature extraction span
+                        with trace_ctx.tool("feature_extraction", input_data={"task": task, "num_rasters": len(loaded_arrays)}) as feat_span:
+                            t_feat_0 = time.perf_counter()
+                            raw_feats = QMLService.extract_compact_features(task, loaded_arrays, loaded_metas)
+                            feat_latency_ms = (time.perf_counter() - t_feat_0) * 1000.0
+                            feat_span.update(output={
+                                "raw_dim": len(raw_feats),
+                                "reduced_dim": qml_config.num_qubits,
+                                "latency_ms": round(feat_latency_ms, 2)
                             })
+
+                        # QML simulation span
+                        with trace_ctx.tool("qml_simulation", input_data={"device": qml_config.device_name, "qubits": qml_config.num_qubits}) as sim_span:
+                            t_sim_0 = time.perf_counter()
+                            qml_comparison_payload = QMLService.run_comparative_analysis(
+                                task=task,
+                                query=query,
+                                images_arr=loaded_arrays,
+                                metas=loaded_metas,
+                                classical_result=result,
+                                response_language=response_language
+                            )
+                            sim_latency_ms = (time.perf_counter() - t_sim_0) * 1000.0
+                            sim_span.update(output={
+                                "device": qml_config.device_name,
+                                "qubits": qml_config.num_qubits,
+                                "layers": qml_config.num_layers,
+                                "qml_model_version": "qml_change_levir10k",
+                                "latency_ms": round(sim_latency_ms, 2)
+                            })
+
+                        # QML prediction and agreement spans
+                        if qml_comparison_payload:
+                            q_branch = qml_comparison_payload.get("qml_research_branch", {})
+                            comp = qml_comparison_payload.get("classical_vs_qml_comparison", {})
+
+                            with trace_ctx.tool("qml_prediction", input_data={"task": task}) as pred_span:
+                                pred_span.update(output={
+                                    "prediction": q_branch.get("prediction"),
+                                    "confidence": q_branch.get("confidence"),
+                                    "class_probabilities": q_branch.get("class_probabilities"),
+                                    "qml_model_version": "qml_change_levir10k",
+                                    "latency_ms": q_branch.get("simulation_latency_ms")
+                                })
+
+                            with trace_ctx.tool("agreement_analysis", input_data={"classical": comp.get("classical_prediction"), "qml": comp.get("qml_prediction")}) as agr_span:
+                                agr_span.update(output={
+                                    "agreement": comp.get("agrees"),
+                                    "verdict": comp.get("verdict"),
+                                    "calibrated_agreement_score": comp.get("calibrated_agreement_score"),
+                                    "confidence_delta": comp.get("confidence_delta"),
+                                    "parameter_reduction": comp.get("parameter_comparison", {}).get("quantum_parameter_reduction")
+                                })
                 except Exception as qml_err:
                     print(f"[AgentController] Non-fatal QML execution notice: {qml_err}")
 
@@ -337,6 +389,8 @@ class AgentController:
             "input_mode": input_mode,
             "task": classification.task,
             "confidence": result.get("confidence", 0.90),
+            "cloud_llm": False,
+            "agent_framework": "langchain",
             "result": result,
             "inputs_metadata": loaded_metas,
             "geographic_location": primary_geo,

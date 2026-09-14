@@ -74,6 +74,13 @@ class QMLFeaturePipeline:
 
         X_2d = X if X.ndim == 2 else X.reshape(1, -1)
         X_clean = np.nan_to_num(X_2d, nan=0.0, posinf=1.0, neginf=-1.0)
+        if self.mean is not None and X_clean.shape[1] != self.mean.shape[0]:
+            expected_dim = self.mean.shape[0]
+            if X_clean.shape[1] < expected_dim:
+                pad_width = ((0, 0), (0, expected_dim - X_clean.shape[1]))
+                X_clean = np.pad(X_clean, pad_width, mode='constant')
+            else:
+                X_clean = X_clean[:, :expected_dim]
         X_scaled = (X_clean - self.mean) / self.std
         X_proj = X_scaled @ self.components  # Shape: (N, target_dim)
 

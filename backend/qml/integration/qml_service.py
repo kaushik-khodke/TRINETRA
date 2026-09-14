@@ -14,6 +14,7 @@ from ..config import qml_config
 from ..feature_pipeline import QMLFeaturePipeline
 from ..models.vqc import QuantumChangeClassifier
 from ..comparison.agreement import AgreementAnalyzer, AgreementReport
+from ..research_buffer import research_buffer
 from geospatial.normalizer import GeospatialNormalizer
 
 class QMLService:
@@ -36,17 +37,22 @@ class QMLService:
         ckpt_path = os.path.join(ckpt_dir, "best_model.pt")
         cfg_path = os.path.join(ckpt_dir, "config.json")
 
-        actual_qubits = num_qubits or 6
-        actual_layers = num_layers or 3
+        actual_qubits = 6
+        actual_layers = 3
         if os.path.exists(cfg_path):
             try:
                 import json
                 with open(cfg_path, "r", encoding="utf-8") as f:
                     cdata = json.load(f)
-                    actual_qubits = num_qubits or cdata.get("qubits", 6)
-                    actual_layers = num_layers or cdata.get("layers", 3)
+                    actual_qubits = cdata.get("qubits", 6)
+                    actual_layers = cdata.get("layers", 3)
             except Exception:
                 pass
+
+        if num_qubits is not None and not os.path.exists(ckpt_path):
+            actual_qubits = num_qubits
+        if num_layers is not None and not os.path.exists(ckpt_path):
+            actual_layers = num_layers
 
         cache_key = f"vqc_{actual_qubits}q_{actual_layers}l"
         if cache_key in cls._model_cache:
@@ -216,6 +222,21 @@ class QMLService:
                 qml_latency_ms=qml_latency_ms,
                 qml_circuit_meta=circuit_meta
             )
+
+            # 7. Record into Verified Research Buffer (Section 21 of specifications)
+            try:
+                research_buffer.record_inference(
+                    task=task,
+                    feature_vector=[float(x) for x in q_features],
+                    classical_pred=classical_label,
+                    classical_conf=classical_conf,
+                    qml_pred=pred_label,
+                    qml_conf=q_confidence,
+                    model_version="qml_change_levir10k",
+                    dataset="LEVIR_CD_patches"
+                )
+            except Exception as b_err:
+                print(f"[QMLService] Research buffer recording notice: {b_err}")
 
             return {
                 "qml_research_branch": {
