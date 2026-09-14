@@ -23,14 +23,14 @@ import { isHudSummaryUnconfigured } from './hudSummaryResponse.js';
 
 /** Color palettes keyed by shader mode; applied as CSS custom properties. */
 const HUD_COLORS = {
-  surveillance: { main: 'rgba(51, 255, 51, 0.8)',  glow: 'rgba(51, 255, 51, 0.5)',  border: 'rgba(51, 255, 51, 0.2)' },
-  thermal:      { main: 'rgba(255, 255, 255, 0.7)', glow: 'rgba(255, 255, 255, 0.4)', border: 'rgba(255, 255, 255, 0.15)' },
-  retro:        { main: 'rgba(255, 170, 0, 0.8)',   glow: 'rgba(255, 170, 0, 0.5)',   border: 'rgba(255, 170, 0, 0.2)' },
-  _default:     { main: 'rgba(0, 255, 255, 0.6)',   glow: 'rgba(0, 255, 255, 0.4)',   border: 'rgba(0, 255, 255, 0.15)' },
+  surveillance: { main: 'rgba(51, 255, 51, 0.8)', glow: 'rgba(51, 255, 51, 0.5)', border: 'rgba(51, 255, 51, 0.2)' },
+  thermal: { main: 'rgba(255, 255, 255, 0.7)', glow: 'rgba(255, 255, 255, 0.4)', border: 'rgba(255, 255, 255, 0.15)' },
+  retro: { main: 'rgba(255, 170, 0, 0.8)', glow: 'rgba(255, 170, 0, 0.5)', border: 'rgba(255, 170, 0, 0.2)' },
+  _default: { main: 'rgba(0, 255, 255, 0.6)', glow: 'rgba(0, 255, 255, 0.4)', border: 'rgba(0, 255, 255, 0.15)' },
 };
 
 /** Shader modes that automatically show the HUD overlay. */
-const MILITARY_STYLES = new Set(['retro', 'surveillance', 'thermal']);
+const MILITARY_STYLES = new Set(['normal', 'retro', 'surveillance', 'thermal']);
 
 /** Allowed HUD layout variants. */
 const HUD_VARIANTS = new Set(['tactical', 'operator', 'minimal']);
@@ -68,7 +68,7 @@ export class IntelHUD {
    */
   constructor(viewer) {
     this.viewer = viewer;
-    this._visible = false;
+    this._visible = true;
     this._autoMode = true; // auto show/hide based on style
     this._currentStyle = 'normal';
     this._el = null;
@@ -124,15 +124,24 @@ export class IntelHUD {
       }
     };
 
-    // Session-consistent pseudorandom identifiers (generated once at construction)
-    this._missionId = `KH11-${4000 + Math.floor(Math.random() * 200)}`;
-    this._sensorId = `OPS-${4100 + Math.floor(Math.random() * 100)}`;
+    // Session-consistent ISRO Earth Observation mission identifiers
+    const ISRO_MISSIONS = [
+      { mission: 'EOS-04 (RISAT-1A)', sensor: 'C-BAND SAR' },
+      { mission: 'CARTOSAT-3', sensor: 'PAN / MX' },
+      { mission: 'RESOURCESAT-2A', sensor: 'LISS-4' },
+      { mission: 'OCEANSAT-3', sensor: 'OCM-3' },
+      { mission: 'INSAT-3DR', sensor: 'IMAGER' },
+    ];
+    const chosen = ISRO_MISSIONS[Math.floor(Math.random() * ISRO_MISSIONS.length)];
+    this._missionId = chosen.mission;
+    this._sensorId = chosen.sensor;
     this._orbitNum = 47000 + Math.floor(Math.random() * 1000);
     this._passNum = 100 + Math.floor(Math.random() * 200);
 
     this._buildDOM();
     this.viewer.camera.moveEnd.addEventListener(this._onCameraMoveEnd);
     this._startTimers();
+    this.show();
   }
 
   /**
@@ -146,27 +155,22 @@ export class IntelHUD {
 
     this._el.innerHTML = `
       <div class="hud-top-bar">
-        <span class="hud-top-bar-left">TOP SECRET // SI-TK // NOFORN</span>
+        <span class="hud-top-bar-left">ISRO // EARTH OBSERVATION INTELLIGENCE</span>
         <span class="hud-top-bar-center">${this._missionId}</span>
-        <span class="hud-top-bar-right">PAGE 1/1</span>
+        <span class="hud-top-bar-right">LEO-SSO</span>
       </div>
 
       <div class="hud-corner hud-top-left">
         <div class="hud-bracket">┌</div>
         <div class="hud-content">
-          <div class="hud-classification">TRINETRA // REMOTE SENSING INTELLIGENCE // LEO-GEO</div>
-          <div class="hud-system">${this._missionId}  ${this._sensorId}</div>
-          <div class="hud-mode" id="hud-mode">NORMAL</div>
-          <div class="hud-summary-wrap">
-            <div class="hud-summary-label">SUMMARY</div>
-            <div class="hud-summary" id="hud-summary">Awaiting telemetry...</div>
-          </div>
+          <div class="hud-system">${this._missionId} // ${this._sensorId}</div>
+          <div id="hud-summary" style="display: none !important;"></div>
         </div>
       </div>
 
       <div class="hud-corner hud-top-right">
         <div class="hud-content" style="text-align:right">
-          <div class="hud-rec"><span id="hud-rec-dot">●</span> REC  <span id="hud-timestamp">2026-01-01 00:00:00Z</span></div>
+          <div class="hud-rec"><span id="hud-timestamp">2026-01-01 00:00:00Z</span> (UTC)</div>
           <div class="hud-orbital">ORB: ${this._orbitNum}  PASS: DESC-${this._passNum}</div>
         </div>
         <div class="hud-bracket">┐</div>
@@ -175,7 +179,7 @@ export class IntelHUD {
       <div class="hud-corner hud-bottom-left">
         <div class="hud-bracket">└</div>
         <div class="hud-content">
-          <div id="hud-mgrs">MGRS: ---</div>
+          <div class="hud-summary-label">TARGET COORDINATES</div>
           <div id="hud-latlon">--°--'--"N ---°--'--"W</div>
         </div>
       </div>
@@ -184,7 +188,6 @@ export class IntelHUD {
         <div class="hud-content" style="text-align:right">
           <div id="hud-gsd">GSD: --m  NIIRS: --</div>
           <div id="hud-alt">ALT: --m   SUN: --° EL</div>
-          <div id="hud-ais-vessel" class="hud-ais-vessel">AIS: --</div>
         </div>
         <div class="hud-bracket">┘</div>
       </div>
@@ -201,7 +204,7 @@ export class IntelHUD {
       </div>
 
       <div class="hud-bottom-bar">
-        <span id="hud-bottom-line">LAT: --  LON: --  MGRS: ---</span>
+        <span id="hud-bottom-line">LAT: --  LON: --</span>
       </div>
     `;
     this._el.dataset.variant = this._variant;
@@ -298,27 +301,12 @@ export class IntelHUD {
     const altM = cartographic.height;
     const latDMS = this._toDMS(latDeg, 'lat');
     const lonDMS = this._toDMS(lonDeg, 'lon');
-    let mgrsLabel = '---';
-
-    // MGRS
-    try {
-      const mgrsStr = toMGRS([lonDeg, latDeg], 4); // 4 = 10m precision
-      // Format: 18SUJ23370716 → 18S UJ 2337 0716
-      const formatted = this._formatMGRS(mgrsStr);
-      mgrsLabel = formatted;
-      const el = document.getElementById('hud-mgrs');
-      if (el) el.textContent = `MGRS: ${formatted}`;
-    } catch {
-      const el = document.getElementById('hud-mgrs');
-      if (el) el.textContent = 'MGRS: ---';
-    }
-
     // Lat/Lon DMS
     const llEl = document.getElementById('hud-latlon');
     if (llEl) llEl.textContent = `${latDMS} ${lonDMS}`;
     const bottomEl = document.getElementById('hud-bottom-line');
     if (bottomEl) {
-      bottomEl.textContent = `MGRS: ${mgrsLabel}  LAT: ${latDMS}  LON: ${lonDMS}`;
+      bottomEl.textContent = `LAT: ${latDMS}  LON: ${lonDMS}`;
     }
 
     // GSD (Ground Sample Distance): approximate resolution in meters per pixel

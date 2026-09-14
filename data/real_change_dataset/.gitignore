@@ -1,0 +1,172 @@
+# ==============================================================================
+# SatQuery AI — Production Git Ignore Specification
+# SIH 2026 • Problem Statement 26167 • Indian Space Research Organisation (ISRO)
+# ==============================================================================
+
+# ------------------------------------------------------------------------------
+# 1. Python & Virtual Environments
+# ------------------------------------------------------------------------------
+__pycache__/
+*.py[cod]
+*$py.class
+*.so
+.Python
+env/
+venv/
+.venv/
+ENV/
+env.bak/
+venv.bak/
+build/
+develop-eggs/
+dist/
+downloads/
+eggs/
+.eggs/
+/lib/
+/lib64/
+!frontend/lib/
+parts/
+sdist/
+var/
+wheels/
+share/python-wheels/
+*.egg-info/
+.installed.cfg
+*.egg
+.pytest_cache/
+.coverage
+htmlcov/
+.tox/
+.nox/
+*.manifest
+*.spec
+
+# ------------------------------------------------------------------------------
+# 2. Node.js & React Frontend (Vite)
+# ------------------------------------------------------------------------------
+node_modules/
+frontend/node_modules/
+dist/
+frontend/dist/
+dist-ssr/
+frontend/dist-ssr/
+*.local
+npm-debug.log*
+yarn-debug.log*
+yarn-error.log*
+pnpm-debug.log*
+lerna-debug.log*
+.vite/
+frontend/.vite/
+
+# ------------------------------------------------------------------------------
+# 3. Machine Learning Weights & Checkpoints (Heavy Artifacts)
+# ------------------------------------------------------------------------------
+# Ignore large model binary weights (users download/train separately)
+*.pt
+*.pth
+*.bin
+*.safetensors
+*.onnx
+*.ckpt
+*.h5
+*.tflite
+*.pb
+wandb/
+lightning_logs/
+runs/
+
+# Preserve directory structure in version control
+!backend/models/checkpoints/**/.gitkeep
+
+# ------------------------------------------------------------------------------
+# 4. Geospatial Runtime Data, Uploads & Generated Reports
+# ------------------------------------------------------------------------------
+backend/uploads/*
+!backend/uploads/.gitkeep
+uploads/*
+!uploads/.gitkeep
+
+backend/outputs/reports/*
+!backend/outputs/reports/.gitkeep
+outputs/*
+!outputs/.gitkeep
+
+# GDAL & Raster Cache / Auxiliary files
+*.aux.xml
+*.ovr
+*.xml.bak
+*.tif.tmp
+
+# Whitelist standard sample benchmark rasters
+!backend/sample_data/
+!backend/sample_data/**
+
+# ------------------------------------------------------------------------------
+# 5. Environment Variables & Credentials
+# ------------------------------------------------------------------------------
+.env
+.env.local
+.env.development.local
+.env.test.local
+.env.production.local
+*.pem
+*.key
+
+# ------------------------------------------------------------------------------
+# 6. Operating System & Editor Artifacts
+# ------------------------------------------------------------------------------
+.DS_Store
+.DS_Store?
+._*
+.Spotlight-V100
+.Trashes
+ehthumbs.db
+Thumbs.db
+desktop.ini
+$RECYCLE.BIN/
+
+# IDE configurations
+.vscode/*
+!.vscode/settings.json
+!.vscode/tasks.json
+!.vscode/launch.json
+!.vscode/extensions.json
+.idea/
+*.sublime-project
+*.sublime-workspace
+
+# Agent scratch files
+scratch/
+*.tmp
+
+# TypeScript build cache
+*.tsbuildinfo
+
+# ------------------------------------------------------------------------------
+# 7. Project B — TRINETRA / Shatnetra Globe Application (Vite + Cesium)
+# ------------------------------------------------------------------------------
+shatnetra/node_modules/
+shatnetra/dist/
+shatnetra/dist-ssr/
+shatnetra/.vite/
+shatnetra/.env
+shatnetra/.env.local
+shatnetra/.env.*.local
+shatnetra/*.log
+shatnetra/screenshots/
+shatnetra/qa-shots/
+shatnetra/output/
+shatnetra/.gev-logs/
+shatnetra/.gev-cache/
+shatnetra/.gstack/
+shatnetra/3d-models/
+shatnetra/pinokio/ENVIRONMENT
+shatnetra/pinokio/.installed
+shatnetra/test-results/
+shatnetra/coverage/
+
+*.png
+SatQuery AI\data\real_change_dataset\train
+SatQuery AI\data\real_change_dataset\val

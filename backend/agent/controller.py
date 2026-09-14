@@ -2,7 +2,7 @@
 SatQuery AI — Master Agent Controller
 The central orchestration layer. Routes requests, validates inputs, sequences specialist tools,
 integrates multimodal evidence, and logs observable execution traces.
-Powered by LangGraph StateGraph Workflow Runtime.
+Powered by LangGraph StateGraph Workflow Runtime with PennyLane QML validation.
 """
 
 import os
@@ -23,6 +23,10 @@ from llm.agent_planner import AgentPlanner
 from llm.model_registry import local_registry
 from observability.langfuse_tracer import LangfuseTracer
 from services.reports.report_service import MissionReportGenerator
+from geospatial.reader import GeospatialReader
+from geospatial.overlays import EvidenceOverlayEngine
+from qml.integration.qml_service import QMLService
+from qml.config import qml_config
 
 REPORTS_DIR = os.path.join(os.path.dirname(os.path.dirname(os.path.abspath(__file__))), "outputs", "reports")
 os.makedirs(REPORTS_DIR, exist_ok=True)
@@ -72,6 +76,48 @@ class AgentController:
                 response_language=response_language
             )
 
+            # Experimental PennyLane QML Research Validation Branch
+            qml_comparison_payload = None
+            try:
+                task = final_response.get("detected_task", "vqa")
+                if qml_config.is_task_supported(task) and qml_config.enabled and final_response.get("status") == "completed":
+                    loaded_arrays = []
+                    loaded_metas = []
+                    for fp in file_paths:
+                        try:
+                            arr, meta = GeospatialReader.read_image(fp)
+                            loaded_arrays.append(arr)
+                            loaded_metas.append(meta.to_dict() if hasattr(meta, "to_dict") else meta)
+                        except Exception:
+                            pass
+
+                    if loaded_arrays:
+                        with trace_ctx.tool("qml_simulation", input_data={"device": qml_config.device_name, "qubits": qml_config.num_qubits}) as sim_span:
+                            t_sim_0 = time.perf_counter()
+                            qml_comparison_payload = QMLService.run_comparative_analysis(
+                                task=task,
+                                query=query,
+                                images_arr=loaded_arrays,
+                                metas=loaded_metas,
+                                classical_result=final_response.get("result", final_response),
+                                response_language=response_language
+                            )
+                            sim_latency_ms = (time.perf_counter() - t_sim_0) * 1000.0
+                            if qml_comparison_payload:
+                                sim_span.update(output={
+                                    "device": qml_config.device_name,
+                                    "qubits": qml_config.num_qubits,
+                                    "layers": qml_config.num_layers,
+                                    "qml_model_version": "qml_change_levir10k",
+                                    "latency_ms": round(sim_latency_ms, 2)
+                                })
+
+                        if qml_comparison_payload:
+                            final_response["qml_analysis"] = qml_comparison_payload.get("qml_research_branch")
+                            final_response["classical_vs_qml_comparison"] = qml_comparison_payload.get("classical_vs_qml_comparison")
+            except Exception as qml_err:
+                print(f"[AgentController] Non-fatal QML execution notice: {qml_err}")
+
             # Generate mission intelligence reports if analysis was successful
             if final_response.get("status") == "completed":
                 html_report_filename = f"report_{trace.request_id}.html"
@@ -92,7 +138,8 @@ class AgentController:
                 "status": final_response.get("status", "completed"),
                 "task": final_response.get("detected_task", "unknown"),
                 "confidence": final_response.get("confidence", 0.90),
-                "answer": (final_response.get("answer") or "")[:250]
+                "answer": (final_response.get("answer") or "")[:250],
+                "reports": final_response.get("reports")
             })
 
             return final_response

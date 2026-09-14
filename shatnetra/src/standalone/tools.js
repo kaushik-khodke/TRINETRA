@@ -100,18 +100,12 @@ export function createStandaloneTools({
     if (window.__trinetra === debug) delete window.__trinetra;
     if (window.__godsEyeView === debug) delete window.__godsEyeView;
   });
-  const voiceCommands = initGevVoiceCommands({
-    viewer,
-    styleManager,
-    dataManager,
-    sceneDirector,
-    annotations,
-  });
-  defer(() => {
-    voiceCommands.stop({ removeUi: true });
-    if (window.__gevVoiceCommands === voiceCommands)
-      delete window.__gevVoiceCommands;
-  });
+  // Voice system disabled to prevent unconfigured API key errors and streamline UI
+  const voiceCommands = {
+    stop: () => {},
+    isActive: () => false,
+  };
+  window.__gevVoiceCommands = voiceCommands;
   debug.voiceCommands = voiceCommands;
   return { sceneDirector, annotations, voiceCommands };
 }

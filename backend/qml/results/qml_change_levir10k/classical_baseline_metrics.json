@@ -1,0 +1,66 @@
+{
+  "dataset": "LEVIR_CD_patches",
+  "feature_dimension": 6,
+  "total_test_samples": 1024,
+  "primary_baseline_model": "Random Forest",
+  "metrics": {
+    "accuracy": 42.58,
+    "macro_f1": 0.3358,
+    "precision": 0.3533,
+    "recall": 0.3544,
+    "latency_ms": 0.011,
+    "parameter_count": 26286,
+    "agreement_rate": 75.0
+  },
+  "all_baselines": {
+    "Logistic Regression": {
+      "accuracy": 39.06,
+      "macro_f1": 0.3239,
+      "precision": 0.3486,
+      "recall": 0.3544,
+      "latency_ms": 0.001,
+      "parameter_count": 21
+    },
+    "Support Vector Machine (RBF)": {
+      "accuracy": 33.5,
+      "macro_f1": 0.2976,
+      "precision": 0.3413,
+      "recall": 0.3484,
+      "latency_ms": 0.552,
+      "parameter_count": 56243
+    },
+    "Random Forest": {
+      "accuracy": 42.58,
+      "macro_f1": 0.3358,
+      "precision": 0.3533,
+      "recall": 0.3544,
+      "latency_ms": 0.011,
+      "parameter_count": 26286
+    },
+    "Small MLP": {
+      "accuracy": 68.65,
+      "macro_f1": 0.2714,
+      "precision": 0.2288,
+      "recall": 0.3333,
+      "latency_ms": 0.002,
+      "parameter_count": 803
+    }
+  },
+  "confusion_matrix": [
+    [
+      345,
+      126,
+      232
+    ],
+    [
+      73,
+      41,
+      56
+    ],
+    [
+      76,
+      25,
+      50
+    ]
+  ]
+}

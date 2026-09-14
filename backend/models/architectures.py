@@ -138,7 +138,6 @@ class RSGroundingDetector(nn.Module):
         t_feat = self.text_embed(tokens).mean(dim=1)
         fused = torch.cat([b_feat, t_feat], dim=-1)
         raw = self.box_head(fused)
-
         # Enforce canonical [ymin, xmin, ymax, xmax] ordering where ymin < ymax and xmin < xmax
         y_min = torch.min(raw[:, 0], raw[:, 2])
         y_max = torch.max(raw[:, 0], raw[:, 2])

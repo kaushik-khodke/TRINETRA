@@ -3,10 +3,74 @@ import { translations, type SupportedLanguage } from "@/lib/i18n"
 export type AnalysisMode = "single" | "temporal" | "fusion"
 export type Confidence = "high" | "medium" | "low"
 export type AnalysisStatus = "idle" | "running" | "complete" | "error"
-export interface ImageInput { id: string; name: string; size: number; url: string; label: string; modality?: "OPTICAL" | "SAR"; date?: string; file?: File; geographicLocation?: GeographicLocation; globeUrl?: string; }
+export interface ImageInput {
+  id: string;
+  name: string;
+  size: number;
+  url: string;
+  label: string;
+  modality?: "OPTICAL" | "SAR";
+  date?: string;
+  file?: File;
+  geographicLocation?: GeographicLocation;
+  globeUrl?: string;
+}
 export interface ExecutionStep { label: string; detail: string; duration: string; status: "complete" | "active" | "pending" }
 export interface AnalysisRequest { mode: AnalysisMode; images: ImageInput[]; query: string; response_language?: "en" | "hi" | "mr" }
 export interface GroundingAnnotation { label: string; x: number; y: number; width: number; height: number; color: "cyan" | "amber" }
+
+export interface GeographicLocation {
+  has_location?: boolean;
+  lat?: number;
+  lng?: number;
+  height?: number;
+  bounds?: [number, number, number, number] | number[];
+  crs?: string;
+  location_name?: string;
+  zoom?: number;
+}
+
+export interface QMLAnalysisResult {
+  enabled: boolean;
+  device: string;
+  task: string;
+  qubits: number;
+  layers: number;
+  circuit_depth: number;
+  parameters: number;
+  prediction: string;
+  confidence: number;
+  class_probabilities?: Record<string, number>;
+  quantum_features?: number[];
+  simulation_latency_ms: number;
+  total_latency_ms: number;
+}
+
+export interface ClassicalVsQMLComparison {
+  agrees: boolean | null;
+  verdict: string;
+  classical_prediction: string;
+  qml_prediction: string;
+  classical_confidence: number;
+  qml_confidence: number;
+  confidence_delta: number;
+  calibrated_agreement_score: number;
+  status_message: string;
+  parameter_comparison?: {
+    classical_model_parameters: number;
+    quantum_circuit_parameters: number;
+    quantum_parameter_reduction: string;
+    "quantum_bits (qubits)"?: number;
+    quantum_circuit_depth?: number;
+  };
+  latency_comparison?: {
+    classical_inference_ms: number;
+    quantum_simulation_ms: number;
+    simulation_delta_ms: number;
+  };
+  insights?: string[];
+}
+
 export interface AnalysisResponse {
   id: string;
   mode: AnalysisMode;
@@ -54,14 +118,79 @@ export interface AnalysisResponse {
     };
     topClasses?: Array<{ class_name: string; confidence: number }>;
   };
+  qml_analysis?: QMLAnalysisResult;
+  classical_vs_qml_comparison?: ClassicalVsQMLComparison;
 }
-export const modes: { id: AnalysisMode; label: string; description: string; icon: string }[] = [{ id: "single", label: "Single image", description: "Explore one scene", icon: "◈" }, { id: "temporal", label: "Bi-temporal", description: "Detect change over time", icon: "◌" }, { id: "fusion", label: "Optical + SAR", description: "Fuse complementary sensors", icon: "⌘" }]
-export const examples: Record<AnalysisMode, string[]> = { single: ["What land use types are visible in this image?", "Describe the water bodies and vegetation coverage.", "Highlight the water body referred to in the query"], temporal: ["What changes are visible between these two dates?", "Has the built-up area increased, decreased, or remained unchanged?", "Show me areas of significant vegetation loss."], fusion: ["Identify flooded regions using combined modality data.", "Compare the optical and radar signatures of this area."] }
+
+export const modes: { id: AnalysisMode; label: string; description: string; icon: string }[] = [
+  { id: "single", label: "Single image", description: "Explore one scene", icon: "◈" },
+  { id: "temporal", label: "Bi-temporal", description: "Detect change over time", icon: "◌" },
+  { id: "fusion", label: "Optical + SAR", description: "Fuse complementary sensors", icon: "⌘" }
+]
+
+export const examples: Record<AnalysisMode, string[]> = {
+  single: ["What land use types are visible in this image?", "Describe the water bodies and vegetation coverage.", "Highlight the water body referred to in the query"],
+  temporal: ["What changes are visible between these two dates?", "Has the built-up area increased, decreased, or remained unchanged?", "Show me areas of significant vegetation loss."],
+  fusion: ["Identify flooded regions using combined modality data.", "Compare the optical and radar signatures of this area."]
+}
+
 export const formatBytes = (bytes: number) => `${(bytes / 1024 / 1024).toFixed(1)} MB`
-export const makeImage = (name: string, label: string, modality?: "OPTICAL" | "SAR", date?: string): ImageInput => ({ id: `${name}-${Date.now()}`, name, size: 3200000, url: `/satellite-${modality === "SAR" ? "sar" : "optical"}.svg`, label, modality, date })
-export const demoScenarios = [{ id: "urban", title: "Urban growth", mode: "temporal" as const, query: "What changes are visible between these two dates?", response: "The analysis identifies **measurable urban expansion** along the eastern edge of the scene. New built-up surfaces appear as a connected 18% increase, while the central road corridor remains stable. The highlighted evidence regions show where impervious cover replaced mixed vegetation." }, { id: "flood", title: "Flood mapping", mode: "fusion" as const, query: "Identify flooded regions using combined modality data.", response: "Fused optical and SAR evidence suggests **standing water across the southern lowlands**. The radar-dark regions align with low-lying agricultural parcels and are distinct from persistent water bodies. Confidence is medium because cloud cover limits optical confirmation." }, { id: "landuse", title: "Land use scan", mode: "single" as const, query: "What land use types are visible in this image?", response: "The scene is predominantly **agricultural**, with rectangular cultivated parcels, a compact settlement cluster, and a riparian vegetation corridor. A paved road network divides the northern fields from denser development in the southwest." }, { id: "deforestation", title: "Vegetation loss", mode: "temporal" as const, query: "Show me areas of significant vegetation loss.", response: "A concentrated vegetation-loss signature appears in the northwest quadrant. The change region covers approximately 6.4 hectares and has a fragmented edge consistent with clearing activity. Validate against seasonal imagery before operational decisions." }]
-export const imagePresets = { optical: makeImage("sentinel-2-north.png", "Optical scene", "OPTICAL", "18 Aug 2025"), sar: makeImage("sentinel-1-radar.png", "Radar scene", "SAR", "18 Aug 2025"), before: makeImage("scene-before.png", "Earlier image", "OPTICAL", "12 Apr 2024"), after: makeImage("scene-after.png", "Later image", "OPTICAL", "18 Aug 2025") }
-export const demoRequest = (mode: AnalysisMode, query: string, lang: "en" | "hi" | "mr" = "en"): AnalysisRequest => ({ mode, query, images: mode === "single" ? [imagePresets.optical] : mode === "temporal" ? [imagePresets.before, imagePresets.after] : [imagePresets.optical, imagePresets.sar], response_language: lang })
+
+export const makeImage = (name: string, label: string, modality?: "OPTICAL" | "SAR", date?: string): ImageInput => ({
+  id: `${name}-${Date.now()}`,
+  name,
+  size: 3200000,
+  url: `/satellite-${modality === "SAR" ? "sar" : "optical"}.svg`,
+  label,
+  modality,
+  date
+})
+
+export const demoScenarios = [
+  {
+    id: "urban",
+    title: "Urban growth",
+    mode: "temporal" as const,
+    query: "What changes are visible between these two dates?",
+    response: "The analysis identifies **measurable urban expansion** along the eastern edge of the scene. New built-up surfaces appear as a connected 18% increase, while the central road corridor remains stable. The highlighted evidence regions show where impervious cover replaced mixed vegetation."
+  },
+  {
+    id: "flood",
+    title: "Flood mapping",
+    mode: "fusion" as const,
+    query: "Identify flooded regions using combined modality data.",
+    response: "Fused optical and SAR evidence suggests **standing water across the southern lowlands**. The radar-dark regions align with low-lying agricultural parcels and are distinct from persistent water bodies. Confidence is medium because cloud cover limits optical confirmation."
+  },
+  {
+    id: "landuse",
+    title: "Land use scan",
+    mode: "single" as const,
+    query: "What land use types are visible in this image?",
+    response: "The scene is predominantly **agricultural**, with rectangular cultivated parcels, a compact settlement cluster, and a riparian vegetation corridor. A paved road network divides the northern fields from denser development in the southwest."
+  },
+  {
+    id: "deforestation",
+    title: "Vegetation loss",
+    mode: "temporal" as const,
+    query: "Show me areas of significant vegetation loss.",
+    response: "A concentrated vegetation-loss signature appears in the northwest quadrant. The change region covers approximately 6.4 hectares and has a fragmented edge consistent with clearing activity. Validate against seasonal imagery before operational decisions."
+  }
+]
+
+export const imagePresets = {
+  optical: makeImage("sentinel-2-north.png", "Optical scene", "OPTICAL", "18 Aug 2025"),
+  sar: makeImage("sentinel-1-radar.png", "Radar scene", "SAR", "18 Aug 2025"),
+  before: makeImage("scene-before.png", "Earlier image", "OPTICAL", "12 Apr 2024"),
+  after: makeImage("scene-after.png", "Later image", "OPTICAL", "18 Aug 2025")
+}
+
+export const demoRequest = (mode: AnalysisMode, query: string, lang: "en" | "hi" | "mr" = "en"): AnalysisRequest => ({
+  mode,
+  query,
+  images: mode === "single" ? [imagePresets.optical] : mode === "temporal" ? [imagePresets.before, imagePresets.after] : [imagePresets.optical, imagePresets.sar],
+  response_language: lang
+})
+
 export const getDemoResult = (request: AnalysisRequest): AnalysisResponse => {
   const lang = (request.response_language || "en") as SupportedLanguage;
   const langDict = translations[lang] || translations.en;
@@ -99,6 +228,57 @@ export const getDemoResult = (request: AnalysisRequest): AnalysisResponse => {
     imageType: request.mode === "fusion" ? "Sentinel-2 MSI + Sentinel-1 SAR" : "Sentinel-2 MSI",
     createdAt: new Date().toISOString(),
     images: request.images,
+    geographicLocation: {
+      has_location: true,
+      lat: 28.6172,
+      lng: 77.2078,
+      height: 5000,
+      bounds: [77.1950, 28.6044, 77.2206, 28.6300],
+      crs: "EPSG:4326",
+      location_name: "Delhi NCR Focus Area"
+    },
+    qml_analysis: {
+      enabled: true,
+      device: "PennyLane default.qubit",
+      task: request.mode === "temporal" ? "change_analysis" : "vqa",
+      qubits: 4,
+      layers: 2,
+      circuit_depth: 5,
+      parameters: 35,
+      prediction: request.mode === "temporal" ? "Increased" : "Detected",
+      confidence: 0.81,
+      simulation_latency_ms: 18.4,
+      total_latency_ms: 22.1
+    },
+    classical_vs_qml_comparison: {
+      agrees: true,
+      verdict: "FULL_AGREEMENT",
+      classical_prediction: request.mode === "temporal" ? "Increased" : "Detected",
+      qml_prediction: request.mode === "temporal" ? "Increased" : "Detected",
+      classical_confidence: 0.91,
+      qml_confidence: 0.81,
+      confidence_delta: 0.10,
+      calibrated_agreement_score: 0.95,
+      status_message: "✓ Quantum circuit corroborates the operational classical model prediction.",
+      parameter_comparison: {
+        classical_model_parameters: 1245000,
+        quantum_circuit_parameters: 35,
+        quantum_parameter_reduction: "99.997%",
+        "quantum_bits (qubits)": 4,
+        quantum_circuit_depth: 5
+      },
+      latency_comparison: {
+        classical_inference_ms: 450.0,
+        quantum_simulation_ms: 18.4,
+        simulation_delta_ms: -431.6
+      },
+      insights: [
+        "Operational Baseline: Classical specialist (1.2M params) remains the validated operational truth.",
+        "Parameter Efficiency: The QML circuit achieves classification using only 35 trainable angles (99.997% fewer parameters).",
+        "Hilbert Space Expressivity: 4 qubits span a 16-dimensional complex state space capable of modeling non-linear feature entanglements.",
+        "Hardware Scalability: On future fault-tolerant QPUs (FTQC), execution time scales with circuit depth rather than input image resolution."
+      ]
+    }
   }
 }
 
@@ -132,9 +312,77 @@ export interface BackendHealth {
   };
 }
 
+export const getApiBaseUrl = (): string => {
+  return process.env.NEXT_PUBLIC_API_URL || ""
+};
+
+export interface QMLComparisonRow {
+  metric: string;
+  classical: string;
+  qml: string;
+  delta: string;
+  qml_better: boolean;
+}
+
+export interface QMLBenchmarkData {
+  model_version: string;
+  dataset: string;
+  total_test_samples: number;
+  hardware_specs: {
+    simulator: string;
+    device: string;
+    qubits: number;
+    circuit_depth: number;
+    quantum_parameters: number;
+    total_parameters: number;
+    shots: string;
+  };
+  metrics: {
+    accuracy: number;
+    macro_f1: number;
+    precision: number;
+    recall: number;
+    roc_auc?: number;
+    latency_ms: number;
+    classical_agreement_rate: number;
+  };
+  parameter_efficiency: {
+    quantum_parameters: number;
+    classical_rf_parameters: number;
+    classical_cnn_parameters: number;
+    reduction_vs_rf: string;
+    reduction_vs_cnn: string;
+  };
+  comparison_table: QMLComparisonRow[];
+  confusion_matrix: number[][];
+  dataset_manifest?: Record<string, any>;
+  research_buffer_stats?: {
+    total_samples: number;
+    agreements: number;
+    disagreements: number;
+    agreement_rate: number;
+    verified_count: number;
+    unverified_disagreements: number;
+  };
+}
+
 export const checkBackendHealth = async (): Promise<BackendHealth | null> => {
   try {
-    const res = await fetch("/api/v1/health", { signal: AbortSignal.timeout(3500) })
+    const base = getApiBaseUrl()
+    const url = base ? `${base}/api/v1/health` : "/api/v1/health"
+    const res = await fetch(url, { signal: AbortSignal.timeout(3500) })
+    if (!res.ok) return null
+    return await res.json()
+  } catch {
+    return null
+  }
+};
+
+export const fetchQMLBenchmarks = async (): Promise<QMLBenchmarkData | null> => {
+  try {
+    const base = getApiBaseUrl()
+    const url = base ? `${base}/api/v1/qml/benchmarks` : "/api/v1/qml/benchmarks"
+    const res = await fetch(url, { signal: AbortSignal.timeout(4000) })
     if (!res.ok) return null
     return await res.json()
   } catch {
@@ -218,73 +466,73 @@ export const analysisAPI = {
           evidenceList.push("Spectral indices verified via normalized band ratios.");
         }
 
-  // Extract grounding annotations
-  const annotations: GroundingAnnotation[] = []
-  if (resData.bounding_box) {
-    const bbox = resData.bounding_box
-    const [ymin, xmin, ymax, xmax] = Array.isArray(bbox) ? bbox : [0.1, 0.1, 0.9, 0.9]
-    annotations.push({
-      label: resData.target_label || "Identified Target",
-      x: Math.round(xmin * 100),
-      y: Math.round(ymin * 100),
-      width: Math.max(8, Math.round((xmax - xmin) * 100)),
-      height: Math.max(8, Math.round((ymax - ymin) * 100)),
-      color: "cyan"
-    })
-  } else if (resData.predicted_regions && Array.isArray(resData.predicted_regions)) {
-    resData.predicted_regions.forEach((reg: any, i: number) => {
-      const bbox = reg.bbox || [0.2 + i * 0.1, 0.2 + i * 0.1, 0.5 + i * 0.1, 0.5 + i * 0.1]
-      annotations.push({
-        label: reg.label || `Region 0${i + 1}`,
-        x: Math.round(bbox[1] * 100),
-        y: Math.round(bbox[0] * 100),
-        width: Math.max(8, Math.round((bbox[3] - bbox[1]) * 100)),
-        height: Math.max(8, Math.round((bbox[2] - bbox[0]) * 100)),
-        color: i % 2 === 0 ? "cyan" : "amber"
-      })
-    })
-  } else if (Array.isArray(resData.regions)) {
-    resData.regions.forEach((r: any, idx: number) => {
-      const bbox = r.bbox || [0, 0, 1, 1]
-      annotations.push({
-        label: r.label || `Region ${idx + 1}`,
-        x: Math.round(bbox[1] * 100),
-        y: Math.round(bbox[0] * 100),
-        width: Math.max(5, Math.round((bbox[3] - bbox[1]) * 100)),
-        height: Math.max(5, Math.round((bbox[2] - bbox[0]) * 100)),
-        color: idx === 0 ? "cyan" : "amber"
-      })
-    })
-  }
+        // Extract grounding annotations
+        const annotations: GroundingAnnotation[] = []
+        if (resData.bounding_box) {
+          const bbox = resData.bounding_box
+          const [ymin, xmin, ymax, xmax] = Array.isArray(bbox) ? bbox : [0.1, 0.1, 0.9, 0.9]
+          annotations.push({
+            label: resData.target_label || "Identified Target",
+            x: Math.round(xmin * 100),
+            y: Math.round(ymin * 100),
+            width: Math.max(8, Math.round((xmax - xmin) * 100)),
+            height: Math.max(8, Math.round((ymax - ymin) * 100)),
+            color: "cyan"
+          })
+        } else if (resData.predicted_regions && Array.isArray(resData.predicted_regions)) {
+          resData.predicted_regions.forEach((reg: any, i: number) => {
+            const bbox = reg.bbox || [0.2 + i * 0.1, 0.2 + i * 0.1, 0.5 + i * 0.1, 0.5 + i * 0.1]
+            annotations.push({
+              label: reg.label || `Region 0${i + 1}`,
+              x: Math.round(bbox[1] * 100),
+              y: Math.round(bbox[0] * 100),
+              width: Math.max(8, Math.round((bbox[3] - bbox[1]) * 100)),
+              height: Math.max(8, Math.round((bbox[2] - bbox[0]) * 100)),
+              color: i % 2 === 0 ? "cyan" : "amber"
+            })
+          })
+        } else if (Array.isArray(resData.regions)) {
+          resData.regions.forEach((r: any, idx: number) => {
+            const bbox = r.bbox || [0, 0, 1, 1]
+            annotations.push({
+              label: r.label || `Region ${idx + 1}`,
+              x: Math.round(bbox[1] * 100),
+              y: Math.round(bbox[0] * 100),
+              width: Math.max(5, Math.round((bbox[3] - bbox[1]) * 100)),
+              height: Math.max(5, Math.round((bbox[2] - bbox[0]) * 100)),
+              color: idx === 0 ? "cyan" : "amber"
+            })
+          })
+        }
 
-  // Map execution steps from backend trace
-  const traceSteps = data.execution_trace?.steps || []
-  const executionSteps: ExecutionStep[] = traceSteps.map((s: any) => ({
-    label: s.action?.replace(/_/g, " ")?.toUpperCase() || "PIPELINE STEP",
-    detail: s.details || "Validated radiometric inputs",
-    duration: "0.3s",
-    status: "complete" as const
-  }))
+        // Map execution steps from backend trace
+        const traceSteps = data.execution_trace?.steps || []
+        const executionSteps: ExecutionStep[] = traceSteps.map((s: any) => ({
+          label: s.action?.replace(/_/g, " ")?.toUpperCase() || "PIPELINE STEP",
+          detail: s.details || "Validated radiometric inputs",
+          duration: "0.3s",
+          status: "complete" as const
+        }))
 
-  if (executionSteps.length === 0) {
-    executionSteps.push({ label: "INPUT VALIDATION", detail: "Verified raster dimensions and CRS", duration: "0.2s", status: "complete" })
-    executionSteps.push({ label: "TASK ROUTING", detail: `Specialist assigned to ${data.task || "vqa"}`, duration: "0.2s", status: "complete" })
-    executionSteps.push({ label: "REASONING SYNTHESIS", detail: resData.engine || "Multimodal Remote-Sensing Engine", duration: "0.5s", status: "complete" })
-  }
+        if (executionSteps.length === 0) {
+          executionSteps.push({ label: "INPUT VALIDATION", detail: "Verified raster dimensions and CRS", duration: "0.2s", status: "complete" })
+          executionSteps.push({ label: "TASK ROUTING", detail: `Specialist assigned to ${data.task || "vqa"}`, duration: "0.2s", status: "complete" })
+          executionSteps.push({ label: "REASONING SYNTHESIS", detail: resData.engine || "Multimodal Remote-Sensing Engine", duration: "0.5s", status: "complete" })
+        }
 
-  // Determine evidence image URL
-  let primaryUrl = ""
-  if (resData.evidence_image) {
-    primaryUrl = resData.evidence_image
-  } else if (resData.evidence?.change_heatmap) {
-    primaryUrl = resData.evidence.change_heatmap
-  } else if (resData.evidence?.fused_composite) {
-    primaryUrl = resData.evidence.fused_composite
-  } else if (data.image_previews && data.image_previews[0]) {
-    primaryUrl = data.image_previews[0]
-  } else if (request.images[0]?.url) {
-    primaryUrl = request.images[0].url
-  }
+        // Determine evidence image URL
+        let primaryUrl = ""
+        if (resData.evidence_image) {
+          primaryUrl = resData.evidence_image
+        } else if (resData.evidence?.change_heatmap) {
+          primaryUrl = resData.evidence.change_heatmap
+        } else if (resData.evidence?.fused_composite) {
+          primaryUrl = resData.evidence.fused_composite
+        } else if (data.image_previews && data.image_previews[0]) {
+          primaryUrl = data.image_previews[0]
+        } else if (request.images[0]?.url) {
+          primaryUrl = request.images[0].url
+        }
 
         const updatedImages: ImageInput[] = request.images.map((img, idx) => ({
           ...img,
@@ -356,6 +604,8 @@ export const analysisAPI = {
           geographicLocation: geo,
           globeUrl: globeUrl || undefined,
           hsiData: hsiData,
+          qml_analysis: data.qml_analysis || undefined,
+          classical_vs_qml_comparison: data.classical_vs_qml_comparison || undefined,
         };
       } catch (err: any) {
         console.error("[analysisAPI] Real satellite analysis failed:", err);
@@ -517,17 +767,8 @@ export const navItems = [
   { href: "/evaluation", label: "Evaluation" }
 ]
 
-export interface GeographicLocation {
-  has_location?: boolean;
-  lat?: number;
-  lng?: number;
-  height?: number;
-  location_name?: string;
-  bounds?: number[];
-}
-
 /**
- * Constructs a secure, validated exploration URL for TRINETRA (Project B).
+ * Constructs a secure, validated exploration URL for TRINETRA / Shatnetra 3D Earth Globe.
  * Uses NEXT_PUBLIC_TRINETRA_URL (defaulting to http://localhost:4173 in development).
  */
 export function buildTrinetraUrl(geo?: GeographicLocation, label?: string): string {
@@ -548,5 +789,3 @@ export function buildTrinetraUrl(geo?: GeographicLocation, label?: string): stri
   }
   return `${baseUrl}/?${params.toString()}`
 }
-
-

@@ -12,8 +12,11 @@ def calculate_iou(box1: np.ndarray, box2: np.ndarray) -> float:
     Computes Intersection over Union (IoU) for two bounding boxes.
     Format: [ymin, xmin, ymax, xmax] or [xmin, ymin, xmax, ymax].
     """
-    y1_min, x1_min, y1_max, x1_max = box1[0], box1[1], box1[2], box1[3]
-    y2_min, x2_min, y2_max, x2_max = box2[0], box2[1], box2[2], box2[3]
+    # Robustly sort coordinates so min < max for both predicted and target boxes
+    y1_min, y1_max = min(float(box1[0]), float(box1[2])), max(float(box1[0]), float(box1[2]))
+    x1_min, x1_max = min(float(box1[1]), float(box1[3])), max(float(box1[1]), float(box1[3]))
+    y2_min, y2_max = min(float(box2[0]), float(box2[2])), max(float(box2[0]), float(box2[2]))
+    x2_min, x2_max = min(float(box2[1]), float(box2[3])), max(float(box2[1]), float(box2[3]))
 
     inter_ymin = max(y1_min, y2_min)
     inter_xmin = max(x1_min, x2_min)

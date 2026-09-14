@@ -34,11 +34,8 @@ export function startStandaloneChrome({
       });
       revealTimer = setTimeout(revealFirstRun, 900);
     });
-  const keySetup = initKeySetup({ signal });
-  // Own the pending initializer too; it must not reveal a dialog after abort.
-  void keySetup.catch(() =>
-    console.error('Provider settings initialization failed'),
-  );
+  // Developer key setup disabled for clean presentation
+  const keySetup = Promise.resolve(null);
   return async () => {
     disposed = true;
     clearTimeout(delayTimer);
