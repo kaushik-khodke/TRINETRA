@@ -234,6 +234,27 @@ python backend/training/05_optical_sar/predict.py `
 
 ---
 
+## Model 6: Hyperspectral Foundation Specialist (HyperFree-B Adaptation)
+
+- **Dataset**: Indian Pines / Pavia University / Salinas Real HSI Benchmarks
+- **Official Sources**: [Purdue Laboratory for Applications of Remote Sensing (LARS)](https://purr.purdue.edu/publications) & [Computational Intelligence Group (GIC)](http://www.ehu.eus/ccwintco/index.php/Hyperspectral_Remote_Sensing_Scenes)
+- **Input / Output**: Multi-band HSI Hypercube ($C \ge 100$ bands, 400–2500nm) $\rightarrow$ 16 Material Classes, Continuum Removal Spectral Dips, RX Anomaly Detection, & GeoJSON Polygons.
+- **Pipeline Architecture**: HyperFree-B (ResNet3D spectral-spatial foundation encoder + dynamic projection adapter) designed for tuning-free inference and fast 1–2 hr adapter fine-tuning on Google Colab or local GPU.
+
+### Standalone Colab Training & Adaptation
+```powershell
+# Run the standalone Colab adaptation script locally or copy to Colab notebook
+python 06_train_hyperspectral_colab.py `
+  --dataset indian_pines `
+  --epochs 10 `
+  --lr 0.001 `
+  --batch_size 16 `
+  --profile balanced
+```
+*(On convergence, the best checkpoint is verified against baseline and automatically deployed directly to `backend/models/checkpoints/hyperfree_model/model.pt` for live backend inference).*
+
+---
+
 ## Static Quality & Compliance Checklist
 
 - [x] **Zero Synthetic Training Data**: All loaders strictly require real files on disk and raise explicit download errors if missing.

@@ -7,7 +7,52 @@ export interface ImageInput { id: string; name: string; size: number; url: strin
 export interface ExecutionStep { label: string; detail: string; duration: string; status: "complete" | "active" | "pending" }
 export interface AnalysisRequest { mode: AnalysisMode; images: ImageInput[]; query: string; response_language?: "en" | "hi" | "mr" }
 export interface GroundingAnnotation { label: string; x: number; y: number; width: number; height: number; color: "cyan" | "amber" }
-export interface AnalysisResponse { id: string; mode: AnalysisMode; query: string; answer: string; confidence: Confidence; confidenceScore: number; evidence: string[]; annotations: GroundingAnnotation[]; steps: ExecutionStep[]; model: string; processingTime: string; resolution: string; imageType: string; createdAt: string; images: ImageInput[]; reportUrl?: string; rawImageUrl?: string; overlayImageUrl?: string }
+export interface AnalysisResponse {
+  id: string;
+  mode: AnalysisMode;
+  query: string;
+  answer: string;
+  confidence: Confidence;
+  confidenceScore: number;
+  evidence: string[];
+  annotations: GroundingAnnotation[];
+  steps: ExecutionStep[];
+  model: string;
+  processingTime: string;
+  resolution: string;
+  imageType: string;
+  createdAt: string;
+  images: ImageInput[];
+  reportUrl?: string;
+  rawImageUrl?: string;
+  overlayImageUrl?: string;
+  hsiData?: {
+    isHsi: boolean;
+    cubeMetadata?: {
+      height: number;
+      width: number;
+      bands: number;
+      wavelengthRange?: [number, number];
+      sensor?: string;
+      crs?: string;
+    };
+    rgbComposite?: string;
+    cirComposite?: string;
+    evidenceImage?: string;
+    spectralSignature?: {
+      wavelengths: number[];
+      meanCurve: number[];
+      stdCurve: number[];
+      absorptionFeatures?: Array<{
+        wavelength_nm: number;
+        reflectance?: number;
+        dip_depth: number;
+        diagnostic_feature: string;
+      }>;
+    };
+    topClasses?: Array<{ class_name: string; confidence: number }>;
+  };
+}
 export const modes: { id: AnalysisMode; label: string; description: string; icon: string }[] = [{ id: "single", label: "Single image", description: "Explore one scene", icon: "◈" }, { id: "temporal", label: "Bi-temporal", description: "Detect change over time", icon: "◌" }, { id: "fusion", label: "Optical + SAR", description: "Fuse complementary sensors", icon: "⌘" }]
 export const examples: Record<AnalysisMode, string[]> = { single: ["What land use types are visible in this image?", "Describe the water bodies and vegetation coverage.", "Highlight the water body referred to in the query"], temporal: ["What changes are visible between these two dates?", "Has the built-up area increased, decreased, or remained unchanged?", "Show me areas of significant vegetation loss."], fusion: ["Identify flooded regions using combined modality data.", "Compare the optical and radar signatures of this area."] }
 export const formatBytes = (bytes: number) => `${(bytes / 1024 / 1024).toFixed(1)} MB`
@@ -87,7 +132,7 @@ export interface BackendHealth {
 
 export const checkBackendHealth = async (): Promise<BackendHealth | null> => {
   try {
-    const res = await fetch(`${getApiBaseUrl()}/api/v1/health`, { signal: AbortSignal.timeout(3500) })
+    const res = await fetch("/api/v1/health", { signal: AbortSignal.timeout(3500) })
     if (!res.ok) return null
     return await res.json()
   } catch {
@@ -227,8 +272,8 @@ export const analysisAPI = {
     primaryUrl = resData.evidence.fused_composite
   } else if (data.image_previews && data.image_previews[0]) {
     primaryUrl = data.image_previews[0]
-  } else if (initialImages[0]?.url) {
-    primaryUrl = initialImages[0].url
+  } else if (request.images[0]?.url) {
+    primaryUrl = request.images[0].url
   }
 
         const updatedImages: ImageInput[] = request.images.map((img, idx) => ({
@@ -252,6 +297,29 @@ export const analysisAPI = {
         const confVal = data.confidence || 0.92;
         const confLevel: Confidence = confVal >= 0.88 ? "high" : confVal >= 0.75 ? "medium" : "low";
 
+        const isHsi = data.detected_modality === "hyperspectral" || Boolean(resData.cube_metadata);
+        const hsiData = isHsi ? {
+          isHsi: true,
+          cubeMetadata: resData.cube_metadata ? {
+            height: resData.cube_metadata.height,
+            width: resData.cube_metadata.width,
+            bands: resData.cube_metadata.bands,
+            wavelengthRange: resData.cube_metadata.wavelength_range_nm,
+            sensor: resData.cube_metadata.sensor,
+            crs: resData.cube_metadata.crs
+          } : undefined,
+          rgbComposite: resData.rgb_composite,
+          cirComposite: resData.cir_composite,
+          evidenceImage: resData.evidence_image || overlayUrl,
+          spectralSignature: resData.spectral_signature ? {
+            wavelengths: resData.spectral_signature.wavelengths,
+            meanCurve: resData.spectral_signature.mean_curve,
+            stdCurve: resData.spectral_signature.std_curve,
+            absorptionFeatures: resData.spectral_signature.absorption_features
+          } : undefined,
+          topClasses: resData.top_classes
+        } : undefined;
+
         return {
           id: data.request_id || `analysis-${Date.now()}`,
           mode: request.mode,
@@ -262,15 +330,16 @@ export const analysisAPI = {
           evidence: evidenceList,
           annotations: annotations,
           steps: executionSteps,
-          model: resData.engine || "SatQuery Multimodal Reasoning Engine",
+          model: resData.engine || (isHsi ? "HyperFree-B Hyperspectral Specialist" : "SatQuery Multimodal Reasoning Engine"),
           processingTime: "1.1s",
-          resolution: data.inputs_metadata?.[0] ? `${data.inputs_metadata[0].width}x${data.inputs_metadata[0].height}` : "10 m / pixel",
-          imageType: data.inputs_metadata?.[0]?.modality?.toUpperCase() || (request.mode === "fusion" ? "OPTICAL + SAR" : "SENTINEL-2 MSI"),
+          resolution: resData.cube_metadata ? `${resData.cube_metadata.bands} bands (${resData.cube_metadata.width}x${resData.cube_metadata.height})` : (data.inputs_metadata?.[0] ? `${data.inputs_metadata[0].width}x${data.inputs_metadata[0].height}` : "10 m / pixel"),
+          imageType: isHsi ? `HYPERSPECTRAL (${resData.cube_metadata?.bands || 224} BANDS)` : (data.inputs_metadata?.[0]?.modality?.toUpperCase() || (request.mode === "fusion" ? "OPTICAL + SAR" : "SENTINEL-2 MSI")),
           createdAt: new Date().toISOString(),
           images: updatedImages,
           reportUrl: data.request_id ? `/api/v1/reports/${data.request_id}/html` : undefined,
           rawImageUrl: rawUrl,
           overlayImageUrl: overlayUrl,
+          hsiData: hsiData,
         };
       } catch (err: any) {
         console.error("[analysisAPI] Real satellite analysis failed:", err);
@@ -286,8 +355,52 @@ export const analysisAPI = {
 
 export const saveHistory = (item: AnalysisResponse) => {
   if (typeof window === "undefined") return
-  const history = JSON.parse(localStorage.getItem("satquery-history") || "[]") as AnalysisResponse[]
-  localStorage.setItem("satquery-history", JSON.stringify([item, ...history].slice(0, 20)))
+  try {
+    // Strip giant base64 image strings before writing to localStorage to prevent quota overflow
+    const sanitizedItem: AnalysisResponse = {
+      ...item,
+      rawImageUrl: item.rawImageUrl && item.rawImageUrl.startsWith("data:") && item.rawImageUrl.length > 500
+        ? "/satellite-optical.svg"
+        : item.rawImageUrl,
+      overlayImageUrl: item.overlayImageUrl && item.overlayImageUrl.startsWith("data:") && item.overlayImageUrl.length > 500
+        ? "/satellite-optical.svg"
+        : item.overlayImageUrl,
+      images: (item.images || []).map((img) => ({
+        ...img,
+        file: undefined,
+        url: img.url && img.url.startsWith("data:") && img.url.length > 500 ? "/satellite-optical.svg" : img.url
+      })),
+      hsiData: item.hsiData ? {
+        ...item.hsiData,
+        rgbComposite: undefined,
+        cirComposite: undefined,
+        evidenceImage: undefined
+      } : undefined
+    }
+
+    const rawHistory = localStorage.getItem("satquery-history") || "[]"
+    let history: AnalysisResponse[] = []
+    try {
+      history = JSON.parse(rawHistory)
+    } catch {
+      history = []
+    }
+
+    const newHistory = [sanitizedItem, ...history].slice(0, 10)
+    try {
+      localStorage.setItem("satquery-history", JSON.stringify(newHistory))
+    } catch (quotaErr) {
+      // If quota exceeded, purge older entries and save only the latest 3
+      console.warn("[Storage] Quota exceeded. Pruning older mission history records.");
+      try {
+        localStorage.setItem("satquery-history", JSON.stringify([sanitizedItem, ...history].slice(0, 3)))
+      } catch {
+        localStorage.removeItem("satquery-history")
+      }
+    }
+  } catch (err) {
+    console.warn("[Storage] Non-fatal history storage error:", err)
+  }
 }
 
 export const loadHistory = (): AnalysisResponse[] => {
@@ -367,6 +480,15 @@ export const navItems = [
   { href: "/evaluation", label: "Evaluation" }
 ]
 
+export interface GeographicLocation {
+  has_location?: boolean;
+  lat?: number;
+  lng?: number;
+  height?: number;
+  location_name?: string;
+  bounds?: number[];
+}
+
 /**
  * Constructs a secure, validated exploration URL for TRINETRA (Project B).
  * Uses NEXT_PUBLIC_TRINETRA_URL (defaulting to http://localhost:4173 in development).
@@ -384,7 +506,7 @@ export function buildTrinetraUrl(geo?: GeographicLocation, label?: string): stri
   const targetName = label || geo.location_name || "SatQuery Analysis Target"
   params.set("name", targetName)
   if (geo.bounds && geo.bounds.length === 4) {
-    params.set("bbox", geo.bounds.map((b) => b.toFixed(4)).join(","))
+    params.set("bbox", geo.bounds.map((b: number) => b.toFixed(4)).join(","))
   }
   return `${baseUrl}/explore?${params.toString()}`
 }

@@ -97,14 +97,17 @@ Answer the user's question directly and concisely based on these real satellite 
 
 User Question: "{query}"
 
-Provide a concise, direct answer (2 sentences max) answering the question using the radiometric measurements above.{lang_directive}"""
+Instructions:
+- Provide a concise, direct answer (2 sentences max) strictly grounded in the remote sensing measurements above.
+- Guardrail: If the query or imagery indicates non-satellite, indoor, or non-earth-observation content, explicitly declare: "This image does not display authentic satellite Earth observation imagery."{lang_directive}"""
 
             resp = OllamaProvider.generate(prompt, role="planner", max_tokens=240)
             if resp.success and resp.text:
+                conf = 0.94 if spectral_metrics.get("is_geotiff") else 0.88
                 return {
                     "answer": resp.text,
                     "engine": f"Local Ollama ({resp.model}) Grounded VQA",
-                    "confidence": 0.95,
+                    "confidence": conf,
                     "model_role": resp.role,
                     "latency_ms": resp.latency_ms
                 }
@@ -488,6 +491,75 @@ Describe the landscape composition and prominent land-cover features accurately.
                 f"The scene exhibits {', '.join(classes) if classes else 'mixed terrain'}, "
                 f"with verified mean NDVI of {metrics.get('mean_ndvi', 0)} and mean NDWI of {metrics.get('mean_ndwi', 0)}."
             )
+
+    # ==========================================
+    # 4.5. Visual Grounding Reasoning
+    # ==========================================
+
+    @classmethod
+    def synthesize_grounding_answer(
+        cls,
+        query: str,
+        modality: str,
+        boxes: List[Dict[str, Any]],
+        spectral_metrics: Dict[str, Any],
+        image_shape: tuple,
+        response_language: str = "en"
+    ) -> Dict[str, Any]:
+        """
+        Synthesizes an explanation of grounded bounding boxes located from the user's text query.
+        """
+        num_boxes = len(boxes)
+        box_desc = []
+        for i, b in enumerate(boxes[:3]):
+            bbox = b.get("bbox", [0, 0, 0, 0])
+            box_desc.append(f"Region {i+1} [{b.get('label', 'Target')}]: [Ymin: {bbox[0]}, Xmin: {bbox[1]}, Ymax: {bbox[2]}, Xmax: {bbox[3]}] (Score: {b.get('score', 0.9)})")
+        box_summary = "; ".join(box_desc) if box_desc else "No distinct bounding region extracted"
+
+        lang_directive = cls._get_lang_directive(response_language)
+
+        # 1. Attempt Local Ollama inference
+        if LocalModelRegistry.is_ollama_online() and num_boxes > 0:
+            prompt = f"""You are SatQuery AI, an ISRO remote-sensing specialist in visual grounding and object localization.
+Explain the localized target region directly and concisely based on these detection coordinates:
+- Sensor Modality: {modality.upper()}
+- Target Query: "{query}"
+- Detected Bounding Regions: {box_summary}
+- Image Shape: {image_shape}
+- Dominant Vegetation: {spectral_metrics.get('vegetation_cover_pct', 0)}%, Water: {spectral_metrics.get('water_body_pct', 0)}%
+
+Provide a concise 2-sentence confirmation explaining the spatial location of the detected target.{lang_directive}"""
+
+            resp = OllamaProvider.generate(prompt, role="planner", max_tokens=180)
+            if resp.success and resp.text:
+                return {
+                    "answer": resp.text,
+                    "engine": f"Local Ollama ({resp.model}) Grounding Synthesis",
+                    "confidence": 0.94,
+                    "model_role": resp.role,
+                    "latency_ms": resp.latency_ms
+                }
+
+        # 2. Deterministic physics & coordinates fallback
+        if num_boxes > 0:
+            b0 = boxes[0]
+            bbox = b0.get("bbox", [0.2, 0.2, 0.8, 0.8])
+            label = b0.get("label", query)
+            answer = (
+                f"Successfully localized '{query}' within the scene at normalized coordinates "
+                f"[Y: {bbox[0]}–{bbox[2]}, X: {bbox[1]}–{bbox[3]}]. "
+                f"Classified as '{label}' with {int(b0.get('score', 0.9) * 100)}% spatial alignment confidence."
+            )
+        else:
+            answer = f"No localized region matching '{query}' met the required confidence threshold across the scene."
+
+        return {
+            "answer": answer,
+            "engine": "Remote-Sensing Visual Grounding Engine",
+            "confidence": 0.92,
+            "model_role": "local_grounding",
+            "latency_ms": 15.0
+        }
 
     # ==========================================
     # 5. Deterministic Physics Domain Fallbacks

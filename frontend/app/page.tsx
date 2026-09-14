@@ -19,6 +19,7 @@ import {
   type ImageInput,
 } from "@/lib/types"
 import { I18nProvider, useTranslation, type SupportedLanguage } from "@/lib/i18n"
+import { HsiViewer } from "@/components/hyperspectral/HsiViewer"
 
 const Icon = ({ mode }: { mode: AnalysisMode }) =>
   mode === "single" ? <FileImage /> : mode === "temporal" ? <GitCompareArrows /> : <Layers3 />
@@ -241,7 +242,37 @@ function UploadSlot({
     >
       {image ? (
         <>
-          <img src={image.url} alt={t("aria.preview")} />
+          {image.name.toLowerCase().endsWith(".mat") ||
+          image.name.toLowerCase().endsWith(".hdr") ||
+          image.name.toLowerCase().endsWith(".dat") ? (
+            <div
+              style={{
+                width: "100%",
+                height: "100%",
+                display: "flex",
+                flexDirection: "column",
+                alignItems: "center",
+                justifyContent: "center",
+                background: "linear-gradient(135deg, #064e3b 0%, #022c22 100%)",
+                color: "#10b981",
+                gap: "8px",
+              }}
+            >
+              <Layers3 size={40} />
+              <span
+                style={{
+                  fontSize: "11px",
+                  fontWeight: 600,
+                  letterSpacing: "1px",
+                  textTransform: "uppercase",
+                }}
+              >
+                Hyperspectral Cube
+              </span>
+            </div>
+          ) : (
+            <img src={image.url} alt={t("aria.preview")} onError={(e) => { (e.target as HTMLElement).style.display = "none" }} />
+          )}
           <div className="slot-overlay">
             <Pill tone="dark">{slot.hint}</Pill>
             <strong>{image.name}</strong>
@@ -263,7 +294,7 @@ function UploadSlot({
           <input
             ref={ref}
             type="file"
-            accept="image/png,image/jpeg,image/tiff,.tif,.tiff"
+            accept="image/png,image/jpeg,image/tiff,.tif,.tiff,.mat,.hdr,.dat"
             hidden
             onChange={(e) => e.target.files?.[0] && onFile(e.target.files[0])}
           />
@@ -359,7 +390,11 @@ function Workspace({ navigate, initialDemo = false }: { navigate: (path: string)
         response_language: language,
       })
       setResult(response)
-      saveHistory(response)
+      try {
+        saveHistory(response)
+      } catch (storageErr) {
+        console.warn("[Workspace] Failed to persist history in localStorage:", storageErr)
+      }
     } catch (err: any) {
       setErrorMessage(err.message || "Satellite analysis failed on local backend.")
     } finally {
@@ -663,7 +698,11 @@ function ResultView({
           )
         )}
       </div>
-      <EvidenceViewer result={result} />
+      {result.hsiData?.isHsi ? (
+        <HsiViewer {...result.hsiData} />
+      ) : (
+        <EvidenceViewer result={result} />
+      )}
       <div className="evidence-list">
         {result.evidence.map((item, index) => (
           <div key={item}>

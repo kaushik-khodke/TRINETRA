@@ -32,7 +32,7 @@ class MissionReportGenerator:
 
         trace_id = trace.get("trace_id") or result_payload.get("trace_id", "N/A")
         langfuse_url = trace.get("langfuse_url", "Local Tracing Active")
-        model_name = result_payload.get("llm_model") or trace.get("model") or "qwen3.5:9b / qwen3.5:4b (Local Ollama)"
+        model_name = result_payload.get("llm_model") or trace.get("model") or "Local Ollama (Dynamic Auto-Detection)"
 
         steps_html = "".join([
             f"""<tr style="border-bottom: 1px solid #24303D;">

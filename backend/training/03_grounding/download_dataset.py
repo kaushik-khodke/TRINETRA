@@ -16,6 +16,16 @@ OFFICIAL_GITHUB_URL = "https://github.com/ZhanYang-nwpu/RSVG-pytorch"
 REQUIRED_ELEMENTS = ["Annotations", "JPEGImages", "train.txt", "val.txt", "test.txt"]
 
 def verify_dataset(data_dir: Path) -> bool:
+    import zipfile
+    for zip_name in ["Annotations.zip", "JPEGImages.zip"]:
+        zip_path = data_dir / zip_name
+        target_sub = data_dir / zip_name.replace(".zip", "")
+        if zip_path.exists() and not target_sub.exists():
+            print(f"[+] Found archive '{zip_name}' ({zip_path.stat().st_size / (1024*1024):.1f} MB). Extracting into {data_dir}...")
+            with zipfile.ZipFile(zip_path, "r") as z:
+                z.extractall(data_dir)
+            print(f"[+] Successfully extracted {zip_name} -> {target_sub}")
+
     missing = [req for req in REQUIRED_ELEMENTS if not (data_dir / req).exists()]
     if missing:
         print(f"[!] Dataset incomplete at: {data_dir}")

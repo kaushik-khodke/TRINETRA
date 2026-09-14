@@ -13,8 +13,10 @@ import numpy as np
 import torch
 import torch.nn as nn
 from torch.utils.data import DataLoader
-from torch.cuda.amp import autocast, GradScaler
 from PIL import Image, ImageDraw
+
+if hasattr(sys.stdout, "reconfigure"):
+    sys.stdout.reconfigure(line_buffering=True)
 
 training_dir = os.path.abspath(os.path.join(os.path.dirname(__file__), ".."))
 if training_dir not in sys.path:
@@ -38,7 +40,7 @@ def evaluate_grounding(model: nn.Module, loader: DataLoader, device: torch.devic
     with torch.no_grad():
         for imgs, tokens, gt_boxes in loader:
             imgs, tokens = imgs.to(device), tokens.to(device)
-            with autocast():
+            with torch.amp.autocast(device_type=device.type, enabled=(device.type == "cuda")):
                 pred_boxes = model(imgs, tokens)
             all_preds.append(pred_boxes.cpu().numpy())
             all_gts.append(gt_boxes.numpy())
@@ -65,10 +67,19 @@ def save_visual_examples(model: nn.Module, dataset: RSGroundingGenuineDataset, o
             draw = ImageDraw.Draw(pil_img)
             w, h = pil_img.size
 
-            # GT in Green: [ymin, xmin, ymax, xmax]
-            draw.rectangle([gt_np[1]*w, gt_np[0]*h, gt_np[3]*w, gt_np[2]*h], outline="#10B981", width=3)
-            # Pred in Red:
-            draw.rectangle([pred_box[1]*w, pred_box[0]*h, pred_box[3]*w, pred_box[2]*h], outline="#EF4444", width=2)
+            # GT in Green: [ymin, xmin, ymax, xmax] -> [x0, y0, x1, y1]
+            gt_x0 = float(min(gt_np[1], gt_np[3]) * w)
+            gt_y0 = float(min(gt_np[0], gt_np[2]) * h)
+            gt_x1 = float(max(gt_np[1], gt_np[3]) * w)
+            gt_y1 = float(max(gt_np[0], gt_np[2]) * h)
+            draw.rectangle([gt_x0, gt_y0, gt_x1, gt_y1], outline="#10B981", width=3)
+
+            # Pred in Red: [ymin, xmin, ymax, xmax] -> [x0, y0, x1, y1]
+            pred_x0 = float(min(pred_box[1], pred_box[3]) * w)
+            pred_y0 = float(min(pred_box[0], pred_box[2]) * h)
+            pred_x1 = float(max(pred_box[1], pred_box[3]) * w)
+            pred_y1 = float(max(pred_box[0], pred_box[2]) * h)
+            draw.rectangle([pred_x0, pred_y0, pred_x1, pred_y1], outline="#EF4444", width=2)
 
             out_file = os.path.join(examples_dir, f"grounding_sample_{idx+1:03d}.png")
             pil_img.save(out_file)
@@ -91,12 +102,15 @@ def train_grounding(args):
     print(f"Hardware: {device} ({torch.cuda.get_device_name(0) if torch.cuda.is_available() else 'CPU'})")
     print("============================================================\n")
 
+    patience = args.patience if args.patience is not None else profile.patience
+    max_train = args.max_train_samples if args.max_train_samples is not None else profile.max_train_samples
+
     # 1. Load Genuine Datasets
     train_manifest = os.path.join(manifest_dir, "grounding_train.txt")
     val_manifest = os.path.join(manifest_dir, "grounding_val.txt")
     test_manifest = os.path.join(manifest_dir, "grounding_test.txt")
 
-    train_ds = RSGroundingGenuineDataset(args.data_dir, train_manifest, image_size=profile.image_size, max_samples=profile.max_train_samples)
+    train_ds = RSGroundingGenuineDataset(args.data_dir, train_manifest, image_size=profile.image_size, max_samples=max_train)
     val_ds = RSGroundingGenuineDataset(args.data_dir, val_manifest, image_size=profile.image_size, max_samples=profile.max_val_samples)
     test_ds = RSGroundingGenuineDataset(args.data_dir, test_manifest, image_size=profile.image_size, max_samples=profile.max_test_samples)
 
@@ -113,11 +127,13 @@ def train_grounding(args):
     baseline_metrics = evaluate_grounding(model, val_loader, device)
     print(f"BASELINE Validation -> Mean IoU: {baseline_metrics['mean_iou']:.4f} | Recall@0.5: {baseline_metrics['recall_at_0.50_pct']:.2f}%")
 
-    # 3. Training Loop with SmoothL1 + GIoU Loss
+    # 3. Training Loop with SmoothL1 + GIoU Loss + Cosine LR Scheduler
     l1_crit = nn.SmoothL1Loss()
     giou_crit = GiouLoss()
     optimizer = torch.optim.AdamW(model.parameters(), lr=lr, weight_decay=1e-4)
-    scaler = GradScaler(enabled=profile.use_amp)
+    scheduler = torch.optim.lr_scheduler.CosineAnnealingLR(optimizer, T_max=epochs, eta_min=lr * 0.05)
+    use_amp = profile.use_amp and (device.type == "cuda")
+    scaler = torch.amp.GradScaler("cuda", enabled=use_amp)
 
     ckpt_mgr = CheckpointManager(output_dir, "rs_grounding_model")
     reporter = TrainingReporter(output_dir)
@@ -135,15 +151,16 @@ def train_grounding(args):
         for imgs, tokens, gt_boxes in train_loader:
             imgs, tokens, gt_boxes = imgs.to(device), tokens.to(device), gt_boxes.to(device)
             optimizer.zero_grad()
-            with autocast(enabled=profile.use_amp):
+            with torch.amp.autocast(device_type=device.type, enabled=use_amp):
                 preds = model(imgs, tokens)
-                loss = l1_crit(preds, gt_boxes) + 0.5 * giou_crit(preds, gt_boxes)
+                loss = 2.0 * l1_crit(preds, gt_boxes) + 1.0 * giou_crit(preds, gt_boxes)
 
             scaler.scale(loss).backward()
             scaler.step(optimizer)
             scaler.update()
             total_loss += loss.item()
 
+        scheduler.step()
         avg_loss = total_loss / len(train_loader)
         val_metrics = evaluate_grounding(model, val_loader, device)
         cur_miou = val_metrics["mean_iou"]
@@ -153,7 +170,8 @@ def train_grounding(args):
         history["val_metric"].append(cur_miou)
 
         elapsed = time.time() - e_start
-        print(f"Epoch [{epoch:02d}/{epochs:02d}] ({elapsed:.1f}s) - Loss: {avg_loss:.4f} | Val mIoU: {cur_miou:.4f} | Recall@0.5: {val_metrics['recall_at_0.50_pct']:.2f}%")
+        cur_lr = scheduler.get_last_lr()[0]
+        print(f"Epoch [{epoch:02d}/{epochs:02d}] ({elapsed:.1f}s, lr={cur_lr:.6f}) - Loss: {avg_loss:.4f} | Val mIoU: {cur_miou:.4f} | Recall@0.5: {val_metrics['recall_at_0.50_pct']:.2f}%")
 
         is_best = cur_miou > best_miou
         if is_best:
@@ -164,8 +182,8 @@ def train_grounding(args):
 
         ckpt_mgr.save_checkpoint(model, epoch, is_best, cur_miou)
 
-        if patience_counter >= profile.patience:
-            print(f"\n[EARLY STOPPING] Validation mIoU plateaued for {profile.patience} epochs.")
+        if patience_counter >= patience:
+            print(f"\n[EARLY STOPPING] Validation mIoU plateaued for {patience} epochs.")
             break
 
     total_time = time.time() - t_start
@@ -214,6 +232,8 @@ if __name__ == "__main__":
     parser.add_argument("--epochs", type=int, default=None)
     parser.add_argument("--batch_size", type=int, default=None)
     parser.add_argument("--lr", type=float, default=None)
+    parser.add_argument("--patience", type=int, default=None)
+    parser.add_argument("--max_train_samples", type=int, default=None)
     parser.add_argument("--output_dir", type=str, default=None)
     parser.add_argument("--seed", type=int, default=42)
     parser.add_argument("--export", action="store_true", help="Deploy best model directly to backend/models/checkpoints/rs_grounding_model/")

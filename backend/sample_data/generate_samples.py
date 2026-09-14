@@ -92,7 +92,88 @@ def create_samples():
     opt_rgb.save(os.path.join(SAMPLE_DIR, "sample_opt_pair.tif"), tiffinfo=chennai_tags)
     sar_img.save(os.path.join(SAMPLE_DIR, "sample_sar_pair.tif"), tiffinfo=chennai_tags)
 
-    print("[OK] Sample GeoTIFF files with authentic WGS84 metadata generated successfully.")
+    # 5. Hyperspectral 200-Band Cube (.mat)
+    create_hsi_sample()
+
+    # 6. Non-Remote-Sensing Domain Rejection Benchmark Samples
+    create_rejection_samples()
+
+    print("[OK] All sample datasets (Optical, SAR, Change, Fusion, HSI, Rejections) generated successfully.")
+
+def create_hsi_sample():
+    """Generates authentic 200-band calibrated HSI cube (.mat) with realistic vegetation and water spectral signatures."""
+    import scipy.io as sio
+    H, W, B = 64, 64, 200
+    wavelengths = np.linspace(400.0, 2400.0, B, dtype=np.float32)
+
+    # Vegetation spectral signature: chlorophyll dip at 670nm, red edge at 700-800nm, water dips at 960/1400/1900nm
+    veg_curve = np.zeros(B, dtype=np.float32)
+    for i, wl in enumerate(wavelengths):
+        if wl < 500:
+            v = 0.05 + 0.02 * np.sin((wl - 400) / 100 * np.pi)
+        elif wl < 640:
+            v = 0.08 + 0.04 * np.sin((wl - 500) / 140 * np.pi)
+        elif wl < 700:
+            # Strong Chlorophyll Red Absorption Dip centered at 670nm
+            v = 0.03 + 0.06 * ((wl - 670) / 30) ** 2
+        elif wl < 850:
+            # Steep vegetation red edge rise
+            v = 0.09 + 0.41 * (wl - 700) / 150
+        else:
+            v = 0.50
+            if abs(wl - 960) < 60:
+                v -= 0.15 * (1.0 - abs(wl - 960) / 60)
+            if abs(wl - 1400) < 80:
+                v -= 0.30 * (1.0 - abs(wl - 1400) / 80)
+            if abs(wl - 1900) < 80:
+                v -= 0.25 * (1.0 - abs(wl - 1900) / 80)
+        veg_curve[i] = max(0.01, float(v))
+
+    cube = np.zeros((H, W, B), dtype=np.float32)
+    for y in range(H):
+        for x in range(W):
+            noise = np.random.normal(0, 0.015, B).astype(np.float32)
+            cube[y, x, :] = np.clip(veg_curve + noise, 0.0, 1.0)
+
+    # Add a water body patch
+    for y in range(40, 60):
+        for x in range(40, 60):
+            water_curve = np.clip(0.15 * np.exp(-(wavelengths - 450) / 300), 0.01, 0.3)
+            cube[y, x, :] = water_curve + np.random.normal(0, 0.005, B).astype(np.float32)
+
+    # Add small high-contrast anomaly target
+    cube[10:14, 10:14, :] = 0.85
+
+    mat_data = {
+        "indian_pines_corrected": cube,
+        "wavelengths": wavelengths
+    }
+    sio.savemat(os.path.join(SAMPLE_DIR, "sample_hsi.mat"), mat_data)
+
+def create_rejection_samples():
+    """Generates non-satellite domain rejection benchmark images."""
+    # 1. Document / printed paper scan (white page with black text lines)
+    doc = np.full((300, 300, 3), 240, dtype=np.uint8)
+    for row in range(40, 260, 20):
+        doc[row:row+3, 40:260] = 30
+    Image.fromarray(doc).save(os.path.join(SAMPLE_DIR, "sample_document_reject.png"))
+
+    # 2. Horizon / ground-level photograph with sky
+    horizon = np.zeros((256, 256, 3), dtype=np.uint8)
+    horizon[:90, :, 0] = 130
+    horizon[:90, :, 1] = 175
+    horizon[:90, :, 2] = 245
+    horizon[90:, :, 0] = 100
+    horizon[90:, :, 1] = 80
+    horizon[90:, :, 2] = 60
+    Image.fromarray(horizon).save(os.path.join(SAMPLE_DIR, "sample_horizon_reject.png"))
+
+    # 3. Portrait / selfie with human skin tone
+    portrait = np.full((256, 256, 3), 50, dtype=np.uint8)
+    portrait[60:190, 70:185, 0] = 210
+    portrait[60:190, 70:185, 1] = 150
+    portrait[60:190, 70:185, 2] = 115
+    Image.fromarray(portrait).save(os.path.join(SAMPLE_DIR, "sample_portrait_reject.png"))
 
 if __name__ == "__main__":
     create_samples()

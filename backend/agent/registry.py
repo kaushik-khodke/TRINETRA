@@ -127,7 +127,7 @@ TOOL_REGISTRY: Dict[str, SpecialistTool] = {
         version="1.0.0",
         description="Compiles analysis results, evidence imagery, confidence metrics, and execution traces into downloadable PDF and JSON reports.",
         supported_tasks=["reporting"],
-        supported_modalities=["optical", "multispectral", "sar"],
+        supported_modalities=["optical", "multispectral", "sar", "hyperspectral"],
         min_inputs=1,
         max_inputs=2,
         permitted_parameters={
@@ -136,6 +136,56 @@ TOOL_REGISTRY: Dict[str, SpecialistTool] = {
             "include_spectral_metadata": True
         },
         output_types=["report_file"]
+    ),
+    "hyperfree_hsi": SpecialistTool(
+        tool_id="hyperfree_hsi",
+        name="HyperFree-B Hyperspectral Foundation Specialist",
+        version="1.0.0",
+        description="Performs channel-adaptive hyperspectral scene classification, pixel segmentation, Reed-Xiaoli (RX) anomaly detection, and spectral curve profiling.",
+        supported_tasks=[
+            "hyperspectral_analysis",
+            "hsi_classification",
+            "hsi_anomaly",
+            "hsi_segmentation",
+            "hsi_spectral_analysis",
+            "hsi_pixel_classification"
+        ],
+        supported_modalities=["hyperspectral"],
+        min_inputs=1,
+        max_inputs=1,
+        requires_geospatial=True,
+        permitted_parameters={
+            "subtask": "auto",
+            "extract_absorption_dips": True,
+            "generate_geojson": True
+        },
+        output_types=["text", "confidence", "spectral_signature", "anomaly_heatmap", "geojson", "evidence"]
+    ),
+    "gdal_rasterio_gis": SpecialistTool(
+        tool_id="gdal_rasterio_gis",
+        name="Geospatial Vectorization & Transform Engine",
+        version="1.5.0",
+        description="Transforms raster feature masks into GeoJSON polygons with authentic spatial coordinates, areas, and CRS transforms using Rasterio and Shapely.",
+        supported_tasks=["vectorization", "geospatial_transform"],
+        supported_modalities=["optical", "multispectral", "sar", "hyperspectral"],
+        min_inputs=1,
+        max_inputs=2,
+        requires_geospatial=True,
+        permitted_parameters={"simplify_tolerance": 0.001},
+        output_types=["geojson", "spatial_metadata"]
+    ),
+    "spectral_signature_tool": SpecialistTool(
+        tool_id="spectral_signature_tool",
+        name="Continuous Spectral Signature & Radiometry Profiler",
+        version="1.0.0",
+        description="Extracts calibrated continuous wavelength vs. reflectance curves from raw 3D hyperspectral cubes with diagnostic absorption band detection.",
+        supported_tasks=["spectral_analysis", "spectroscopy"],
+        supported_modalities=["hyperspectral", "multispectral"],
+        min_inputs=1,
+        max_inputs=1,
+        requires_geospatial=False,
+        permitted_parameters={"extract_dips": True},
+        output_types=["spectral_curve", "absorption_features"]
     )
 }
 

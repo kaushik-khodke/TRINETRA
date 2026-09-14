@@ -159,6 +159,15 @@ def get_demo_samples():
             "query": "Use the optical and SAR images together to identify built-up and water-covered regions.",
             "expected_task": "optical_sar_fusion",
             "description": "Combines optical spectral reflectance with SAR microwave backscatter to resolve structures."
+        },
+        {
+            "id": "hyperspectral_cube_analysis",
+            "title": "Hyperspectral 200-Band Cube Spectroscopy",
+            "mode": "single",
+            "files": ["/static/samples/sample_hsi.mat"],
+            "query": "Analyze spectral absorption features and classify land cover",
+            "expected_task": "hyperspectral_analysis",
+            "description": "Full 3D spectral cube spectroscopy extracting continuous spectral curve, absorption dips, and HyperFree-B predictions."
         }
     ]
 
@@ -249,19 +258,25 @@ def get_job_result(request_id: str):
 
 @app.get("/api/v1/reports/{request_id}/html")
 def get_html_report(request_id: str):
-    filename = f"report_{request_id[:8]}.html"
-    filepath = os.path.join(REPORTS_DIR, filename)
-    if not os.path.exists(filepath):
+    candidates = [
+        os.path.join(REPORTS_DIR, f"report_{request_id}.html"),
+        os.path.join(REPORTS_DIR, f"report_{request_id[:8]}.html")
+    ]
+    filepath = next((p for p in candidates if os.path.exists(p)), None)
+    if not filepath:
         raise HTTPException(status_code=404, detail="Report file not found.")
-    return FileResponse(filepath, media_type="text/html", filename=filename)
+    return FileResponse(filepath, media_type="text/html", filename=os.path.basename(filepath))
 
 @app.get("/api/v1/reports/{request_id}/json")
 def get_json_report(request_id: str):
-    filename = f"report_{request_id[:8]}.json"
-    filepath = os.path.join(REPORTS_DIR, filename)
-    if not os.path.exists(filepath):
+    candidates = [
+        os.path.join(REPORTS_DIR, f"report_{request_id}.json"),
+        os.path.join(REPORTS_DIR, f"report_{request_id[:8]}.json")
+    ]
+    filepath = next((p for p in candidates if os.path.exists(p)), None)
+    if not filepath:
         raise HTTPException(status_code=404, detail="JSON Report file not found.")
-    return FileResponse(filepath, media_type="application/json", filename=filename)
+    return FileResponse(filepath, media_type="application/json", filename=os.path.basename(filepath))
 
 if __name__ == "__main__":
     import uvicorn
