@@ -1,8 +1,8 @@
 # SatQuery AI (TRINETRA)
-### 100% Local-First Agentic Vision-Language Assistant for Multimodal Remote Sensing
-**SIH 2026 • Problem Statement ID: 26167**  
+### 100% Local-First Multimodal Agentic Remote-Sensing Intelligence Platform
+**Smart India Hackathon (SIH) 2026 • Problem Statement ID: 26167**  
 **Organization:** Indian Space Research Organisation (ISRO)  
-**Theme:** Space Technology / Software • **Air-Gapped & Secure**
+**Theme:** Space Technology / Software • **100% Air-Gapped & Secure**
 
 ---
 
@@ -27,40 +27,54 @@ SatQuery AI (TRINETRA) is an air-gapped, query-driven Earth observation intellig
         │      LANGGRAPH STATEGRAPH WORKFLOW ORCHESTRATOR         │
         │         (backend/agent/langgraph_orchestrator.py)       │
         └─────────────────────────────────────────────────────────┘
-                   │                             │
-                   ▼                             ▼
-   ┌───────────────────────────────┐ ┌──────────────────────────────────┐
-   │    LOCAL OLLAMA INFERENCE     │ │    LANGFUSE TRACING & SPANS      │
-   │  • Planner: qwen2.5:9b        │ │  • satquery_analysis_<id>        │
-   │  • Fast Router: qwen2.5:4b    │ │  • Step latency & tokens         │
-   │  • Lightweight: llama3.2      │ │  • Non-blocking / air-gapped safe│
-   └───────────────────────────────┘ └──────────────────────────────────┘
-                   │
-                   ▼
-   ┌─────────────────────────────────────────────────────────────────────┐
-   │       DETERMINISTIC SPECIALIST ENGINES & GEOSPATIAL PIPELINE        │
-   │  • Input & Pair Compatibility Validator (CRS, spatial extent, bands)│
-   │  • RS-VQA Specialist (Radiometric spectral index reasoning)        │
-   │  • RS-Grounding Specialist (Hydrological & feature bounding boxes)  │
-   │  • RS-Captioning Specialist (Corine-style land-cover statistics)    │
-   │  • Bi-Temporal Change Specialist (NDVI/NDWI & Solar Amber heatmaps) │
-   │  • Optical–SAR Fusion Specialist (Microwave backscatter dB + opt)   │
-   │  • HyperFree-B Hyperspectral Foundation Specialist (224 bands)      │
-   │  • Experimental PennyLane Quantum Machine Learning (QML) VQC       │
-   └─────────────────────────────────────────────────────────────────────┘
+                                     │
+         ┌───────────────────────────┴───────────────────────────┐
+         ▼                                                       ▼
+ ┌───────────────────────────────┐               ┌──────────────────────────────────┐
+ │ 4-TIER DOMAIN VALIDATOR       │               │    LANGFUSE TRACING & SPANS      │
+ │ • CRS & internal GeoTIFF tags │               │  • satquery_analysis_<id>        │
+ │ • Band count (HSI/MSI/SAR/RGB)│               │  • Step latency & telemetry      │
+ │ • Rejects non-nadir horizon/  │               │  • Non-blocking / offline safe   │
+ │   sky, documents, selfies     │               └──────────────────────────────────┘
+ └───────────────────────────────┘
+         │ (Valid Nadir Remote Sensing)
+         ▼
+ ┌──────────────────────────────────────────────────────────────────────────────────┐
+ │               ALLOW-LISTED TOOL REGISTRY & SPECIALIST PERCEPTION                 │
+ │  • hyperfree_hsi: HyperFree-B (ViT-B CASP) 3D HSI Cube Foundation Specialist    │
+ │  • spectral_signature_tool: Continuous λ vs. Reflectance & absorption dips      │
+ │  • gdal_rasterio_gis: Covariance RX anomaly detection & GeoJSON vectorization   │
+ │  • rs_vqa: Radiometric spectral index & land-cover question answering           │
+ │  • rs_ground: Text-guided region isolation & tactical bounding box overlays     │
+ │  • rs_caption: Corine Land Cover breakdown & structured scene description       │
+ │  • change_ai: Bi-temporal Siamese difference & solar amber change heatmaps      │
+ │  • optical_sar: Cross-modal optical spectral + SAR microwave backscatter fusion │
+ └──────────────────────────────────────────────────────────────────────────────────┘
                                      │
                                      ▼
-   ┌─────────────────────────────────────────────────────────────────────┐
-   │            MISSION REPORT GENERATOR & TACTICAL HUD                  │
-   │  • Downloadable HTML & JSON Mission Intelligence Reports            │
-   │  • Observable Execution Traces with verifiable pixel evidence       │
-   │  • Direct Deep-Linking to Shatnetra 3D Earth Globe Engine           │
-   └─────────────────────────────────────────────────────────────────────┘
+ ┌──────────────────────────────────────────────────────────────────────────────────┐
+ │                     EVIDENCE SYNTHESIS & REPORT ENGINE                           │
+ │  • Downloadable HTML & JSON Mission Intelligence Reports (backend/outputs/)      │
+ │  • Dedicated HSI Viewer: λ vs. Reflectance SVG curves, True Color & CIR toggles  │
+ └──────────────────────────────────────────────────────────────────────────────────┘
 ```
 
 ---
 
-## 2. Local LLM Setup with Ollama
+## 2. Six Supported Earth Observation Modalities
+
+| Modality | Specialist Engine | Output Evidence & Visualizations |
+|---|---|---|
+| **Hyperspectral (HSI)** | `HyperFree-B` (ViT-B Channel-Adaptive) | Continuous spectral signature $(\lambda \text{ vs. } R)$, absorption dips (670nm Chlorophyll, 960/1400nm Water), RX anomaly map, True Color RGB & False-Color CIR composites |
+| **Bi-Temporal Change** | `change_ai` (Siamese Neural Encoder) | Surface modification percentages, differential index matrix, and solar-amber change heatmaps |
+| **Optical–SAR Fusion** | `optical_sar` (Dual-Encoder Cross-Attention) | Joint multi-spectral reflectance + SAR radar backscatter $(\text{dB})$ with structural feature isolation |
+| **Single-Image VQA** | `rs_vqa` (Multimodal Bilinear Fusion) | Natural-language query answers grounded in real radiometric calculations and spectral indices (NDVI, NDWI) |
+| **Text-Guided Grounding** | `rs_ground` (Connected Component Spatializer) | Tactical bounding boxes identifying targets matching user text expressions |
+| **Scene Captioning** | `rs_caption` (Corine Land Cover Synthesizer) | Comprehensive scene descriptions with quantitative class distribution breakdown |
+
+---
+
+## 3. Local LLM Setup with Ollama
 
 SatQuery AI leverages the local Ollama daemon for natural language reasoning across specialized roles:
 
@@ -70,45 +84,18 @@ SatQuery AI leverages the local Ollama daemon for natural language reasoning acr
 | **Fast Router** | `qwen2.5:4b` | High-speed task classification and parameter parsing | 4K |
 | **Lightweight** | `llama3.2` | Fast summaries, schema validation, fallback reasoning | 4K |
 
-### Setup Steps:
-1. Ensure [Ollama](https://ollama.com) is installed and running (`ollama serve` or Windows system service).
-2. Pull the required models:
-   ```bash
-   ollama pull qwen2.5:9b
-   ollama pull qwen2.5:4b
-   ollama pull llama3.2
-   ```
-3. Verify connection:
-   ```bash
-   curl http://localhost:11434/api/tags
-   ```
-
-*Deterministic Fallback Engine:* If Ollama has not loaded a model yet or is temporarily stopped, SatQuery AI automatically falls back to its deterministic spatial physics reasoning engine (computing exact NDVI, NDWI, SAR dB, and connected components) with zero hallucinations and zero crashes.
-
----
-
-## 3. Observability with Langfuse
-
-Every satellite analysis session is instrumented with hierarchical telemetry:
-- **Trace ID**: `satquery_analysis_<id>`
-- **Spans**: `input_validation`, `agent_planning`, `tool_parameter_safety`, `raster_ingestion`, `specialist_execution`, `report_generation`
-- **Safe Non-Blocking Design**: Scientific geospatial computations will **never** fail or slow down if Langfuse is offline or unconfigured.
-
-Configure via environment variables (`.env`):
 ```bash
-LANGFUSE_HOST=http://localhost:3000
-LANGFUSE_PUBLIC_KEY=pk-lf-local-telemetry
-LANGFUSE_SECRET_KEY=sk-lf-local-telemetry
+# Pull recommended local models
+ollama pull qwen3.5:9b
+ollama pull qwen3.5:4b
+ollama pull llama3.2
 ```
+
+*Deterministic Fallback:* If Ollama is offline, SatQuery AI automatically falls back to its deterministic spatial-physics reasoning engine (computing exact NDVI, NDWI, SAR dB backscatter, and absorption dips) with zero hallucinations and zero crashes.
 
 ---
 
 ## 4. Quickstart Guide
-
-### Prerequisites
-- Python 3.10+
-- Node.js 18+ & npm
-- (Optional, for GPU training) NVIDIA GPU with CUDA 12.1+
 
 ### A. Start the Backend API
 In `backend/`:
@@ -118,7 +105,7 @@ python run_backend.py
 ```
 - API live at: `http://127.0.0.1:8000`
 - Interactive Swagger Docs: `http://127.0.0.1:8000/docs`
-- Health & LLM Status: `http://127.0.0.1:8000/api/v1/health`
+- Health & Registry Status: `http://127.0.0.1:8000/api/v1/health`
 
 ### B. Start the Frontend Command Center
 In `frontend/`:
@@ -129,72 +116,29 @@ npm run dev
 ```
 Open `http://localhost:3000` in your browser.
 
-### C. Start the Shatnetra 3D Earth Globe
-In `shatnetra/`:
-```powershell
-cd shatnetra
-npm run dev -- --port 4173
-```
-Open `http://localhost:4173` in your browser.
-
 ---
 
-## 5. GPU Training & D: Drive Environment Setup
+## 5. Automated Verification & Test Suite
 
-To bypass Windows C: drive storage limitations when installing large PyTorch CUDA wheels (~5.5 GB uncompressed), SatQuery AI includes an automated D: drive virtual environment setup script:
-
-```powershell
-# Run the automated D: drive environment setup (uses 0 bytes on C:)
-.\setup_d_env.ps1
-```
-
-### Running Model Training on GPU
-```powershell
-# Train RS-Grounding model with CUDA on RTX 3050 GPU
-& "D:\satquery_env\Scripts\python.exe" backend/training/03_grounding/train.py `
-  --data_dir "D:\datasets\DIOR_RSVG" `
-  --profile balanced `
-  --epochs 15 `
-  --weights "backend/models/checkpoints/rs_grounding_model/model.pt" `
-  --export
-```
-
-### Evaluating Checkpoints
-```powershell
-& "D:\satquery_env\Scripts\python.exe" backend/training/03_grounding/evaluate.py `
-  --checkpoint "backend/models/checkpoints/rs_grounding_model/model.pt" `
-  --data_dir "D:\datasets\DIOR_RSVG"
-```
-
----
-
-## 6. Verification & Test Suite
-
-Run the full end-to-end integration and regression test suites:
+Run the regression and integration test suites:
 ```powershell
 # 1. Existing modalities regression test (VQA, Grounding, Captioning, Change, Fusion)
 python -m unittest backend/tests/test_agent_pipeline.py
 
 # 2. Hyperspectral, non-remote-sensing rejection, and LangGraph tests
 python -m unittest backend/tests/test_hyperspectral_langgraph.py
-
-# 3. Local agent migration and cloud purge tests
-python backend/tests/test_local_agent_migration.py
 ```
-
-Tests systematically verify:
-1. **Complete Cloud Purge**: Zero references to Google Gemini keys, imports, or endpoints across codebase.
-2. **Local LLM Provider**: Ollama provider and dynamic model registry behavior.
-3. **Multi-Step Agent Planner**: Decomposition and tool sequencing with local fallbacks.
-4. **Tool Safety & Parameter Validation**: Boundary checks and path traversal protection.
-5. **Non-Blocking Telemetry**: Langfuse tracing resilience when server is offline.
-6. **Core Workflows**: End-to-end execution of Single VQA, Text Grounding, Bi-temporal Change, Optical-SAR Fusion, and Hyperspectral (HSI) analysis.
 
 ---
 
-## 7. Key Project References & Guides
+## 6. Project Documentation
 
-- **[`SUMMARY.md`](file:///d:/DEKSTOP_/PROJECT/SIH_2026/TRINETRA/SUMMARY.md)**: High-level executive overview, workflows, and system design.
-- **[`TRINETRA_QML_PennyLane.md`](file:///d:/DEKSTOP_/PROJECT/SIH_2026/TRINETRA/TRINETRA_QML_PennyLane.md)**: PennyLane Quantum Machine Learning research documentation.
-- **[`backend/training/README.md`](file:///d:/DEKSTOP_/PROJECT/SIH_2026/TRINETRA/backend/training/README.md)**: Complete guide for training all deep learning models on genuine benchmark datasets.
-- **[`docs/TRINETRA_INTEGRATION.md`](file:///d:/DEKSTOP_/PROJECT/SIH_2026/TRINETRA/docs/TRINETRA_INTEGRATION.md)**: TRINETRA 3D Globe Deep-Linking and coordinates handling.
+Comprehensive documentation for all architectural specifications, training suites, and integration guidelines is organized in the [`docs/`](file:///d:/DEKSTOP_/PROJECT/SIH_2026/TRINETRA/docs) directory:
+- [`docs/ps.md`](file:///d:/DEKSTOP_/PROJECT/SIH_2026/TRINETRA/docs/ps.md) — Official ISRO Problem Statement 26167
+- [`docs/SatQuery_AI_PRD.md`](file:///d:/DEKSTOP_/PROJECT/SIH_2026/TRINETRA/docs/SatQuery_AI_PRD.md) — Product Requirements Document
+- [`docs/SatQuery_AI_TRD.md`](file:///d:/DEKSTOP_/PROJECT/SIH_2026/TRINETRA/docs/SatQuery_AI_TRD.md) — Technical Requirements Document
+- [`docs/SatQuery_AI_App_Flow.md`](file:///d:/DEKSTOP_/PROJECT/SIH_2026/TRINETRA/docs/SatQuery_AI_App_Flow.md) — Application Workflow & User Journey
+- [`docs/SatQuery_AI_UI_UX_Brief.md`](file:///d:/DEKSTOP_/PROJECT/SIH_2026/TRINETRA/docs/SatQuery_AI_UI_UX_Brief.md) — UI/UX Design System Brief
+- [`docs/TRINETRA_INTEGRATION.md`](file:///d:/DEKSTOP_/PROJECT/SIH_2026/TRINETRA/docs/TRINETRA_INTEGRATION.md) — TRINETRA 3D Globe Deep-Linking
+- [`docs/TRINETRA_Local_Agentic_AI_Migration_Task.md`](file:///d:/DEKSTOP_/PROJECT/SIH_2026/TRINETRA/docs/TRINETRA_Local_Agentic_AI_Migration_Task.md) — Local Agentic AI Architecture
+- [`docs/TRINETRA_All_Model_Training_MASTER_TASK.md`](file:///d:/DEKSTOP_/PROJECT/SIH_2026/TRINETRA/docs/TRINETRA_All_Model_Training_MASTER_TASK.md) — Real-Data Local GPU Training Suite
