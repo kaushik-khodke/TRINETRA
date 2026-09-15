@@ -15,7 +15,13 @@ BACKEND_DIR = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
 if BACKEND_DIR not in sys.path:
     sys.path.insert(0, BACKEND_DIR)
 
-from langgraph.graph import StateGraph, END
+try:
+    from langgraph.graph import StateGraph, END
+    HAS_LANGGRAPH = True
+except ImportError:
+    StateGraph = None
+    END = "__end__"
+    HAS_LANGGRAPH = False
 
 from agent.registry import TOOL_REGISTRY, get_tool
 from agent.classifier import TaskClassifier
@@ -60,7 +66,14 @@ class LangGraphOrchestrator:
         self.optical_sar_specialist = OpticalSarFusionSpecialist()
         self.hsi_specialist = HyperFreeHSISpecialist()
 
-        self.graph = self._build_graph()
+        if HAS_LANGGRAPH:
+            try:
+                self.graph = self._build_graph()
+            except Exception as e:
+                print(f"[LangGraphOrchestrator] Notice: LangGraph compilation fallback: {e}")
+                self.graph = None
+        else:
+            self.graph = None
 
     def _build_graph(self):
         workflow = StateGraph(AgentWorkflowState)
@@ -583,6 +596,32 @@ class LangGraphOrchestrator:
             "execution_trace": {}
         }
 
-        # Run compiled LangGraph workflow
-        final_state = self.graph.invoke(initial_state)
-        return final_state["final_response"]
+        # Run compiled LangGraph workflow or fallback pipeline
+        if self.graph is not None:
+            final_state = self.graph.invoke(initial_state)
+            return final_state["final_response"]
+        return self._run_fallback_pipeline(initial_state)
+
+    def _run_fallback_pipeline(self, initial_state: AgentWorkflowState) -> Dict[str, Any]:
+        """Direct sequential state transition pipeline when LangGraph is uncompiled or missing."""
+        state = dict(initial_state)
+        val_res = self._node_validate_input(state)
+        state.update(val_res)
+        if self._check_validation_condition(state) == "invalid":
+            rej = self._node_rejection_handler(state)
+            state.update(rej)
+            return state["final_response"]
+
+        for node_fn in [
+            self._node_classify_modality,
+            self._node_route_task,
+            self._node_select_tools,
+            self._node_execute_specialist,
+            self._node_geospatial_processing,
+            self._node_build_evidence,
+            self._node_generate_response,
+        ]:
+            node_res = node_fn(state)
+            state.update(node_res)
+
+        return state["final_response"]

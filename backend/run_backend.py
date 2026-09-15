@@ -20,7 +20,7 @@ if os.path.exists(VENV_PYTHON):
         sys.exit(subprocess.call([VENV_PYTHON] + sys.argv))
 
 # Verify required packages are installed in the active environment
-for pkg, mod in [("python-multipart", "multipart"), ("langfuse", "langfuse")]:
+for pkg, mod in [("python-multipart", "multipart"), ("langfuse", "langfuse"), ("langgraph", "langgraph")]:
     try:
         __import__(mod)
     except ImportError:
