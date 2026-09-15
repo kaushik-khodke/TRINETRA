@@ -421,8 +421,19 @@ export const analysisAPI = {
         });
 
         if (!res.ok) {
-          const errData = await res.json().catch(() => ({}));
-          throw new Error(errData.detail || `Server returned ${res.status}`);
+          let errorMsg = `Server returned ${res.status}`;
+          try {
+            const errData = await res.json();
+            if (typeof errData.detail === "string" && errData.detail.trim()) {
+              errorMsg = errData.detail;
+            } else if (errData.error) {
+              errorMsg = String(errData.error);
+            }
+          } catch {
+            const text = await res.text().catch(() => "");
+            if (text && text.length < 300) errorMsg = text;
+          }
+          throw new Error(errorMsg);
         }
 
         const data = await res.json();

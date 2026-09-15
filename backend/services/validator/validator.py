@@ -190,10 +190,23 @@ class InputValidator:
             gray = image_arr.astype(float)
 
         total_pixels = gray.size
+        p_min = float(np.nanmin(gray))
+        p_max = float(np.nanmax(gray))
+        rng = p_max - p_min
+
+        if rng < 1e-4 or float(np.nanstd(gray)) < 1e-4:
+            return False, "The uploaded image is completely blank or uniform."
+
+        if p_max <= 1.05 and p_min >= 0.0:
+            norm_gray = gray * 255.0
+        elif p_max > 255.0 or p_min < 0.0:
+            norm_gray = ((gray - p_min) / (rng + 1e-6)) * 255.0
+        else:
+            norm_gray = gray
 
         # 1. Text Document / Book Page Detection
-        white_bg_pct = float(np.sum(gray > 220) / total_pixels * 100.0)
-        dark_text_pct = float(np.sum(gray < 45) / total_pixels * 100.0)
+        white_bg_pct = float(np.sum(norm_gray > 220) / total_pixels * 100.0)
+        dark_text_pct = float(np.sum(norm_gray < 45) / total_pixels * 100.0)
 
         if image_arr.ndim == 3 and image_arr.shape[2] >= 3:
             r = image_arr[:, :, 0].astype(float)
@@ -216,9 +229,9 @@ class InputValidator:
             )
 
         # 2. Predominantly blank image
-        if white_bg_pct > 85.0:
+        if white_bg_pct > 85.0 and float(np.nanstd(gray)) < 15.0:
             return False, "The uploaded image is predominantly blank white (>85% white pixels), not an Earth observation scene."
-        if float(np.sum(gray < 15) / total_pixels * 100.0) > 92.0:
+        if float(np.sum(norm_gray < 15) / total_pixels * 100.0) > 92.0 and float(np.nanstd(gray)) < 8.0:
             return False, "The uploaded image is predominantly black (>92% dark pixels), not an Earth observation scene."
 
         # 3. Screen Capture / UI Diagram heuristic

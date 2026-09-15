@@ -386,11 +386,17 @@ async def analyze_request(
             response_language=response_language or "en"
         )
 
-        JOBS_DB[result_payload["request_id"]] = result_payload
-        return result_payload
+        req_id = result_payload.get("request_id") or request_id
+        JOBS_DB[req_id] = result_payload
+
+        from fastapi.encoders import jsonable_encoder
+        return JSONResponse(content=jsonable_encoder(result_payload))
 
     except Exception as e:
-        raise HTTPException(status_code=500, detail=str(e))
+        import traceback
+        traceback.print_exc()
+        err_msg = str(e) or repr(e) or "Unknown internal processing error"
+        raise HTTPException(status_code=500, detail=err_msg)
 
 @app.post("/api/v1/analyze-preset")
 async def analyze_preset(

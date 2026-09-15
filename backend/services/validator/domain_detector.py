@@ -125,7 +125,7 @@ class DomainDetector:
                 reasons=reasons
             )
 
-        # Case C: SAR (Radar) -> 1 or 2 bands with characteristic dB backscatter or speckle
+        # Case C: SAR (Radar) / Single-Band Raster (Elevation/DEM, Panchromatic, SAR)
         if c in [1, 2]:
             min_val, max_val = float(np.nanmin(image_arr)), float(np.nanmax(image_arr))
             if min_val < -5.0 and max_val <= 10.0:
@@ -140,10 +140,38 @@ class DomainDetector:
                     dimensions=(h, w),
                     reasons=reasons
                 )
+            elif has_geospatial:
+                fn_lower = filename.lower()
+                is_dem = any(k in fn_lower for k in ["dem", "srtm", "elevation", "height", "dsm", "dtm"]) or (max_val > 255 and min_val >= -500)
+                modality = "sar"
+                label = "digital elevation model (DEM/SRTM)" if is_dem else "single-band geospatial remote-sensing"
+                reasons.append(f"Geospatial {label} raster verified ({crs or 'GeoTIFF'}) with physical range [{min_val:.1f}, {max_val:.1f}]")
+                conf_scores.append(0.98 if crs else 0.94)
+                return DomainValidationResult(
+                    is_remote_sensing=True,
+                    modality=modality,
+                    confidence=round(float(np.mean(conf_scores)), 3),
+                    band_count=c,
+                    dimensions=(h, w),
+                    reasons=reasons
+                )
 
         # =====================================================================
         # 3. Tier 3 & 4: Optical (RGB) & Non-Remote-Sensing Plausibility Checks
         # =====================================================================
+        if has_geospatial and c >= 3:
+            modality = "optical"
+            reasons.append(f"Geospatial optical raster confirmed ({crs or 'GeoTIFF'}) with {c} channels")
+            conf_scores.append(0.98 if crs else 0.94)
+            return DomainValidationResult(
+                is_remote_sensing=True,
+                modality=modality,
+                confidence=round(float(np.mean(conf_scores)), 3),
+                band_count=c,
+                dimensions=(h, w),
+                reasons=reasons
+            )
+
         if c >= 3:
             r = image_arr[:, :, 0].astype(float)
             g = image_arr[:, :, 1].astype(float)
@@ -161,59 +189,91 @@ class DomainDetector:
                 rejection_message="Unsupported input: raster dimensions are invalid."
             )
 
-        # 3.1 Blank / Degenerate Imagery Check
-        white_pct = float(np.sum(gray > 245) / total_pixels * 100.0)
-        black_pct = float(np.sum(gray < 10) / total_pixels * 100.0)
-        if white_pct > 85.0:
+        # 3.1 Dynamic-Range Aware Blank / Degenerate Imagery Check
+        valid_pixels = gray[~np.isnan(gray)]
+        if valid_pixels.size == 0:
             return DomainValidationResult(
                 is_remote_sensing=False,
-                reasons=[f"Over {white_pct:.1f}% of pixels are pure white saturation"],
-                rejection_message="Unsupported input: this image is predominantly blank white and does not contain valid Earth observation features."
-            )
-        if black_pct > 92.0:
-            return DomainValidationResult(
-                is_remote_sensing=False,
-                reasons=[f"Over {black_pct:.1f}% of pixels are completely black null values"],
-                rejection_message="Unsupported input: this image is predominantly black and does not contain valid Earth observation features."
+                reasons=["Raster contains only NaN or empty values."],
+                rejection_message="Unsupported input: raster dimensions or pixel values are invalid."
             )
 
-        # 3.2 Document / Book Page / Scanned Text Check
-        if c >= 3:
-            max_c = np.maximum(np.maximum(r, g), b)
-            min_c = np.minimum(np.minimum(r, g), b)
-            saturation = np.where(max_c > 0, (max_c - min_c) / (max_c + 1e-5), 0.0)
-            mean_sat = float(np.mean(saturation))
+        p_min = float(np.min(valid_pixels))
+        p_max = float(np.max(valid_pixels))
+        pixel_range = p_max - p_min
+        std_val = float(np.std(valid_pixels))
+
+        if pixel_range < 1e-4 or std_val < 1e-4:
+            return DomainValidationResult(
+                is_remote_sensing=False,
+                reasons=["Raster pixel variance is zero (all pixels have identical value)."],
+                rejection_message="Unsupported input: this image is completely flat/blank and does not contain valid Earth observation features."
+            )
+
+        # Scale luminance appropriately according to its physical dynamic range
+        if p_max <= 1.05 and p_min >= 0.0:
+            norm_gray = gray * 255.0
+        elif p_max > 255.0 or p_min < 0.0:
+            norm_gray = ((gray - p_min) / (pixel_range + 1e-6)) * 255.0
         else:
-            mean_sat = 0.0
+            norm_gray = gray
 
-        # 3.2 Document / Book Page / Scanned Text / Certificate Photo Check
-        dark_text_pct = float(np.sum(gray < 45) / total_pixels * 100.0)
-        paper_bg_pct = float(np.sum(gray > 220) / total_pixels * 100.0)
+        white_pct = float(np.sum(norm_gray > 245) / total_pixels * 100.0)
+        black_pct = float(np.sum(norm_gray < 10) / total_pixels * 100.0)
 
-        # Ambient / Indoor lighting adaptive document check (e.g. mobile photo of printed paper/certificate)
-        bg_candidates = gray[gray > 80]
-        bg_median = float(np.median(bg_candidates)) if bg_candidates.size > 0 else 0.0
-        adaptive_paper_pct = float(np.sum((gray >= bg_median - 35) & (gray <= bg_median + 35)) / total_pixels * 100.0)
-        adaptive_text_pct = float(np.sum(gray < bg_median - 55) / total_pixels * 100.0)
+        # For unreferenced images without geospatial tags, check for artificial saturation
+        if not has_geospatial:
+            if white_pct > 85.0 and std_val < 15.0:
+                return DomainValidationResult(
+                    is_remote_sensing=False,
+                    reasons=[f"Over {white_pct:.1f}% of pixels are pure white saturation with negligible texture variance"],
+                    rejection_message="Unsupported input: this image is predominantly blank white and does not contain valid Earth observation features."
+                )
+            if black_pct > 92.0 and std_val < 8.0:
+                return DomainValidationResult(
+                    is_remote_sensing=False,
+                    reasons=[f"Over {black_pct:.1f}% of pixels are completely black null values"],
+                    rejection_message="Unsupported input: this image is predominantly black and does not contain valid Earth observation features."
+                )
 
-        is_scanned_doc = (paper_bg_pct > 48.0 and dark_text_pct > 0.75 and mean_sat < 0.10)
-        is_photographed_doc = (
-            not is_geotiff
-            and adaptive_paper_pct > 45.0
-            and adaptive_text_pct > 1.2
-            and mean_sat < 0.22
-            and bg_median > 115.0
-        )
+        # 3.2 Document / Book Page / Scanned Text Check (applies to unreferenced photos/scans)
+        if not has_geospatial:
+            if c >= 3:
+                max_c = np.maximum(np.maximum(r, g), b)
+                min_c = np.minimum(np.minimum(r, g), b)
+                saturation = np.where(max_c > 0, (max_c - min_c) / (max_c + 1e-5), 0.0)
+                mean_sat = float(np.mean(saturation))
+            else:
+                mean_sat = 0.0
 
-        if is_scanned_doc or is_photographed_doc:
-            doc_type = "document scan" if is_scanned_doc else "printed document or certificate photograph"
-            return DomainValidationResult(
-                is_remote_sensing=False,
-                reasons=[
-                    f"Document text characteristics detected ({adaptive_paper_pct:.1f}% paper background, {adaptive_text_pct:.1f}% text glyphs, {mean_sat:.3f} saturation)"
-                ],
-                rejection_message=f"Unsupported input: this image appears to be a {doc_type}, not remote-sensing Earth observation imagery. SatQuery AI requires nadir satellite or aerial imagery."
+            # Document / Book Page / Scanned Text / Certificate Photo Check
+            dark_text_pct = float(np.sum(norm_gray < 45) / total_pixels * 100.0)
+            paper_bg_pct = float(np.sum(norm_gray > 220) / total_pixels * 100.0)
+
+            # Ambient / Indoor lighting adaptive document check
+            bg_candidates = norm_gray[norm_gray > 80]
+            bg_median = float(np.median(bg_candidates)) if bg_candidates.size > 0 else 0.0
+            adaptive_paper_pct = float(np.sum((norm_gray >= bg_median - 35) & (norm_gray <= bg_median + 35)) / total_pixels * 100.0)
+            adaptive_text_pct = float(np.sum(norm_gray < bg_median - 55) / total_pixels * 100.0)
+
+            is_scanned_doc = (paper_bg_pct > 48.0 and dark_text_pct > 0.75 and mean_sat < 0.10)
+            is_photographed_doc = (
+                not is_geotiff
+                and adaptive_paper_pct > 45.0
+                and adaptive_text_pct > 1.2
+                and mean_sat < 0.22
+                and bg_median > 115.0
             )
+
+            if is_scanned_doc or is_photographed_doc:
+                doc_type = "document scan" if is_scanned_doc else "printed document or certificate photograph"
+                return DomainValidationResult(
+                    is_remote_sensing=False,
+                    reasons=[
+                        f"Document text characteristics detected ({adaptive_paper_pct:.1f}% paper background, {adaptive_text_pct:.1f}% text glyphs, {mean_sat:.3f} saturation)"
+                    ],
+                    rejection_message=f"Unsupported input: this image appears to be a {doc_type}, not remote-sensing Earth observation imagery. SatQuery AI requires nadir satellite or aerial imagery."
+                )
 
         # 3.3 Application Screenshot / Flat UI Graphic Check
         fn_lower = filename.lower()
