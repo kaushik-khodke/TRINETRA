@@ -17,13 +17,13 @@ export const SUPPORTED_LANGUAGES: LanguageOption[] = [
 ]
 
 export const DEFAULT_LANGUAGE: SupportedLanguage = "en"
-export const STORAGE_KEY = "satquery_lang"
+export const STORAGE_KEY = "trinetra_lang"
 
 // Complete dictionary of translation keys
 export const translations = {
   en: {
     // Header & Brand
-    "brand.title": "SatQuery",
+    "brand.title": "TRINETRA",
     "brand.ai": "AI",
     "brand.subtitle": "EARTH OBSERVATION / 26167",
     "nav.overview": "Overview",
@@ -41,7 +41,7 @@ export const translations = {
     "landing.pill": "100% LOCAL AGENTIC VISION-LANGUAGE",
     "landing.hero.title1": "Ask Earth.",
     "landing.hero.title2": "See evidence.",
-    "landing.hero.desc": "SatQuery AI turns complex satellite imagery questions into grounded, inspectable answers — powered by local Ollama models (Qwen 2.5/Llama 3.2), LangChain planning, and Langfuse telemetry without any cloud LLM dependency.",
+    "landing.hero.desc": "TRINETRA AI turns complex satellite imagery questions into grounded, inspectable answers — powered by local Ollama models (Qwen 2.5/Llama 3.2), LangChain planning, and Langfuse telemetry without any cloud LLM dependency.",
     "landing.hero.start": "Start Analysis",
     "landing.hero.demo": "Explore Demo",
     "landing.stats.modes": "analysis modes",
@@ -192,7 +192,7 @@ export const translations = {
     "eval.scenario_btn": "Test a scenario",
 
     // Footer
-    "footer.left": "SatQuery AI · ISRO SIH 26167",
+    "footer.left": "TRINETRA AI · ISRO SIH 26167",
     "footer.right": "100% LOCAL-FIRST AGENTIC AI · OLLAMA + LANGCHAIN + LANGFUSE · AIR-GAPPED",
 
     // Query Examples
@@ -228,7 +228,7 @@ export const translations = {
 
   hi: {
     // Header & Brand
-    "brand.title": "SatQuery",
+    "brand.title": "TRINETRA",
     "brand.ai": "AI",
     "brand.subtitle": "भू-अवलोकन / इसरो 26167",
     "nav.overview": "अवलोकन",
@@ -246,7 +246,7 @@ export const translations = {
     "landing.pill": "100% स्थानीय एजेंटिक दृष्टि-भाषा एआई",
     "landing.hero.title1": "पृथ्वी से पूछें।",
     "landing.hero.title2": "साक्ष्य देखें।",
-    "landing.hero.desc": "SatQuery AI जटिल उपग्रह छवियों से जुड़े प्रश्नों को प्रत्यक्ष, सत्यापन योग्य उत्तरों में बदलता है — स्थानीय Ollama मॉडल (Qwen 2.5/Llama 3.2), LangChain योजना और बिना किसी क्लाउड निर्भरता के Langfuse टेलीमेट्री द्वारा संचालित।",
+    "landing.hero.desc": "TRINETRA AI जटिल उपग्रह छवियों से जुड़े प्रश्नों को प्रत्यक्ष, सत्यापन योग्य उत्तरों में बदलता है — स्थानीय Ollama मॉडल (Qwen 2.5/Llama 3.2), LangChain योजना और बिना किसी क्लाउड निर्भरता के Langfuse टेलीमेट्री द्वारा संचालित।",
     "landing.hero.start": "विश्लेषण शुरू करें",
     "landing.hero.demo": "डेमो देखें",
     "landing.stats.modes": "विश्लेषण मोड",
@@ -397,7 +397,7 @@ export const translations = {
     "eval.scenario_btn": "परिदृश्य का परीक्षण करें",
 
     // Footer
-    "footer.left": "SatQuery AI · इसरो SIH 26167",
+    "footer.left": "TRINETRA AI · इसरो SIH 26167",
     "footer.right": "100% स्थानीय-प्रथम एजेंटिक एआई · OLLAMA + LANGCHAIN + LANGFUSE · एयर-गैप्ड",
 
     // Query Examples
@@ -433,7 +433,7 @@ export const translations = {
 
   mr: {
     // Header & Brand
-    "brand.title": "SatQuery",
+    "brand.title": "TRINETRA",
     "brand.ai": "AI",
     "brand.subtitle": "भू-निरीक्षण / इस्रो 26167",
     "nav.overview": "आढावा",
@@ -451,7 +451,7 @@ export const translations = {
     "landing.pill": "100% स्थानिक एजंटिक दृष्टी-भाषा एआय",
     "landing.hero.title1": "पृथ्वीला विचारा.",
     "landing.hero.title2": "पुरावे पहा.",
-    "landing.hero.desc": "SatQuery AI क्लिष्ट उपग्रह प्रतिमांवरील प्रश्नांचे प्रत्यक्ष, तपासणीयोग्य उत्तरांमध्ये रूपांतर करते — स्थानिक Ollama मॉडेल्स (Qwen 2.5/Llama 3.2), LangChain नियोजन आणि क्लाउड LLM शिवाय Langfuse टेलिमेट्रीद्वारे समर्थित.",
+    "landing.hero.desc": "TRINETRA AI क्लिष्ट उपग्रह प्रतिमांवरील प्रश्नांचे प्रत्यक्ष, तपासणीयोग्य उत्तरांमध्ये रूपांतर करते — स्थानिक Ollama मॉडेल्स (Qwen 2.5/Llama 3.2), LangChain नियोजन आणि क्लाउड LLM शिवाय Langfuse टेलिमेट्रीद्वारे समर्थित.",
     "landing.hero.start": "विश्लेषण सुरू करा",
     "landing.hero.demo": "डेमो पहा",
     "landing.stats.modes": "विश्लेषण पद्धती",
@@ -602,7 +602,7 @@ export const translations = {
     "eval.scenario_btn": "परिस्थितीची चाचणी घ्या",
 
     // Footer
-    "footer.left": "SatQuery AI · इस्रो SIH 26167",
+    "footer.left": "TRINETRA AI · इस्रो SIH 26167",
     "footer.right": "100% स्थानिक-प्रथम एजंटिक एआय · OLLAMA + LANGCHAIN + LANGFUSE · एअर-गॅप केलेले",
 
     // Query Examples
@@ -656,7 +656,7 @@ export function I18nProvider({ children }: { children: React.ReactNode }) {
   useEffect(() => {
     setIsClient(true)
     try {
-      const saved = localStorage.getItem(STORAGE_KEY) as SupportedLanguage | null
+      const saved = (localStorage.getItem(STORAGE_KEY) || localStorage.getItem("satquery_lang")) as SupportedLanguage | null
       if (saved && (saved === "en" || saved === "hi" || saved === "mr")) {
         setLanguageState(saved)
         document.documentElement.lang = saved

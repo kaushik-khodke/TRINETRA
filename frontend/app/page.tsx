@@ -28,6 +28,7 @@ import { I18nProvider, useTranslation, type SupportedLanguage } from "@/lib/i18n
 import { HsiViewer } from "@/components/hyperspectral/HsiViewer"
 import { useAuth } from "@/context/AuthContext"
 import AuthGate from "@/components/AuthGate"
+import TrinetraLanding from "@/components/TrinetraLanding"
 
 const Icon = ({ mode }: { mode: AnalysisMode }) =>
   mode === "single" ? <FileImage /> : mode === "temporal" ? <GitCompareArrows /> : <Layers3 />
@@ -80,7 +81,6 @@ function Header({ path, navigate }: { path: string; navigate: (path: string) => 
   }, [])
 
   const navItems = [
-    { href: "/", label: t("nav.overview") },
     { href: "/analysis", label: t("nav.workspace") },
     { href: "/dashboard", label: t("nav.history") },
     { href: "/evaluation", label: t("nav.evaluation") },
@@ -437,6 +437,16 @@ function Workspace({ navigate, initialDemo = false }: { navigate: (path: string)
   const [running, setRunning] = useState(false)
   const [technical, setTechnical] = useState(false)
   const [errorMessage, setErrorMessage] = useState<string | null>(null)
+
+  useEffect(() => {
+    if (typeof window !== "undefined") {
+      const urlParams = new URLSearchParams(window.location.search)
+      const q = urlParams.get("query")
+      if (q) {
+        setQuery(q)
+      }
+    }
+  }, [])
 
   // Localized slots
   const slots = useMemo(() => {
@@ -1670,7 +1680,7 @@ function PageContent() {
 
   const page = useMemo(() => {
     if (path === "/") {
-      return <Landing navigate={navigate} />
+      return <TrinetraLanding navigate={navigate} />
     }
 
     // Security clearance gate: require authentication for operational workspace, history, and telemetry
@@ -1688,8 +1698,12 @@ function PageContent() {
       return <Evaluation navigate={navigate} />
     }
 
-    return <Landing navigate={navigate} />
+    return <TrinetraLanding navigate={navigate} />
   }, [path, isAuthenticated, initialDemo])
+
+  if (path === "/") {
+    return <TrinetraLanding navigate={navigate} />
+  }
 
   return (
     <div className="app-shell">

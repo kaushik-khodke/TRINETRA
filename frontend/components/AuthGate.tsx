@@ -167,7 +167,7 @@ export default function AuthGate() {
               margin: "0 0 0.5rem",
             }}
           >
-            Sign in to <span style={{ color: "var(--cyan-400, #00f0ff)" }}>SatQuery AI</span>
+            Sign in to <span style={{ color: "var(--cyan-400, #00f0ff)" }}>TRINETRA AI</span>
           </h2>
           <p
             style={{

@@ -4,9 +4,9 @@ import './globals.css'
 import { AuthProvider } from '@/context/AuthContext'
 
 export const metadata: Metadata = {
-  title: 'SatQuery AI — Agentic Multimodal Earth Observation Intelligence',
+  title: 'TRINETRA AI — Agentic Multimodal Earth Observation Intelligence',
   description: 'Grounded Vision-Language Reasoning and Multimodal Satellite Analysis Platform for ISRO Earth Observation.',
-  generator: 'SatQuery AI',
+  generator: 'TRINETRA AI',
   icons: {
     icon: [
       {

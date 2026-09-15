@@ -222,7 +222,7 @@ export const getDemoResult = (request: AnalysisRequest): AnalysisResponse => {
       { label: lang === "hi" ? "दृश्य साक्ष्य प्रतिचित्रित" : lang === "mr" ? "दृश्य पुरावा मॅप केला" : "Visual evidence mapped", detail: lang === "hi" ? "प्रश्न से प्रासंगिक क्षेत्रों की खोज" : lang === "mr" ? "प्रश्नाशी संबंधित भागांचा शोध" : "Finding regions relevant to your question", duration: "2.4s", status: "complete" },
       { label: lang === "hi" ? "उत्तर तैयार" : lang === "mr" ? "उत्तर तयार झाले" : "Answer composed", detail: lang === "hi" ? "अवलोकन योग्य साक्ष्यों का उद्धरण" : lang === "mr" ? "निरीक्षणक्षम पुराव्यांचा संदर्भ" : "Citing observable evidence", duration: "0.8s", status: "complete" },
     ],
-    model: "SatQuery Vision v0.9",
+    model: "TRINETRA Vision v0.9",
     processingTime: "4.5s",
     resolution: "10 m / pixel",
     imageType: request.mode === "fusion" ? "Sentinel-2 MSI + Sentinel-1 SAR" : "Sentinel-2 MSI",
@@ -592,7 +592,7 @@ export const analysisAPI = {
           evidence: evidenceList,
           annotations: annotations,
           steps: executionSteps,
-          model: resData.engine || (isHsi ? "HyperFree-B Hyperspectral Specialist" : "SatQuery Multimodal Reasoning Engine"),
+          model: resData.engine || (isHsi ? "HyperFree-B Hyperspectral Specialist" : "TRINETRA Multimodal Reasoning Engine"),
           processingTime: "1.1s",
           resolution: resData.cube_metadata ? `${resData.cube_metadata.bands} bands (${resData.cube_metadata.width}x${resData.cube_metadata.height})` : (data.inputs_metadata?.[0] ? `${data.inputs_metadata[0].width}x${data.inputs_metadata[0].height}` : "10 m / pixel"),
           imageType: isHsi ? `HYPERSPECTRAL (${resData.cube_metadata?.bands || 224} BANDS)` : (data.inputs_metadata?.[0]?.modality?.toUpperCase() || (request.mode === "fusion" ? "OPTICAL + SAR" : "SENTINEL-2 MSI")),
@@ -665,7 +665,7 @@ export const saveHistory = (item: AnalysisResponse) => {
       } : undefined
     }
 
-    const rawHistory = localStorage.getItem("satquery-history") || "[]"
+    const rawHistory = localStorage.getItem("trinetra-history") || localStorage.getItem("satquery-history") || "[]"
     let history: AnalysisResponse[] = []
     try {
       history = JSON.parse(rawHistory)
@@ -675,14 +675,14 @@ export const saveHistory = (item: AnalysisResponse) => {
 
     const newHistory = [sanitizedItem, ...history].slice(0, 10)
     try {
-      localStorage.setItem("satquery-history", JSON.stringify(newHistory))
+      localStorage.setItem("trinetra-history", JSON.stringify(newHistory))
     } catch (quotaErr) {
       // If quota exceeded, purge older entries and save only the latest 3
       console.warn("[Storage] Quota exceeded. Pruning older mission history records.");
       try {
-        localStorage.setItem("satquery-history", JSON.stringify([sanitizedItem, ...history].slice(0, 3)))
+        localStorage.setItem("trinetra-history", JSON.stringify([sanitizedItem, ...history].slice(0, 3)))
       } catch {
-        localStorage.removeItem("satquery-history")
+        localStorage.removeItem("trinetra-history")
       }
     }
   } catch (err) {
@@ -693,7 +693,7 @@ export const saveHistory = (item: AnalysisResponse) => {
 export const loadHistory = (): AnalysisResponse[] => {
   if (typeof window === "undefined") return []
   try {
-    return JSON.parse(localStorage.getItem("satquery-history") || "[]") as AnalysisResponse[]
+    return JSON.parse(localStorage.getItem("trinetra-history") || localStorage.getItem("satquery-history") || "[]") as AnalysisResponse[]
   } catch {
     return []
   }
@@ -781,8 +781,8 @@ export function buildTrinetraUrl(geo?: GeographicLocation, label?: string): stri
   params.set("lng", geo.lng.toFixed(5))
   params.set("lon", geo.lng.toFixed(5))
   params.set("height", (geo.height || 5000).toString())
-  params.set("source", "satquery")
-  const targetName = label || geo.location_name || "SatQuery Analysis Target"
+  params.set("source", "trinetra")
+  const targetName = label || geo.location_name || "TRINETRA Analysis Target"
   params.set("name", targetName)
   if (geo.bounds && geo.bounds.length === 4) {
     params.set("bbox", geo.bounds.map((b: number) => b.toFixed(4)).join(","))

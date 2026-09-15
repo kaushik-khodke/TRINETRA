@@ -1,0 +1,1296 @@
+/* TRINETRA Immersive Landing Page Styles */
+
+:root {
+  --ink: #deddd3;
+  --muted-ink: #d0cec5;
+  --line: rgba(222, 221, 211, 0.16);
+  --acid: #c75c40;
+  --warm: #ff8b7b;
+  --panel: #15121f;
+  --dark-texture: url('https://hebbkx1anhila5yf.public.blob.vercel-storage.com/image-d34qvZ1afAItZRqww66gdbRyi5BZHK.png');
+  --dark-surface: #252625;
+}
+
+.trinetra-landing-root {
+  overflow-x: clip;
+  background-color: var(--dark-surface) !important;
+  background-image: var(--dark-texture) !important;
+  background-size: 520px auto;
+  background-repeat: repeat;
+  color: var(--ink);
+  font-family: Arial, Helvetica, sans-serif;
+  position: relative;
+  min-height: 100vh;
+}
+
+.trinetra-landing-root ::selection {
+  background: var(--acid);
+  color: #fff8f0;
+}
+
+.trinetra-landing-root ::-moz-selection {
+  background: var(--acid);
+  color: #fff8f0;
+}
+
+/* Site Navigation */
+.trinetra-landing-root .site-nav {
+  position: absolute;
+  z-index: 10;
+  top: 0;
+  left: 0;
+  right: 0;
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  padding: 26px 4vw;
+  font-size: 11px;
+  letter-spacing: 0.12em;
+  text-transform: uppercase;
+}
+
+.trinetra-landing-root .site-nav a,
+.trinetra-landing-root footer a {
+  color: inherit;
+  text-decoration: none;
+}
+
+.trinetra-landing-root .brand {
+  font-weight: 700;
+  letter-spacing: 0.1em;
+  display: inline-flex;
+  align-items: center;
+  gap: 10px;
+  text-decoration: none;
+  color: var(--ink);
+}
+
+.trinetra-landing-root .brand span {
+  color: var(--acid);
+  margin: 0 2px;
+}
+
+.trinetra-landing-root .site-nav nav {
+  display: flex;
+  gap: 28px;
+  color: #b9b8b1;
+  flex: initial;
+  margin: 0 auto;
+}
+
+.trinetra-landing-root .site-nav nav a,
+.trinetra-landing-root .site-nav nav button {
+  color: #b9b8b1;
+  text-decoration: none;
+  font-size: 11px;
+  letter-spacing: 0.12em;
+  text-transform: uppercase;
+  transition: color 0.2s ease;
+}
+
+.trinetra-landing-root .site-nav nav a:hover,
+.trinetra-landing-root .site-nav nav button:hover {
+  color: #fff;
+}
+
+.trinetra-landing-root .nav-cta {
+  border: 1px solid var(--line);
+  padding: 11px 15px;
+  border-radius: 2px;
+  background: transparent;
+  color: inherit;
+  font-size: 11px;
+  letter-spacing: 0.12em;
+  text-transform: uppercase;
+  cursor: pointer;
+  display: inline-flex;
+  align-items: center;
+}
+
+.trinetra-landing-root .nav-cta span,
+.trinetra-landing-root .button span {
+  color: var(--acid);
+  margin-left: 14px;
+}
+
+/* Cinema Section (Scroll-driven frame zoom) */
+.trinetra-landing-root .cinema {
+  height: 400vh;
+  position: relative;
+  background-color: var(--dark-surface);
+  background-image: var(--dark-texture);
+  background-size: 520px auto;
+  background-repeat: repeat;
+}
+
+.trinetra-landing-root .cinema-sticky {
+  height: 100vh;
+  position: sticky;
+  top: 0;
+  overflow: hidden;
+}
+
+.trinetra-landing-root .cinema-video {
+  width: 100%;
+  height: 100%;
+  object-fit: cover;
+  opacity: 0.82;
+}
+
+.trinetra-landing-root .cinema-canvas {
+  display: block;
+  position: absolute;
+  z-index: 0;
+  background: #10130f;
+}
+
+.trinetra-landing-root .cinema-scrim,
+.trinetra-landing-root .grid-overlay {
+  z-index: 1;
+}
+
+.trinetra-landing-root .cinema-copy,
+.trinetra-landing-root .cinema-top,
+.trinetra-landing-root .scroll-line {
+  z-index: 2;
+}
+
+.trinetra-landing-root .cinema-copy h1 {
+  color: #fffdf6;
+  text-shadow: 0 2px 18px rgba(0, 0, 0, 0.5);
+}
+
+.trinetra-landing-root .cinema-copy .eyebrow {
+  color: #ff704f;
+  font-weight: 800;
+  text-shadow: 0 1px 8px rgba(0, 0, 0, 0.8);
+}
+
+.trinetra-landing-root .cinema-copy p:last-child {
+  color: #f2f0e8;
+  text-shadow: 0 2px 10px rgba(0, 0, 0, 0.65);
+}
+
+.trinetra-landing-root .scroll-line {
+  background: rgba(255, 255, 255, 0.55);
+}
+
+.trinetra-landing-root .scroll-line span {
+  background: #ff704f;
+  box-shadow: 0 0 10px rgba(255, 112, 79, 0.55);
+}
+
+.trinetra-landing-root .cinema-scrim {
+  position: absolute;
+  inset: 0;
+  background: linear-gradient(180deg, rgba(0, 0, 0, 0.5), transparent 35%, rgba(0, 0, 0, 0.72));
+}
+
+.trinetra-landing-root .grid-overlay {
+  position: absolute;
+  inset: 0;
+  opacity: 0.13;
+  background-image: linear-gradient(rgba(255, 255, 255, 0.25) 1px, transparent 1px),
+    linear-gradient(90deg, rgba(255, 255, 255, 0.25) 1px, transparent 1px);
+  background-size: 80px 80px;
+  mask-image: linear-gradient(to bottom, transparent, black 30%, transparent 90%);
+}
+
+.trinetra-landing-root .cinema-top {
+  position: absolute;
+  top: 87px;
+  left: 4vw;
+  right: 4vw;
+  display: flex;
+  justify-content: space-between;
+  font-size: 10px;
+  color: #c6c8c0;
+  letter-spacing: 0.14em;
+}
+
+.trinetra-landing-root .cinema-copy {
+  position: absolute;
+  inset: 0;
+  display: flex;
+  flex-direction: column;
+  justify-content: center;
+  align-items: center;
+  text-align: center;
+  padding: 10vw;
+}
+
+.trinetra-landing-root .eyebrow,
+.trinetra-landing-root .section-kicker {
+  font-size: 10px;
+  letter-spacing: 0.16em;
+  color: var(--acid);
+}
+
+.trinetra-landing-root .cinema-copy h1 {
+  max-width: 900px;
+  margin: 20px 0;
+  font-size: clamp(34px, 7vw, 100px);
+  font-weight: 400;
+  letter-spacing: -0.065em;
+  line-height: 0.94;
+  animation: rise 0.7s ease both;
+}
+
+.trinetra-landing-root .cinema-copy p:last-child {
+  color: #c8cac2;
+  max-width: 360px;
+  font-size: 14px;
+  line-height: 1.5;
+}
+
+.trinetra-landing-root .scroll-line {
+  position: absolute;
+  bottom: 5vw;
+  left: 4vw;
+  width: 1px;
+  height: 90px;
+  background: rgba(255, 255, 255, 0.35);
+}
+
+.trinetra-landing-root .scroll-line span {
+  display: block;
+  width: 2px;
+  background: var(--acid);
+  transition: height 0.1s linear;
+}
+
+/* General Sections */
+.trinetra-landing-root .section {
+  padding: clamp(86px, 12vw, 190px) 8vw;
+  border-top: 1px solid var(--line);
+}
+
+.trinetra-landing-root > .section:nth-of-type(4),
+.trinetra-landing-root > .section:nth-of-type(6),
+.trinetra-landing-root > .section:nth-of-type(8) {
+  background-color: #101110 !important;
+  background-image: var(--dark-texture) !important;
+  background-size: 520px auto;
+  background-repeat: repeat;
+}
+
+.trinetra-landing-root .section-kicker {
+  display: flex;
+  justify-content: space-between;
+  margin-bottom: 70px;
+  color: #c5c4bd;
+}
+
+.trinetra-landing-root .section-kicker span {
+  color: var(--acid);
+}
+
+.trinetra-landing-root .hero-section {
+  min-height: 78vh;
+  padding-top: 14vw;
+  background: var(--dark-surface) !important;
+  background-color: var(--dark-surface) !important;
+}
+
+.trinetra-landing-root .hero-section .hero-intro p,
+.trinetra-landing-root .hero-section .hero-intro .scroll-word {
+  color: #b8b5ae !important;
+  opacity: 1 !important;
+  filter: none !important;
+  transform: none !important;
+  text-shadow: 0 2px 12px rgba(0, 0, 0, 0.72) !important;
+}
+
+.trinetra-landing-root .hero-grid,
+.trinetra-landing-root .split-heading,
+.trinetra-landing-root .fusion-section {
+  display: grid;
+  grid-template-columns: 1.3fr 0.7fr;
+  gap: 8vw;
+}
+
+.trinetra-landing-root .section h2 {
+  margin: 0;
+  font-size: clamp(46px, 7.7vw, 118px);
+  line-height: 0.91;
+  letter-spacing: -0.08em;
+  font-weight: 400;
+}
+
+.trinetra-landing-root .section h2 em {
+  color: var(--acid);
+  font-style: normal;
+}
+
+.trinetra-landing-root .hero-intro {
+  max-width: 360px;
+  align-self: end;
+}
+
+.trinetra-landing-root .hero-intro p,
+.trinetra-landing-root .split-heading p,
+.trinetra-landing-root .fusion-copy p,
+.trinetra-landing-root .final-section p {
+  color: #d6d4cb;
+  line-height: 1.65;
+  font-size: 15px;
+  font-weight: 650;
+  text-shadow: 0 0 1px rgba(240, 238, 229, 0.16);
+}
+
+.trinetra-landing-root .button {
+  display: inline-block;
+  margin-top: 30px;
+  padding: 16px 18px;
+  color: #090a08;
+  background: var(--acid);
+  text-decoration: none;
+  text-transform: uppercase;
+  letter-spacing: 0.1em;
+  font-size: 10px;
+  cursor: pointer;
+  border: none;
+}
+
+.trinetra-landing-root .text-link {
+  display: inline-block;
+  margin: 28px 0 0 22px;
+  color: var(--ink);
+  text-decoration: none;
+  font-size: 11px;
+  text-transform: uppercase;
+  letter-spacing: 0.1em;
+}
+
+.trinetra-landing-root .text-link span {
+  color: var(--acid);
+  margin-left: 9px;
+}
+
+.trinetra-landing-root .capability-line {
+  border-top: 1px solid var(--line);
+  margin-top: 100px;
+  padding-top: 18px;
+  color: #a5a49d;
+  font-size: 10px;
+  letter-spacing: 0.12em;
+  text-transform: uppercase;
+}
+
+.trinetra-landing-root .capability-line i {
+  color: var(--acid);
+  font-style: normal;
+  padding: 0 8px;
+}
+
+.trinetra-landing-root .problem-section {
+  background: #000 !important;
+  background-color: #000 !important;
+}
+
+.trinetra-landing-root .split-heading {
+  align-items: end;
+}
+
+.trinetra-landing-root .split-heading p {
+  max-width: 350px;
+  margin: 0 0 6px;
+}
+
+.trinetra-landing-root .split-heading strong {
+  color: var(--ink);
+  font-weight: 400;
+}
+
+.trinetra-landing-root .image-panel {
+  position: relative;
+  height: 60vh;
+  margin-top: 100px;
+  overflow: hidden;
+}
+
+.trinetra-landing-root .image-panel img {
+  width: 100%;
+  height: 100%;
+  object-fit: cover;
+  filter: grayscale(1) contrast(1.2);
+  opacity: 0.62;
+}
+
+.trinetra-landing-root .image-panel:after {
+  content: '';
+  position: absolute;
+  inset: 0;
+  background: linear-gradient(90deg, rgba(8, 9, 9, 0.35), transparent);
+}
+
+.trinetra-landing-root .image-panel span {
+  position: absolute;
+  z-index: 1;
+  bottom: 20px;
+  left: 22px;
+  color: var(--acid);
+  font-size: 10px;
+  letter-spacing: 0.14em;
+}
+
+.trinetra-landing-root .lede {
+  max-width: 430px;
+  color: var(--muted-ink);
+  line-height: 1.6;
+  margin: 38px 0 90px;
+}
+
+/* Steps (Idea Section) */
+.trinetra-landing-root .steps {
+  display: grid;
+  grid-template-columns: repeat(5, 1fr);
+  border-top: 1px solid var(--line);
+  overflow: hidden;
+}
+
+.trinetra-landing-root .step {
+  min-height: 230px;
+  padding: 22px 22px 20px 0;
+  border-right: 1px solid var(--line);
+  position: relative;
+}
+
+.trinetra-landing-root .step:not(:first-child) {
+  padding-left: 20px;
+}
+
+.trinetra-landing-root .step span,
+.trinetra-landing-root .model-index,
+.trinetra-landing-root .sensor-card > span {
+  color: var(--acid);
+  font-size: 10px;
+  letter-spacing: 0.12em;
+}
+
+.trinetra-landing-root .step h3,
+.trinetra-landing-root .sensor-card h3 {
+  margin: 55px 0 12px;
+  font-size: 18px;
+  font-weight: 400;
+}
+
+.trinetra-landing-root .step p,
+.trinetra-landing-root .sensor-card p {
+  margin: 0;
+  color: var(--muted-ink);
+  font-size: 12px;
+  line-height: 1.5;
+  max-width: 160px;
+}
+
+.trinetra-landing-root .closing-line {
+  margin-top: 100px;
+  color: #858981;
+  font-size: clamp(26px, 4vw, 54px);
+  letter-spacing: -0.05em;
+}
+
+.trinetra-landing-root .closing-line em {
+  color: var(--ink);
+  font-style: normal;
+}
+
+/* Sensor Section */
+.trinetra-landing-root .sensor-section {
+  background: var(--dark-surface) !important;
+  background-image: var(--dark-texture) !important;
+  background-size: 520px auto !important;
+  background-repeat: repeat !important;
+  color: var(--ink);
+}
+
+.trinetra-landing-root .sensor-section .split-heading {
+  display: block;
+  max-width: 760px;
+}
+
+.trinetra-landing-root .sensor-section .split-heading h2 {
+  margin-bottom: 18px;
+}
+
+.trinetra-landing-root .sensor-section .split-heading p {
+  max-width: 38ch;
+}
+
+.trinetra-landing-root .sensor-grid {
+  position: relative;
+  display: grid;
+  grid-template-columns: minmax(0, 1.55fr) minmax(280px, 0.7fr);
+  grid-template-rows: repeat(5, minmax(0, 1fr));
+  gap: 0 clamp(16px, 2vw, 28px);
+  align-items: stretch;
+  height: min(560px, 62vh);
+  margin-top: clamp(38px, 5vw, 64px);
+  overflow: visible;
+}
+
+.trinetra-landing-root .sensor-grid::before {
+  content: "";
+  grid-column: 1;
+  grid-row: 1 / -1;
+  min-height: 0;
+  border: 1px solid rgba(222, 221, 211, 0.25);
+  background-image: linear-gradient(180deg, rgba(8, 13, 14, 0.08), rgba(8, 13, 14, 0.34)), var(--sensor-image);
+  background-position: center;
+  background-size: cover, cover;
+  background-repeat: no-repeat, no-repeat;
+  box-shadow: inset 0 0 0 12px rgba(255, 255, 255, 0.04), 0 24px 70px rgba(0, 0, 0, 0.22);
+  transition: background 0.55s ease, transform 0.55s cubic-bezier(0.22, 0.8, 0.22, 1);
+}
+
+.trinetra-landing-root .sensor-grid::after {
+  content: none;
+}
+
+.trinetra-landing-root .sensor-card {
+  grid-column: 2;
+  display: grid;
+  grid-template-columns: 34px 1fr;
+  gap: 10px;
+  align-items: start;
+  position: relative;
+  min-height: 0;
+  padding: 10px 0 12px;
+  border: 0;
+  border-top: 1px solid rgba(222, 221, 211, 0.2);
+  border-radius: 0;
+  background: transparent !important;
+  opacity: 0.48;
+  transform: none;
+  cursor: pointer;
+  transition: opacity 0.35s ease, border-color 0.35s ease, transform 0.45s cubic-bezier(0.22, 0.8, 0.22, 1);
+}
+
+.trinetra-landing-root .sensor-card:last-child {
+  border-bottom: 1px solid rgba(222, 221, 211, 0.2);
+}
+
+.trinetra-landing-root .sensor-card:hover,
+.trinetra-landing-root .sensor-card:focus-visible,
+.trinetra-landing-root .sensor-card.is-active {
+  opacity: 1;
+  border-color: var(--acid);
+  transform: translateX(-4px);
+  background: rgba(228, 122, 95, 0.08) !important;
+}
+
+.trinetra-landing-root .sensor-card.is-active h3 {
+  color: #fff !important;
+}
+
+.trinetra-landing-root .sensor-card.is-active p {
+  color: #deddd3 !important;
+}
+
+.trinetra-landing-root .sensor-card.is-active > span {
+  color: #ff8b7b !important;
+}
+
+.trinetra-landing-root .sensor-card > span {
+  grid-column: 1;
+  color: var(--acid) !important;
+  font: 700 12px/1 monospace;
+  padding-top: 4px;
+}
+
+.trinetra-landing-root .sensor-card h3 {
+  grid-column: 2;
+  margin: 0;
+  color: #deddd3 !important;
+  font-size: clamp(17px, 1.7vw, 25px);
+}
+
+.trinetra-landing-root .sensor-card p {
+  grid-column: 2;
+  margin: 7px 0 0;
+  color: #aaa9a1 !important;
+  font-size: 13px;
+  line-height: 1.2;
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+
+.trinetra-landing-root .sensor-image-progress {
+  position: absolute;
+  left: 0;
+  top: calc(100% + 14px);
+  width: 100%;
+  height: 4px;
+  overflow: hidden;
+  background: rgba(222, 221, 211, 0.2);
+  z-index: 2;
+}
+
+.trinetra-landing-root .sensor-image-progress > span {
+  display: block;
+  width: 0;
+  height: 100%;
+  background: var(--acid);
+  transition: none;
+  transform-origin: left center;
+}
+
+/* Models Section */
+.trinetra-landing-root .models-section {
+  background: #111312;
+}
+
+.trinetra-landing-root .model-list {
+  margin-top: 80px;
+}
+
+.trinetra-landing-root .model-row {
+  display: grid;
+  grid-template-columns: 50px 1.1fr 1fr 80px;
+  gap: 20px;
+  align-items: center;
+  padding: 24px 0;
+  border-top: 1px solid var(--line);
+}
+
+.trinetra-landing-root .model-row h3 {
+  margin: 0 0 8px;
+  font-weight: 400;
+  font-size: 20px;
+}
+
+.trinetra-landing-root .model-row code {
+  color: var(--acid);
+  font-size: 10px;
+}
+
+.trinetra-landing-root .model-row p {
+  color: var(--muted-ink);
+  font-size: 13px;
+  line-height: 1.5;
+}
+
+.trinetra-landing-root .model-row > strong {
+  text-align: right;
+  color: var(--acid);
+  font-size: 14px;
+}
+
+/* Fusion Section */
+.trinetra-landing-root .fusion-section {
+  background: #e9e9e3;
+  color: #0a0b09;
+  align-items: center;
+}
+
+.trinetra-landing-root .fusion-section .section-kicker {
+  color: #586057;
+}
+
+.trinetra-landing-root .fusion-copy p {
+  color: #5b615c;
+  max-width: 330px;
+}
+
+.trinetra-landing-root .fusion-copy .text-link {
+  color: #0a0b09;
+  margin-left: 0;
+}
+
+.trinetra-landing-root .evidence-card {
+  background: #101211;
+  color: var(--ink);
+  padding: 26px;
+  box-shadow: 12px 12px 0 var(--acid);
+}
+
+.trinetra-landing-root .evidence-head,
+.trinetra-landing-root .evidence-row {
+  display: flex;
+  justify-content: space-between;
+  gap: 20px;
+  padding-bottom: 17px;
+  margin-bottom: 17px;
+  border-bottom: 1px solid var(--line);
+  font-size: 10px;
+}
+
+.trinetra-landing-root .evidence-head b,
+.trinetra-landing-root .evidence-row > b {
+  color: var(--acid);
+}
+
+.trinetra-landing-root .evidence-row strong {
+  font-weight: 400;
+  color: #d5d8d0;
+}
+
+.trinetra-landing-root .result {
+  margin-top: 30px;
+  display: flex;
+  flex-direction: column;
+  gap: 7px;
+}
+
+.trinetra-landing-root .result span,
+.trinetra-landing-root .result small {
+  color: #858981;
+  font-size: 10px;
+  letter-spacing: 0.1em;
+}
+
+.trinetra-landing-root .result strong {
+  color: var(--acid);
+  font-size: 32px;
+  font-weight: 400;
+}
+
+/* Ask Section */
+.trinetra-landing-root .ask-section {
+  text-align: center;
+}
+
+.trinetra-landing-root .ask-section .lede {
+  margin: 35px auto 60px;
+}
+
+.trinetra-landing-root .prompt-cloud {
+  max-width: 850px;
+  margin: auto;
+  display: flex;
+  flex-wrap: wrap;
+  justify-content: center;
+  gap: 10px;
+}
+
+.trinetra-landing-root .prompt-cloud button {
+  color: var(--ink);
+  background: transparent;
+  border: 1px solid var(--line);
+  padding: 16px 18px;
+  font: inherit;
+  font-size: 12px;
+  cursor: pointer;
+  transition: all 0.2s ease;
+}
+
+.trinetra-landing-root .prompt-cloud button:hover {
+  border-color: var(--acid);
+  color: #fff;
+  transform: translateY(-2px);
+}
+
+.trinetra-landing-root .prompt-cloud button span {
+  color: var(--acid);
+  margin-left: 16px;
+}
+
+/* Final Section */
+.trinetra-landing-root .final-section {
+  background-color: var(--dark-surface) !important;
+  background-image: var(--dark-texture) !important;
+  background-size: 520px auto !important;
+  background-repeat: repeat !important;
+  color: var(--ink) !important;
+  min-height: 65vh;
+}
+
+.trinetra-landing-root .final-section .section-kicker {
+  color: #c5c4bd !important;
+}
+
+.trinetra-landing-root .final-section .section-kicker span {
+  color: #e47a5f !important;
+}
+
+.trinetra-landing-root .final-section h2 {
+  color: #deddd3 !important;
+}
+
+.trinetra-landing-root .final-section p {
+  color: #c5c4bd !important;
+  max-width: 340px;
+  margin: 45px 0 0;
+}
+
+.trinetra-landing-root .button.light {
+  background: #080a07;
+  color: var(--acid);
+}
+
+.trinetra-landing-root .button.light span {
+  color: var(--acid);
+}
+
+/* Footer */
+.trinetra-landing-root footer {
+  display: grid;
+  grid-template-columns: 1fr 1fr 1fr;
+  gap: 30px;
+  padding: 45px 8vw;
+  color: #878b83;
+  font-size: 11px;
+  line-height: 1.6;
+  border-top: 1px solid var(--line);
+}
+
+.trinetra-landing-root footer .brand {
+  color: var(--ink);
+  font-size: 14px;
+}
+
+.trinetra-landing-root footer > div:last-child {
+  text-align: right;
+}
+
+/* Animations & Keyframes */
+@keyframes rise {
+  from {
+    opacity: 0;
+    transform: translateY(18px) scale(0.98);
+    filter: blur(8px);
+  }
+  to {
+    opacity: 1;
+    transform: none;
+    filter: blur(0);
+  }
+}
+
+@keyframes pulse-line {
+  0%,
+  100% {
+    opacity: 0.45;
+    transform: scaleX(0.7);
+    transform-origin: left;
+  }
+  50% {
+    opacity: 1;
+    transform: scaleX(1);
+  }
+}
+
+@keyframes shimmer {
+  from {
+    background-position: 200% 0;
+  }
+  to {
+    background-position: -200% 0;
+  }
+}
+
+.trinetra-landing-root .reveal {
+  opacity: 0;
+  transform: translateY(28px);
+  filter: blur(5px);
+  transition: opacity 0.85s ease var(--reveal-delay, 0ms),
+    transform 0.85s cubic-bezier(0.2, 0.8, 0.2, 1) var(--reveal-delay, 0ms),
+    filter 0.85s ease var(--reveal-delay, 0ms);
+}
+
+.trinetra-landing-root .reveal.is-visible {
+  opacity: 1;
+  transform: none;
+  filter: none;
+}
+
+.trinetra-landing-root .section h2 em {
+  color: transparent;
+  background: linear-gradient(105deg, var(--acid), #deddd3 45%, var(--warm));
+  background-size: 220% auto;
+  background-clip: text;
+  -webkit-background-clip: text;
+  animation: shimmer 7s linear infinite;
+}
+
+.trinetra-landing-root .hero-section h2 em,
+.trinetra-landing-root .final-section h2 em {
+  color: transparent !important;
+  background: linear-gradient(105deg, #ffb29f 0%, #ff8b7b 48%, #e47a5f 100%) !important;
+  background-clip: text !important;
+  -webkit-background-clip: text !important;
+}
+
+.trinetra-landing-root .step,
+.trinetra-landing-root .sensor-card,
+.trinetra-landing-root .model-row {
+  transition: transform 0.45s ease, border-color 0.45s ease, background-color 0.45s ease;
+}
+
+.trinetra-landing-root .section p,
+.trinetra-landing-root .hero-intro p,
+.trinetra-landing-root .fusion-copy p,
+.trinetra-landing-root .final-section p {
+  will-change: opacity, transform, filter;
+}
+
+.trinetra-landing-root .scroll-word {
+  display: inline;
+  color: color-mix(in srgb, #c9c7be calc(28% + (var(--word-progress, 0) * 72%)), #f0eee5);
+  opacity: 1;
+  font-weight: 650;
+  text-shadow: 0 0 1px rgba(240, 238, 229, 0.18);
+  transition: color 0.08s linear, opacity 0.08s linear;
+}
+
+.trinetra-landing-root .scroll-word::selection {
+  background: var(--acid);
+  color: #000;
+}
+
+.trinetra-landing-root .reveal.section p,
+.trinetra-landing-root .reveal.hero-intro p,
+.trinetra-landing-root .reveal.fusion-copy p,
+.trinetra-landing-root .reveal.final-section p,
+.trinetra-landing-root .reveal.cinema-copy p {
+  transform: translateY(30px);
+  clip-path: inset(0 0 100% 0);
+  opacity: 0;
+  filter: blur(7px);
+  transition: opacity 1s cubic-bezier(0.2, 0.75, 0.2, 1) var(--reveal-delay, 0ms),
+    transform 1.05s cubic-bezier(0.16, 1, 0.3, 1) var(--reveal-delay, 0ms),
+    filter 1s ease var(--reveal-delay, 0ms),
+    clip-path 1.05s cubic-bezier(0.16, 1, 0.3, 1) var(--reveal-delay, 0ms);
+}
+
+.trinetra-landing-root .reveal.is-visible.section p,
+.trinetra-landing-root .reveal.is-visible.hero-intro p,
+.trinetra-landing-root .reveal.is-visible.fusion-copy p,
+.trinetra-landing-root .reveal.is-visible.final-section p,
+.trinetra-landing-root .reveal.is-visible.cinema-copy p {
+  transform: translateY(0);
+  clip-path: inset(0 0 0 0);
+  opacity: 1;
+  filter: blur(0);
+}
+
+/* Idea Section Details */
+.trinetra-landing-root .idea-section,
+.trinetra-landing-root > .section.idea-section {
+  background: #eeeee8 !important;
+  background-color: #eeeee8 !important;
+  background-image: none !important;
+  color: #252625 !important;
+  min-height: 185vh;
+}
+
+.trinetra-landing-root .idea-section .steps {
+  position: sticky;
+  top: 16vh;
+  display: grid;
+  grid-template-columns: repeat(5, minmax(0, 1fr));
+  gap: 0;
+  min-height: 0;
+  margin-top: clamp(58px, 9vw, 130px);
+  overflow: visible;
+  background: transparent !important;
+}
+
+.trinetra-landing-root .idea-section h2,
+.trinetra-landing-root .idea-section .section-kicker,
+.trinetra-landing-root .idea-section .lede,
+.trinetra-landing-root .idea-section .step h3 {
+  color: #252625 !important;
+}
+
+.trinetra-landing-root .idea-section .lede {
+  color: #252625 !important;
+  font-weight: 650;
+  opacity: 1 !important;
+  filter: none !important;
+  transform: none !important;
+  clip-path: none !important;
+  text-shadow: none !important;
+}
+
+.trinetra-landing-root .idea-section .section-kicker {
+  color: #5c5b54 !important;
+}
+
+.trinetra-landing-root .idea-section .section-kicker span,
+.trinetra-landing-root .idea-section .step > span {
+  color: #c75c40 !important;
+}
+
+.trinetra-landing-root .idea-section h2 em {
+  color: transparent !important;
+  background: linear-gradient(105deg, #c75c40, #252625 52%, #a8442d);
+  background-size: 220% auto;
+  background-clip: text;
+  -webkit-background-clip: text;
+}
+
+.trinetra-landing-root .idea-section .step {
+  grid-column: auto;
+  min-height: 300px;
+  padding: 34px 24px 26px;
+  border-top: 1px solid rgba(37, 38, 37, 0.22);
+  border-right: 1px solid rgba(37, 38, 37, 0.22);
+  border-bottom: 0;
+  border-radius: 0;
+  background: transparent !important;
+  opacity: 0.42;
+  transform: none !important;
+  transition: opacity 0.5s ease, color 0.5s ease, border-color 0.5s ease;
+  position: relative;
+  cursor: pointer;
+}
+
+.trinetra-landing-root .idea-section .step:first-child {
+  border-left: 1px solid rgba(37, 38, 37, 0.22);
+}
+
+.trinetra-landing-root .idea-section .step:hover,
+.trinetra-landing-root .idea-section .step:focus-visible,
+.trinetra-landing-root .idea-section .step.is-active {
+  opacity: 1;
+  transform: none !important;
+  background: transparent !important;
+  border-color: #252625;
+}
+
+.trinetra-landing-root .idea-section .step > span {
+  display: block;
+  margin-bottom: 72px;
+  color: #8f8d84 !important;
+  transition: color 0.5s ease;
+}
+
+.trinetra-landing-root .idea-section .step h3 {
+  color: #77756c !important;
+  font-size: clamp(18px, 2vw, 28px);
+  transition: color 0.5s ease, transform 0.5s ease;
+}
+
+.trinetra-landing-root .idea-section .step p {
+  color: #85837a !important;
+  max-width: none;
+  opacity: 0.7;
+  transition: color 0.5s ease, opacity 0.5s ease;
+}
+
+.trinetra-landing-root .idea-section .step.is-active > span,
+.trinetra-landing-root .idea-section .step.is-active h3 {
+  color: #252625 !important;
+}
+
+.trinetra-landing-root .idea-section .step.is-active p {
+  color: #4d4c45 !important;
+  opacity: 1;
+}
+
+.trinetra-landing-root .idea-section .step-progress {
+  position: absolute;
+  left: 24px;
+  right: 24px;
+  bottom: 0;
+  height: 3px;
+  overflow: hidden;
+  background: rgba(37, 38, 37, 0.14);
+}
+
+.trinetra-landing-root .idea-section .step-progress > span {
+  display: block;
+  height: 100%;
+  width: 0;
+  background: #c75c40;
+  transition: width 0.08s linear;
+}
+
+.trinetra-landing-root .idea-section .step.is-active .step-progress {
+  background: rgba(37, 38, 37, 0.28);
+}
+
+/* Button & Nav Interaction */
+.trinetra-landing-root a,
+.trinetra-landing-root button {
+  position: relative;
+  isolation: isolate;
+  transition: transform 0.28s cubic-bezier(0.22, 0.8, 0.22, 1), color 0.28s ease,
+    background-color 0.28s ease, border-color 0.28s ease, box-shadow 0.28s ease;
+}
+
+.trinetra-landing-root .button,
+.trinetra-landing-root .nav-cta,
+.trinetra-landing-root .text-link {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  overflow: hidden;
+  transform: translateZ(0);
+}
+
+.trinetra-landing-root .button::before,
+.trinetra-landing-root .nav-cta::before,
+.trinetra-landing-root .text-link::before {
+  content: "";
+  position: absolute;
+  inset: 0;
+  z-index: -1;
+  background: var(--acid);
+  transform: translateY(105%);
+  transition: transform 0.42s cubic-bezier(0.16, 1, 0.3, 1);
+}
+
+.trinetra-landing-root .button span,
+.trinetra-landing-root .nav-cta span,
+.trinetra-landing-root .text-link span {
+  position: relative;
+  z-index: 1;
+  transition: color 0.28s ease, transform 0.42s cubic-bezier(0.16, 1, 0.3, 1);
+}
+
+.trinetra-landing-root .button:hover span,
+.trinetra-landing-root .nav-cta:hover span,
+.trinetra-landing-root .text-link:hover span {
+  color: #111;
+  transform: translate(3px, -2px);
+}
+
+.trinetra-landing-root .button:hover,
+.trinetra-landing-root .nav-cta:hover,
+.trinetra-landing-root .text-link:hover {
+  color: #111;
+  transform: translateY(-2px);
+  box-shadow: 0 12px 30px rgba(0, 0, 0, 0.16);
+}
+
+.trinetra-landing-root .button:hover::before,
+.trinetra-landing-root .nav-cta:hover::before,
+.trinetra-landing-root .text-link:hover::before {
+  transform: translateY(0);
+}
+
+.trinetra-landing-root .hero-section .button {
+  background: var(--warm);
+  color: #111;
+  padding: 15px 28px;
+  min-width: 236px;
+  letter-spacing: 0.08em;
+}
+
+.trinetra-landing-root .hero-section .button::before {
+  background: #f09a81;
+}
+
+.trinetra-landing-root .cinema-top span:last-child,
+.trinetra-landing-root .capability-line {
+  animation: pulse-line 3s ease-in-out infinite;
+}
+
+.trinetra-landing-root .image-panel img {
+  transition: transform 1.2s cubic-bezier(0.2, 0.8, 0.2, 1), filter 0.7s ease;
+}
+
+.trinetra-landing-root .image-panel:hover img {
+  transform: scale(1.045);
+  filter: grayscale(0.35) contrast(1.15) saturate(1.2);
+}
+
+/* Responsive Media Queries */
+@media (max-width: 850px) {
+  .trinetra-landing-root .sensor-grid {
+    grid-template-columns: 1fr;
+    grid-template-rows: auto;
+    height: auto;
+    gap: 22px;
+  }
+  .trinetra-landing-root .sensor-grid::before {
+    grid-column: 1;
+    grid-row: 1;
+    min-height: 360px;
+  }
+  .trinetra-landing-root .sensor-card {
+    grid-column: 1;
+  }
+}
+
+@media (max-width: 700px) {
+  .trinetra-landing-root .site-nav nav {
+    display: none;
+  }
+  .trinetra-landing-root .site-nav {
+    padding: 20px;
+  }
+  .trinetra-landing-root .cinema-top {
+    top: 67px;
+    left: 20px;
+    right: 20px;
+  }
+  .trinetra-landing-root .section {
+    padding: 85px 20px;
+  }
+  .trinetra-landing-root .hero-grid,
+  .trinetra-landing-root .split-heading,
+  .trinetra-landing-root .fusion-section {
+    grid-template-columns: 1fr;
+    gap: 40px;
+  }
+  .trinetra-landing-root .section h2 {
+    font-size: clamp(50px, 15vw, 80px);
+  }
+  .trinetra-landing-root .idea-section {
+    min-height: 215vh;
+  }
+  .trinetra-landing-root .idea-section .steps {
+    top: 12vh;
+    grid-template-columns: repeat(5, minmax(170px, 1fr));
+    overflow-x: auto;
+    padding-bottom: 8px;
+  }
+  .trinetra-landing-root .idea-section .step {
+    min-height: 260px;
+    padding-inline: 18px;
+  }
+  .trinetra-landing-root .idea-section .step-progress {
+    left: 18px;
+    right: 18px;
+  }
+  .trinetra-landing-root .model-row {
+    grid-template-columns: 30px 1fr;
+  }
+  .trinetra-landing-root .model-row p {
+    grid-column: 2;
+    margin: 0;
+  }
+  .trinetra-landing-root .model-row > strong {
+    grid-column: 2;
+    text-align: left;
+  }
+  .trinetra-landing-root .image-panel {
+    height: 42vh;
+  }
+  .trinetra-landing-root .evidence-card {
+    margin-top: 10px;
+    box-shadow: 7px 7px 0 var(--acid);
+  }
+  .trinetra-landing-root footer {
+    grid-template-columns: 1fr;
+    padding: 35px 20px;
+  }
+  .trinetra-landing-root footer > div:last-child {
+    text-align: left;
+  }
+  .trinetra-landing-root .text-link {
+    margin-left: 0;
+    display: block;
+  }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .trinetra-landing-root *,
+  .trinetra-landing-root *::before,
+  .trinetra-landing-root *::after {
+    animation-duration: 0.01ms !important;
+    animation-iteration-count: 1 !important;
+    scroll-behavior: auto !important;
+    transition-duration: 0.01ms !important;
+  }
+  .trinetra-landing-root .reveal {
+    opacity: 1;
+    transform: none;
+    filter: none;
+  }
+}

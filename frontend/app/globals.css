@@ -1,6 +1,7 @@
 @import 'tailwindcss';
 @import 'tw-animate-css';
 @import 'shadcn/tailwind.css';
+@import './landing.css';
 @custom-variant dark (&:is(.dark *));
 :root { color-scheme: dark; --background: #081016; --foreground: #e8f0f1; --border: rgba(255,255,255,.1); --radius: .75rem; }
 * { box-sizing: border-box; }

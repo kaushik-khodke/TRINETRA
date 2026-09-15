@@ -126,7 +126,7 @@ export default function AuthCallbackPage() {
             textTransform: "uppercase",
           }}
         >
-          SatQuery AI Security Clearance
+          TRINETRA AI Security Clearance
         </span>
 
         <h2 style={{ fontSize: "1.35rem", margin: "0.5rem 0 0.75rem", color: "#f1f5f9" }}>

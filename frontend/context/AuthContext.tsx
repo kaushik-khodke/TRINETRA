@@ -27,7 +27,7 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
 
   useEffect(() => {
     // Check if demo bypass was active
-    if (typeof window !== "undefined" && localStorage.getItem("satquery_demo_auth") === "true") {
+    if (typeof window !== "undefined" && (localStorage.getItem("trinetra_demo_auth") === "true" || localStorage.getItem("satquery_demo_auth") === "true")) {
       const demoUser: any = {
         id: "isro-operator-01",
         email: "commander@isro.gov.in",
@@ -92,6 +92,7 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
 
   const signOut = async () => {
     if (typeof window !== "undefined") {
+      localStorage.removeItem("trinetra_demo_auth")
       localStorage.removeItem("satquery_demo_auth")
     }
     await sbSignOut()
@@ -101,7 +102,7 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
 
   const bypassForDemo = () => {
     if (typeof window !== "undefined") {
-      localStorage.setItem("satquery_demo_auth", "true")
+      localStorage.setItem("trinetra_demo_auth", "true")
     }
     const demoUser: any = {
       id: "isro-operator-01",
