@@ -2,7 +2,7 @@
 
 import { useEffect, useMemo, useRef, useState } from "react"
 import { usePathname, useRouter } from "next/navigation"
-import { Activity, ArrowRight, BarChart3, Check, ChevronDown, Clock3, Cpu, ExternalLink, FileImage, GitCompareArrows, Globe, ImagePlus, Layers3, LogIn, LogOut, Maximize2, Menu, MoveHorizontal, PanelTop, Radar, Search, Send, ShieldCheck, Sparkles, Upload, X } from "lucide-react"
+import { Activity, ArrowRight, BarChart3, Check, CheckCheck, ChevronDown, Clock3, Copy, Cpu, ExternalLink, Eye, FileImage, Filter, GitCompareArrows, Globe, ImagePlus, Layers3, LogIn, LogOut, Maximize2, Menu, MoveHorizontal, PanelTop, Radar, RotateCcw, Search, Send, ShieldCheck, Sparkles, Trash2, Upload, X } from "lucide-react"
 import {
   analysisAPI,
   buildTrinetraUrl,
@@ -96,12 +96,14 @@ function Header({ path, navigate }: { path: string; navigate: (path: string) => 
   return (
     <header className="topbar">
       <button className="brand" onClick={() => navigate("/")}>
-        <span className="brandmark">
-          <Radar />
-        </span>
+        <img
+          src="/trinetra-logo1.webp"
+          alt="TRINETRA Logo"
+          style={{ width: 26, height: 26, borderRadius: 4, objectFit: "contain" }}
+        />
         <span>
-          {t("brand.title")} <b>{t("brand.ai")}</b>
-          <small>{t("brand.subtitle")}</small>
+          TRI<span>•</span>NETRA
+          <small>EARTH OBSERVATION / 001</small>
         </span>
       </button>
       <nav>
@@ -119,7 +121,7 @@ function Header({ path, navigate }: { path: string; navigate: (path: string) => 
       <div className="header-status">
         <i
           style={{
-            backgroundColor: health.online ? "var(--cyan-400, #00f0ff)" : "var(--amber-400, #ffb300)",
+            backgroundColor: health.online ? "var(--acid)" : "var(--amber-400, #ffb300)",
           }}
         />{" "}
         <span>{statusText}</span>
@@ -128,15 +130,15 @@ function Header({ path, navigate }: { path: string; navigate: (path: string) => 
       {/* User Authentication & Profile Widget */}
       <div style={{ display: "flex", alignItems: "center", gap: "0.75rem", marginLeft: "0.5rem" }}>
         {isAuthenticated ? (
-          <div style={{ display: "flex", alignItems: "center", gap: "0.55rem", background: "rgba(255, 255, 255, 0.04)", border: "1px solid rgba(255, 255, 255, 0.1)", padding: "4px 10px 4px 6px", borderRadius: "99px" }}>
+          <div style={{ display: "flex", alignItems: "center", gap: "0.55rem", background: "rgba(20, 21, 20, 0.75)", border: "1px solid var(--line)", padding: "4px 10px 4px 6px", borderRadius: "2px" }}>
             {avatarUrl ? (
               <img
                 src={avatarUrl}
                 alt={displayName}
-                style={{ width: "26px", height: "26px", borderRadius: "50%", objectFit: "cover", border: "1px solid var(--cyan-400, #00f0ff)" }}
+                style={{ width: "24px", height: "24px", borderRadius: "2px", objectFit: "cover", border: "1px solid var(--acid)" }}
               />
             ) : (
-              <div style={{ width: "26px", height: "26px", borderRadius: "50%", background: "linear-gradient(135deg, rgba(86, 215, 223, 0.8), rgba(0, 160, 255, 0.8))", color: "#081016", display: "grid", placeItems: "center", fontSize: "11px", fontWeight: 700 }}>
+              <div style={{ width: "24px", height: "24px", borderRadius: "2px", background: "linear-gradient(135deg, #c75c40, #ff8b7b)", color: "#fff8f0", display: "grid", placeItems: "center", fontSize: "11px", fontWeight: 700 }}>
                 {displayName ? displayName.charAt(0).toUpperCase() : "U"}
               </div>
             )}
@@ -144,16 +146,16 @@ function Header({ path, navigate }: { path: string; navigate: (path: string) => 
               <span style={{ fontSize: "11px", fontWeight: 600, color: "#f1f5f9", overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap" }}>
                 {displayName || "Operator"}
               </span>
-              <span style={{ fontSize: "8px", color: "var(--cyan-400, #00f0ff)", fontFamily: "monospace", letterSpacing: "0.05em" }}>
+              <span style={{ fontSize: "8px", color: "var(--warm)", fontFamily: "monospace", letterSpacing: "0.08em", textTransform: "uppercase" }}>
                 CLEARANCE ACTIVE
               </span>
             </div>
             <button
               onClick={() => signOut()}
               title="Sign Out"
-              style={{ background: "none", border: "none", color: "rgba(255, 255, 255, 0.4)", padding: "4px", borderRadius: "6px", cursor: "pointer", display: "flex", alignItems: "center", marginLeft: "2px" }}
+              style={{ background: "none", border: "none", color: "rgba(222, 221, 211, 0.4)", padding: "4px", borderRadius: "2px", cursor: "pointer", display: "flex", alignItems: "center", marginLeft: "2px" }}
               onMouseOver={(e) => (e.currentTarget.style.color = "#f87171")}
-              onMouseOut={(e) => (e.currentTarget.style.color = "rgba(255, 255, 255, 0.4)")}
+              onMouseOut={(e) => (e.currentTarget.style.color = "rgba(222, 221, 211, 0.4)")}
             >
               <LogOut size={13} />
             </button>
@@ -162,7 +164,7 @@ function Header({ path, navigate }: { path: string; navigate: (path: string) => 
           <button
             onClick={() => navigate("/analysis")}
             className="primary compact"
-            style={{ display: "inline-flex", alignItems: "center", gap: "0.45rem", padding: "6px 14px", fontSize: "0.78rem" }}
+            style={{ display: "inline-flex", alignItems: "center", gap: "0.45rem", padding: "7px 14px" }}
           >
             <LogIn size={13} /> Sign In
           </button>
@@ -445,6 +447,23 @@ function Workspace({ navigate, initialDemo = false }: { navigate: (path: string)
       if (q) {
         setQuery(q)
       }
+      try {
+        const storedAnalysis = sessionStorage.getItem("trinetra-selected-analysis")
+        if (storedAnalysis) {
+          const parsed = JSON.parse(storedAnalysis)
+          if (parsed && parsed.id) {
+            setResult(parsed)
+            if (parsed.mode) setMode(parsed.mode)
+            if (parsed.query) setQuery(parsed.query)
+            if (parsed.images && parsed.images.length > 0) {
+              setImages(parsed.images)
+            }
+          }
+          sessionStorage.removeItem("trinetra-selected-analysis")
+        }
+      } catch (err) {
+        console.warn("[Workspace] Failed to restore analysis from session:", err)
+      }
     }
   }, [])
 
@@ -645,7 +664,7 @@ function Workspace({ navigate, initialDemo = false }: { navigate: (path: string)
             ))}
           </div>
           {!query.trim() && images.filter(Boolean).length > 0 && (
-            <div style={{ fontSize: "11px", color: "rgba(86, 215, 223, 0.75)", margin: "4px 0 14px", display: "flex", alignItems: "center", gap: "6px" }}>
+            <div style={{ fontSize: "11px", color: "var(--warm)", margin: "4px 0 14px", display: "flex", alignItems: "center", gap: "6px" }}>
               <Sparkles size={13} style={{ flexShrink: 0 }} />
               <span>Type your question above or click one of the suggested prompts to enable analysis.</span>
             </div>
@@ -831,22 +850,24 @@ function EvidenceViewer({ result }: { result: AnalysisResponse }) {
               style={{
                 display: "inline-flex",
                 alignItems: "center",
-                gap: "5px",
-                padding: "6px 12px",
-                borderRadius: "6px",
-                background: "linear-gradient(135deg, rgba(86, 215, 223, 0.25) 0%, rgba(16, 185, 129, 0.25) 100%)",
-                border: "1px solid #56d7df",
-                color: "#56d7df",
-                fontSize: "12px",
+                gap: "6px",
+                padding: "6px 13px",
+                borderRadius: "2px",
+                background: "rgba(199, 92, 64, 0.12)",
+                border: "1px solid var(--acid)",
+                color: "var(--warm)",
+                fontSize: "11px",
                 fontWeight: 700,
+                letterSpacing: "0.08em",
+                textTransform: "uppercase",
                 textDecoration: "none",
-                boxShadow: "0 0 16px rgba(86, 215, 223, 0.35)",
+                boxShadow: "0 0 16px rgba(199, 92, 64, 0.25)",
                 marginLeft: "4px",
                 cursor: "pointer",
                 transition: "all 0.15s ease",
               }}
             >
-              <Globe size={14} style={{ color: "#56d7df" }} /> 3D Globe (Shatnetra) <ExternalLink size={11} />
+              <Globe size={13} style={{ color: "var(--acid)" }} /> 3D Globe (Shatnetra) <ExternalLink size={11} />
             </a>
           )}
         </div>
@@ -960,20 +981,20 @@ function EvidenceViewer({ result }: { result: AnalysisResponse }) {
             display: "flex",
             justifyContent: "space-between",
             alignItems: "center",
-            padding: "8px 12px",
-            background: "rgba(86, 215, 223, 0.08)",
-            border: "1px solid rgba(86, 215, 223, 0.25)",
-            borderRadius: "6px",
-            marginTop: "10px",
-            fontSize: "12px",
+            padding: "9px 14px",
+            background: "rgba(199, 92, 64, 0.08)",
+            border: "1px solid rgba(199, 92, 64, 0.3)",
+            borderRadius: "3px",
+            marginTop: "12px",
+            fontSize: "11px",
           }}
         >
           <div style={{ display: "flex", alignItems: "center", gap: "8px", flexWrap: "wrap" }}>
-            <span style={{ color: "#56d7df", fontWeight: 700 }}>📍 Geospatial Target:</span>
-            <code style={{ color: "#ffffff", background: "rgba(0,0,0,0.4)", padding: "2px 6px", borderRadius: "4px" }}>
+            <span style={{ color: "var(--acid)", fontWeight: 700, letterSpacing: "0.08em", textTransform: "uppercase" }}>📍 Target Coordinates:</span>
+            <code style={{ color: "#ffffff", background: "rgba(0,0,0,0.45)", padding: "2px 7px", borderRadius: "2px", border: "1px solid var(--line)" }}>
               {geo.lat?.toFixed(4)}°N, {geo.lng?.toFixed(4)}°E
             </code>
-            <span style={{ color: "rgba(255, 255, 255, 0.7)", fontSize: "11px" }}>
+            <span style={{ color: "var(--muted-ink)", fontSize: "11px" }}>
               ({geo.location_name || "Satellite Target"})
             </span>
           </div>
@@ -983,12 +1004,14 @@ function EvidenceViewer({ result }: { result: AnalysisResponse }) {
               target="_blank"
               rel="noreferrer"
               style={{
-                color: "#56d7df",
+                color: "var(--warm)",
                 fontWeight: 600,
                 display: "inline-flex",
                 alignItems: "center",
                 gap: "4px",
                 textDecoration: "underline",
+                letterSpacing: "0.06em",
+                textTransform: "uppercase",
               }}
             >
               Launch Cesium 3D Flight <ArrowRight size={12} />
@@ -1282,13 +1305,129 @@ function ResultView({
 function Dashboard({ navigate }: { navigate: (path: string) => void }) {
   const { t } = useTranslation()
   const [history, setHistory] = useState<AnalysisResponse[]>([])
-  useEffect(() => setHistory(loadHistory()), [])
+  const [searchQuery, setSearchQuery] = useState("")
+  const [modeFilter, setModeFilter] = useState<"all" | AnalysisMode>("all")
+  const [selectedItem, setSelectedItem] = useState<AnalysisResponse | null>(null)
+  const [copiedId, setCopiedId] = useState<string | null>(null)
+
+  useEffect(() => {
+    setHistory(loadHistory())
+  }, [])
+
+  // Dynamic metrics derived from history or baseline
+  const dynamicAnalysesCount = Math.max(history.length, 24)
+  const totalImagesCount = Math.max(
+    history.reduce((acc, item) => acc + (item.images?.length || 1), 0),
+    58
+  )
+  const avgConfidence = history.length > 0
+    ? Math.round((history.reduce((acc, item) => acc + (item.confidenceScore || 0.93), 0) / history.length) * 100)
+    : 93
 
   const metricCards = [
-    { label: t("metric.analyses"), value: "24", delta: t("metric.analyses_delta") },
-    { label: t("metric.images"), value: "58", delta: t("metric.images_delta") },
-    { label: t("metric.confidence"), value: "93%", delta: t("metric.confidence_delta") },
+    {
+      label: t("metric.analyses"),
+      value: dynamicAnalysesCount.toString(),
+      delta: history.length > 0 ? `${history.length} stored locally` : t("metric.analyses_delta"),
+      icon: <Activity size={18} />,
+    },
+    {
+      label: t("metric.images"),
+      value: totalImagesCount.toString(),
+      delta: t("metric.images_delta"),
+      icon: <Layers3 size={18} />,
+    },
+    {
+      label: t("metric.confidence"),
+      value: `${avgConfidence}%`,
+      delta: t("metric.confidence_delta"),
+      icon: <ShieldCheck size={18} />,
+    },
   ]
+
+  // Filter history based on mode and search input
+  const filteredHistory = useMemo(() => {
+    return history.filter((item) => {
+      if (modeFilter !== "all" && item.mode !== modeFilter) {
+        return false
+      }
+      if (searchQuery.trim()) {
+        const q = searchQuery.toLowerCase()
+        const matchQuery = item.query?.toLowerCase().includes(q)
+        const matchAnswer = item.answer?.toLowerCase().includes(q)
+        const matchMode = item.mode?.toLowerCase().includes(q)
+        const matchDate = formatDate(item.createdAt).toLowerCase().includes(q)
+        return Boolean(matchQuery || matchAnswer || matchMode || matchDate)
+      }
+      return true
+    })
+  }, [history, modeFilter, searchQuery])
+
+  // Count items by mode for filter tabs
+  const modeCounts = useMemo(() => {
+    const counts = { all: history.length, single: 0, temporal: 0, fusion: 0 }
+    history.forEach((item) => {
+      if (item.mode === "single") counts.single++
+      else if (item.mode === "temporal") counts.temporal++
+      else if (item.mode === "fusion") counts.fusion++
+    })
+    return counts
+  }, [history])
+
+  const handleDeleteItem = (e: React.MouseEvent, id: string) => {
+    e.stopPropagation()
+    const updated = history.filter((item) => item.id !== id)
+    setHistory(updated)
+    try {
+      localStorage.setItem("trinetra-history", JSON.stringify(updated))
+    } catch (err) {
+      console.warn("[Dashboard] Failed to persist updated history:", err)
+    }
+  }
+
+  const handleClearAll = () => {
+    if (window.confirm("Are you sure you want to clear all analysis history records?")) {
+      setHistory([])
+      try {
+        localStorage.removeItem("trinetra-history")
+        localStorage.removeItem("satquery-history")
+      } catch (err) {
+        console.warn("[Dashboard] Failed to clear history:", err)
+      }
+    }
+  }
+
+  const handleOpenInWorkspace = (item: AnalysisResponse) => {
+    try {
+      sessionStorage.setItem("trinetra-selected-analysis", JSON.stringify(item))
+    } catch (err) {
+      console.warn("[Dashboard] Failed to save selected analysis for workspace:", err)
+    }
+    navigate("/analysis")
+  }
+
+  const handleCopyReport = (item: AnalysisResponse) => {
+    const reportText = `TRINETRA EO MISSION TELEMETRY REPORT
+Record ID: ${item.id}
+Mode: ${item.mode.toUpperCase()}
+Timestamp: ${formatDate(item.createdAt)}
+Confidence: ${Math.round((item.confidenceScore || 0.9) * 100)}% (${(item.confidence || "high").toUpperCase()})
+Model: ${item.model || "Local Vision Agent"}
+
+QUERY:
+${item.query}
+
+INTELLIGENCE ASSESSMENT:
+${item.answer || "No synthesis available."}
+
+GROUNDED FINDINGS:
+${(item.evidence || []).map((e) => `• ${e}`).join("\n")}
+`
+    navigator.clipboard.writeText(reportText).then(() => {
+      setCopiedId(item.id)
+      setTimeout(() => setCopiedId(null), 2500)
+    })
+  }
 
   return (
     <main className="page dashboard">
@@ -1301,52 +1440,350 @@ function Dashboard({ navigate }: { navigate: (path: string) => void }) {
           <h1>{t("dash.title")}</h1>
           <p>{t("dash.desc")}</p>
         </div>
-        <button className="primary compact" onClick={() => navigate("/analysis")}>
-          <ImagePlus /> {t("dash.btn_new")}
-        </button>
+        <div style={{ display: "flex", gap: "10px", alignItems: "center" }}>
+          <button className="primary compact" onClick={() => navigate("/analysis")}>
+            <ImagePlus size={15} /> {t("dash.btn_new")}
+          </button>
+        </div>
       </div>
+
       <div className="metric-grid">
         {metricCards.map((metric) => (
           <div className="metric" key={metric.label}>
-            <span>{metric.label}</span>
+            <div className="metric-header">
+              <span className="metric-label">{metric.label}</span>
+              <div className="metric-icon-wrap">{metric.icon}</div>
+            </div>
             <strong>{metric.value}</strong>
             <small>{metric.delta}</small>
           </div>
         ))}
       </div>
+
       <section className="history-card">
-        <div className="section-heading">
-          <div>
-            <span className="eyebrow">{t("hist.eyebrow")}</span>
-            <h2>{t("hist.title")}</h2>
+        <div className="history-card-header">
+          <div className="history-title-row">
+            <div className="history-title-group">
+              <span className="eyebrow">{t("hist.eyebrow")}</span>
+              <h2>
+                {t("hist.title")}
+                <span className="history-count-badge">
+                  {filteredHistory.length} {filteredHistory.length === 1 ? "RECORD" : "RECORDS"}
+                </span>
+              </h2>
+            </div>
+
+            {history.length > 0 && (
+              <button
+                type="button"
+                className="history-clear-btn"
+                onClick={handleClearAll}
+                title="Clear all stored mission history"
+              >
+                <Trash2 size={13} />
+                <span>Clear all</span>
+              </button>
+            )}
           </div>
-          <div className="search">
-            <Search />
-            <input placeholder={t("hist.search")} />
+
+          <div className="history-toolbar">
+            <div className="history-search-box">
+              <Search size={14} className="search-icon" />
+              <input
+                className="history-search-input"
+                placeholder={t("hist.search")}
+                value={searchQuery}
+                onChange={(e) => setSearchQuery(e.target.value)}
+              />
+              {searchQuery && (
+                <button
+                  type="button"
+                  className="search-clear-btn"
+                  onClick={() => setSearchQuery("")}
+                  title="Clear search"
+                >
+                  <X size={13} />
+                </button>
+              )}
+            </div>
+
+            <div className="history-filter-group">
+              <button
+                type="button"
+                className={`history-tab ${modeFilter === "all" ? "active" : ""}`}
+                onClick={() => setModeFilter("all")}
+              >
+                All ({modeCounts.all})
+              </button>
+              <button
+                type="button"
+                className={`history-tab ${modeFilter === "single" ? "active" : ""}`}
+                onClick={() => setModeFilter("single")}
+              >
+                <FileImage size={12} />
+                Single ({modeCounts.single})
+              </button>
+              <button
+                type="button"
+                className={`history-tab ${modeFilter === "temporal" ? "active" : ""}`}
+                onClick={() => setModeFilter("temporal")}
+              >
+                <GitCompareArrows size={12} />
+                Bi-temporal ({modeCounts.temporal})
+              </button>
+              <button
+                type="button"
+                className={`history-tab ${modeFilter === "fusion" ? "active" : ""}`}
+                onClick={() => setModeFilter("fusion")}
+              >
+                <Layers3 size={12} />
+                Fusion ({modeCounts.fusion})
+              </button>
+            </div>
           </div>
         </div>
+
         {history.length === 0 ? (
           <div className="history-empty">
-            <Clock3 />
+            <Clock3 size={40} />
             <p>{t("hist.empty_desc")}</p>
-            <button className="secondary" onClick={() => navigate("/analysis?demo=1")}>
-              {t("hist.demo_btn")} <ArrowRight />
+            <button className="secondary compact" onClick={() => navigate("/analysis?demo=1")}>
+              {t("hist.demo_btn")} <ArrowRight size={14} />
+            </button>
+          </div>
+        ) : filteredHistory.length === 0 ? (
+          <div className="history-empty">
+            <Filter size={36} />
+            <p>No mission records found matching "{searchQuery}".</p>
+            <button
+              className="secondary compact"
+              onClick={() => {
+                setSearchQuery("")
+                setModeFilter("all")
+              }}
+            >
+              Reset Filters
             </button>
           </div>
         ) : (
           <div className="history-list">
-            {history.map((item) => (
-              <button className="history-row" key={item.id} onClick={() => navigate("/analysis")}>
-                <span>{formatDate(item.createdAt)}</span>
-                <strong>{t(`mode.${item.mode}.label` as any)}</strong>
-                <p>{item.query}</p>
-                <Pill tone={item.confidence}>{Math.round(item.confidenceScore * 100)}%</Pill>
-                <ArrowRight />
-              </button>
+            {filteredHistory.map((item) => (
+              <div
+                className={`history-item-card mode-${item.mode}`}
+                key={item.id}
+                onClick={() => setSelectedItem(item)}
+              >
+                <div className="history-item-top">
+                  <div className="history-item-badges">
+                    <span className={`mode-badge ${item.mode}`}>
+                      {item.mode === "single" ? (
+                        <FileImage size={12} />
+                      ) : item.mode === "temporal" ? (
+                        <GitCompareArrows size={12} />
+                      ) : (
+                        <Layers3 size={12} />
+                      )}
+                      <span>{t(`mode.${item.mode}.label` as any)}</span>
+                    </span>
+
+                    {item.imageType && (
+                      <span className="sensor-tag">{item.imageType.toUpperCase()}</span>
+                    )}
+
+                    <span className="history-date">
+                      <Clock3 size={12} />
+                      {formatDate(item.createdAt)}
+                    </span>
+                  </div>
+
+                  <div className="history-item-right">
+                    <Pill tone={item.confidence}>
+                      <span className={`status-dot ${item.confidence}`} />
+                      {Math.round((item.confidenceScore || 0.9) * 100)}% CONFIDENCE
+                    </Pill>
+                    <button
+                      type="button"
+                      className="delete-item-btn"
+                      title="Delete record"
+                      onClick={(e) => handleDeleteItem(e, item.id)}
+                    >
+                      <Trash2 size={13} />
+                    </button>
+                  </div>
+                </div>
+
+                <div className="history-item-main">
+                  <h3 className="history-item-query">{item.query}</h3>
+                  {item.answer && <p className="history-item-snippet">{item.answer}</p>}
+                </div>
+
+                <div className="history-item-footer">
+                  <div className="history-item-telemetry">
+                    {item.model && (
+                      <span className="telemetry-chip">
+                        <Cpu size={12} />
+                        {item.model}
+                      </span>
+                    )}
+                    {item.processingTime && (
+                      <span className="telemetry-chip">
+                        <Activity size={12} />
+                        {item.processingTime}
+                      </span>
+                    )}
+                    {item.evidence && item.evidence.length > 0 && (
+                      <span className="telemetry-chip findings">
+                        <Check size={12} />
+                        {item.evidence.length} evidence findings
+                      </span>
+                    )}
+                  </div>
+
+                  <div className="history-item-actions">
+                    <button
+                      type="button"
+                      className="btn-inspect"
+                      onClick={(e) => {
+                        e.stopPropagation()
+                        setSelectedItem(item)
+                      }}
+                    >
+                      <Eye size={13} />
+                      <span>Inspect</span>
+                    </button>
+                    <button
+                      type="button"
+                      className="btn-open-workspace"
+                      onClick={(e) => {
+                        e.stopPropagation()
+                        handleOpenInWorkspace(item)
+                      }}
+                    >
+                      <span>Open in Workspace</span>
+                      <ArrowRight size={13} />
+                    </button>
+                  </div>
+                </div>
+              </div>
             ))}
           </div>
         )}
       </section>
+
+      {/* Telemetry & Analysis Detail Inspection Modal */}
+      {selectedItem && (
+        <div className="history-modal-overlay" onClick={() => setSelectedItem(null)}>
+          <div className="history-modal" onClick={(e) => e.stopPropagation()}>
+            <div className="history-modal-header">
+              <div className="history-modal-title-group">
+                <span className="eyebrow">
+                  MISSION RECORD / {selectedItem.id ? selectedItem.id.slice(0, 10).toUpperCase() : "EO-LOCAL"}
+                </span>
+                <h2>Telemetry & Analysis Report</h2>
+              </div>
+              <button
+                type="button"
+                className="modal-close-btn"
+                onClick={() => setSelectedItem(null)}
+                aria-label="Close modal"
+              >
+                <X size={18} />
+              </button>
+            </div>
+
+            <div className="history-modal-body">
+              <div className="modal-info-strip">
+                <div className="modal-info-item">
+                  <span className="modal-label">Workflow Mode</span>
+                  <span className="modal-val">
+                    {t(`mode.${selectedItem.mode}.label` as any)}
+                  </span>
+                </div>
+                <div className="modal-info-item">
+                  <span className="modal-label">Timestamp</span>
+                  <span className="modal-val">{formatDate(selectedItem.createdAt)}</span>
+                </div>
+                <div className="modal-info-item">
+                  <span className="modal-label">Confidence</span>
+                  <Pill tone={selectedItem.confidence}>
+                    {Math.round((selectedItem.confidenceScore || 0.9) * 100)}% (
+                    {(selectedItem.confidence || "high").toUpperCase()})
+                  </Pill>
+                </div>
+                <div className="modal-info-item">
+                  <span className="modal-label">Inference Model</span>
+                  <span className="modal-val">
+                    {selectedItem.model || "Local Vision Agent"}
+                  </span>
+                </div>
+              </div>
+
+              <div className="modal-section">
+                <span className="modal-section-title">Operator Query</span>
+                <div className="modal-query-box">
+                  <p>{selectedItem.query}</p>
+                </div>
+              </div>
+
+              <div className="modal-section">
+                <span className="modal-section-title">Synthesized Intelligence Assessment</span>
+                <div className="modal-answer-box">
+                  <p>{selectedItem.answer || "No response generated."}</p>
+                </div>
+              </div>
+
+              {selectedItem.evidence && selectedItem.evidence.length > 0 && (
+                <div className="modal-section">
+                  <span className="modal-section-title">Grounded Evidence Observations</span>
+                  <ul className="modal-evidence-list">
+                    {selectedItem.evidence.map((ev, idx) => (
+                      <li key={idx}>
+                        <Check size={14} className="ev-icon" />
+                        <span>{ev}</span>
+                      </li>
+                    ))}
+                  </ul>
+                </div>
+              )}
+
+              {(selectedItem.rawImageUrl || (selectedItem.images && selectedItem.images.length > 0)) && (
+                <div className="modal-section">
+                  <span className="modal-section-title">Satellite Imagery Evidence</span>
+                  <div className="modal-image-preview">
+                    <img
+                      src={
+                        selectedItem.rawImageUrl ||
+                        selectedItem.images[0]?.url ||
+                        "/satellite-optical.svg"
+                      }
+                      alt="Analyzed scene"
+                    />
+                  </div>
+                </div>
+              )}
+            </div>
+
+            <div className="history-modal-footer">
+              <button
+                type="button"
+                className="secondary compact"
+                onClick={() => handleCopyReport(selectedItem)}
+              >
+                {copiedId === selectedItem.id ? <CheckCheck size={14} /> : <Copy size={14} />}
+                {copiedId === selectedItem.id ? "Copied!" : "Copy Report"}
+              </button>
+              <button
+                type="button"
+                className="primary compact"
+                onClick={() => handleOpenInWorkspace(selectedItem)}
+              >
+                <span>Open in Workspace</span>
+                <ArrowRight size={14} />
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
     </main>
   )
 }
