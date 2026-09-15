@@ -99,10 +99,10 @@ export default function AuthGate() {
         style={{
           maxWidth: "480px",
           width: "100%",
-          background: "rgba(10, 20, 26, 0.88)",
-          border: "1px solid rgba(86, 215, 223, 0.28)",
-          borderRadius: "20px",
-          boxShadow: "0 0 60px rgba(86, 215, 223, 0.1), inset 0 1px 0 rgba(255, 255, 255, 0.1)",
+          background: "rgba(28, 29, 28, 0.85)",
+          border: "1px solid var(--line)",
+          borderRadius: "4px",
+          boxShadow: "0 16px 48px rgba(0, 0, 0, 0.55)",
           padding: "2.75rem 2.25rem",
           position: "relative",
           zIndex: 1,
@@ -117,13 +117,14 @@ export default function AuthGate() {
               alignItems: "center",
               gap: "6px",
               padding: "5px 10px",
-              borderRadius: "99px",
-              background: "rgba(86, 215, 223, 0.08)",
-              border: "1px solid rgba(86, 215, 223, 0.3)",
-              color: "var(--cyan-400, #00f0ff)",
+              borderRadius: "2px",
+              background: "rgba(199, 92, 64, 0.08)",
+              border: "1px solid rgba(199, 92, 64, 0.35)",
+              color: "var(--warm)",
               fontFamily: "monospace",
               fontSize: "0.72rem",
-              letterSpacing: "0.1em",
+              letterSpacing: "0.12em",
+              textTransform: "uppercase",
             }}
           >
             <Lock size={12} /> RESTRICTED INTELLIGENCE CLEARANCE
@@ -132,8 +133,9 @@ export default function AuthGate() {
             style={{
               fontFamily: "monospace",
               fontSize: "0.68rem",
-              color: "rgba(255, 255, 255, 0.35)",
-              letterSpacing: "0.08em",
+              color: "rgba(222, 221, 211, 0.4)",
+              letterSpacing: "0.12em",
+              textTransform: "uppercase",
             }}
           >
             ISRO EO-PS26167
@@ -147,13 +149,13 @@ export default function AuthGate() {
               width: "56px",
               height: "56px",
               margin: "0 auto 1.25rem",
-              borderRadius: "14px",
-              background: "linear-gradient(135deg, rgba(86, 215, 223, 0.2), rgba(0, 160, 255, 0.1))",
-              border: "1px solid rgba(86, 215, 223, 0.4)",
+              borderRadius: "4px",
+              background: "rgba(199, 92, 64, 0.12)",
+              border: "1px solid var(--acid)",
               display: "grid",
               placeItems: "center",
-              color: "var(--cyan-400, #00f0ff)",
-              boxShadow: "0 0 25px rgba(86, 215, 223, 0.2)",
+              color: "var(--acid)",
+              boxShadow: "0 0 25px rgba(199, 92, 64, 0.25)",
             }}
           >
             <Radar size={28} />
@@ -163,17 +165,17 @@ export default function AuthGate() {
               fontSize: "1.85rem",
               fontWeight: 600,
               letterSpacing: "-0.04em",
-              color: "#ffffff",
+              color: "#fffdf6",
               margin: "0 0 0.5rem",
             }}
           >
-            Sign in to <span style={{ color: "var(--cyan-400, #00f0ff)" }}>TRINETRA AI</span>
+            Sign in to <span style={{ color: "var(--acid)" }}>TRI•NETRA</span>
           </h2>
           <p
             style={{
               fontSize: "0.88rem",
-              color: "rgba(255, 255, 255, 0.55)",
-              lineHeight: 1.55,
+              color: "var(--muted-ink)",
+              lineHeight: 1.6,
               margin: 0,
             }}
           >
@@ -219,7 +221,7 @@ export default function AuthGate() {
             justifyContent: "center",
             gap: "0.85rem",
             padding: "0.95rem 1.25rem",
-            borderRadius: "12px",
+            borderRadius: "2px",
             background: "#ffffff",
             color: "#1f2937",
             border: "none",
@@ -249,14 +251,15 @@ export default function AuthGate() {
             alignItems: "center",
             gap: "1rem",
             margin: "1.5rem 0",
-            color: "rgba(255, 255, 255, 0.25)",
+            color: "rgba(222, 221, 211, 0.3)",
             fontFamily: "monospace",
-            fontSize: "0.75rem",
+            fontSize: "0.72rem",
+            letterSpacing: "0.1em",
           }}
         >
-          <div style={{ flex: 1, height: "1px", background: "rgba(255, 255, 255, 0.1)" }} />
+          <div style={{ flex: 1, height: "1px", background: "var(--line)" }} />
           <span>OR SIGN IN WITH EMAIL</span>
-          <div style={{ flex: 1, height: "1px", background: "rgba(255, 255, 255, 0.1)" }} />
+          <div style={{ flex: 1, height: "1px", background: "var(--line)" }} />
         </div>
 
         {/* Email Magic Link Accordion */}
@@ -271,24 +274,26 @@ export default function AuthGate() {
               justifyContent: "center",
               gap: "0.6rem",
               padding: "0.75rem 1rem",
-              borderRadius: "10px",
-              background: "rgba(255, 255, 255, 0.04)",
-              border: "1px solid rgba(255, 255, 255, 0.12)",
-              color: "rgba(255, 255, 255, 0.8)",
+              borderRadius: "2px",
+              background: "rgba(255, 255, 255, 0.03)",
+              border: "1px solid var(--line)",
+              color: "var(--ink)",
               fontSize: "0.85rem",
               cursor: "pointer",
               transition: "all 0.15s",
+              textTransform: "uppercase",
+              letterSpacing: "0.08em",
             }}
-            onMouseOver={(e) => (e.currentTarget.style.background = "rgba(255, 255, 255, 0.08)")}
-            onMouseOut={(e) => (e.currentTarget.style.background = "rgba(255, 255, 255, 0.04)")}
+            onMouseOver={(e) => (e.currentTarget.style.background = "rgba(255, 255, 255, 0.07)")}
+            onMouseOut={(e) => (e.currentTarget.style.background = "rgba(255, 255, 255, 0.03)")}
           >
-            <Mail size={16} /> Use Magic Link / Email <ArrowRight size={14} />
+            <Mail size={15} /> Use Magic Link / Email <ArrowRight size={14} />
           </button>
         ) : emailSent ? (
           <div
             style={{
               padding: "1rem",
-              borderRadius: "10px",
+              borderRadius: "2px",
               background: "rgba(16, 185, 129, 0.1)",
               border: "1px solid rgba(16, 185, 129, 0.3)",
               color: "#a7f3d0",
@@ -298,7 +303,7 @@ export default function AuthGate() {
           >
             <CheckCircle2 size={24} color="#10b981" style={{ margin: "0 auto 0.5rem" }} />
             <strong>Magic link dispatched!</strong>
-            <p style={{ margin: "0.35rem 0 0", color: "rgba(255, 255, 255, 0.6)", fontSize: "0.78rem" }}>
+            <p style={{ margin: "0.35rem 0 0", color: "var(--muted-ink)", fontSize: "0.78rem" }}>
               Check your inbox for <b>{emailInput}</b> to complete authentication.
             </p>
           </div>
@@ -313,21 +318,21 @@ export default function AuthGate() {
               style={{
                 width: "100%",
                 padding: "0.75rem 1rem",
-                borderRadius: "10px",
-                background: "rgba(0, 0, 0, 0.3)",
-                border: "1px solid rgba(255, 255, 255, 0.16)",
-                color: "#ffffff",
+                borderRadius: "2px",
+                background: "rgba(15, 16, 15, 0.85)",
+                border: "1px solid var(--line)",
+                color: "var(--ink)",
                 fontSize: "0.85rem",
                 outline: "none",
               }}
-              onFocus={(e) => (e.target.style.borderColor = "var(--cyan-400, #00f0ff)")}
-              onBlur={(e) => (e.target.style.borderColor = "rgba(255, 255, 255, 0.16)")}
+              onFocus={(e) => (e.target.style.borderColor = "var(--acid)")}
+              onBlur={(e) => (e.target.style.borderColor = "var(--line)")}
             />
             <button
               type="submit"
               className="primary"
               disabled={loadingEmail}
-              style={{ width: "100%", padding: "0.75rem", fontSize: "0.85rem" }}
+              style={{ width: "100%", padding: "0.75rem", fontSize: "0.82rem" }}
             >
               {loadingEmail ? "Sending Magic Link..." : "Send Secure Link"} <ArrowRight size={14} />
             </button>
@@ -343,17 +348,18 @@ export default function AuthGate() {
             style={{
               background: "none",
               border: "none",
-              color: "rgba(255, 255, 255, 0.4)",
+              color: "rgba(222, 221, 211, 0.45)",
               fontFamily: "monospace",
               fontSize: "0.74rem",
-              letterSpacing: "0.04em",
+              letterSpacing: "0.08em",
+              textTransform: "uppercase",
               cursor: "pointer",
               textDecoration: "underline",
               textUnderlineOffset: "3px",
               transition: "color 0.15s",
             }}
-            onMouseOver={(e) => (e.currentTarget.style.color = "var(--cyan-400, #00f0ff)")}
-            onMouseOut={(e) => (e.currentTarget.style.color = "rgba(255, 255, 255, 0.4)")}
+            onMouseOver={(e) => (e.currentTarget.style.color = "var(--warm)")}
+            onMouseOut={(e) => (e.currentTarget.style.color = "rgba(222, 221, 211, 0.45)")}
           >
             ⚡ Immediate Mission Clearance (ISRO Commander Demo)
           </button>
@@ -364,12 +370,15 @@ export default function AuthGate() {
           style={{
             marginTop: "2rem",
             paddingTop: "1.25rem",
-            borderTop: "1px solid rgba(255, 255, 255, 0.08)",
+            borderTop: "1px solid var(--line)",
             display: "flex",
             alignItems: "center",
             justifyContent: "space-between",
-            fontSize: "0.75rem",
-            color: "rgba(255, 255, 255, 0.4)",
+            fontSize: "0.72rem",
+            color: "rgba(222, 221, 211, 0.4)",
+            fontFamily: "monospace",
+            letterSpacing: "0.08em",
+            textTransform: "uppercase",
           }}
         >
           <div style={{ display: "flex", alignItems: "center", gap: "6px" }}>
@@ -378,13 +387,13 @@ export default function AuthGate() {
                 width: "6px",
                 height: "6px",
                 borderRadius: "50%",
-                background: "var(--cyan-400, #00f0ff)",
-                boxShadow: "0 0 8px #00f0ff",
+                background: "var(--acid)",
+                boxShadow: "0 0 8px var(--acid)",
               }}
             />
             <span>Supabase Auth Engine</span>
           </div>
-          <span style={{ fontFamily: "monospace" }}>v2.0.0</span>
+          <span>v2.0.0</span>
         </div>
       </div>
     </div>
