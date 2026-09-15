@@ -561,19 +561,6 @@ function Workspace({ navigate, initialDemo = false }: { navigate: (path: string)
 
   return (
     <main className="workspace page">
-      <div className="page-intro">
-        <div>
-          <Pill>
-            <span className="pulse" />
-            {t("workspace.pill")}
-          </Pill>
-          <h1>{t("workspace.title")}</h1>
-          <p>{t("workspace.desc")}</p>
-        </div>
-        <button className="secondary compact" onClick={() => navigate("/dashboard")}>
-          <Clock3 /> {t("workspace.history_btn")}
-        </button>
-      </div>
       <div className="workspace-grid">
         <section className="input-panel">
           <div className="section-heading">
