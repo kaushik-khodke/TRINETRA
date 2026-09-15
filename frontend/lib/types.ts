@@ -3,89 +3,194 @@ import { translations, type SupportedLanguage } from "@/lib/i18n"
 export type AnalysisMode = "single" | "temporal" | "fusion"
 export type Confidence = "high" | "medium" | "low"
 export type AnalysisStatus = "idle" | "running" | "complete" | "error"
-export interface ImageInput { id: string; name: string; size: number; url: string; label: string; modality?: "OPTICAL" | "SAR"; date?: string; file?: File }
+export interface ImageInput {
+  id: string;
+  name: string;
+  size: number;
+  url: string;
+  label: string;
+  modality?: "OPTICAL" | "SAR";
+  date?: string;
+  file?: File;
+  geographicLocation?: GeographicLocation;
+  globeUrl?: string;
+}
 export interface ExecutionStep { label: string; detail: string; duration: string; status: "complete" | "active" | "pending" }
 export interface AnalysisRequest { mode: AnalysisMode; images: ImageInput[]; query: string; response_language?: "en" | "hi" | "mr" }
 export interface GroundingAnnotation { label: string; x: number; y: number; width: number; height: number; color: "cyan" | "amber" }
+
 export interface GeographicLocation {
-  has_location: boolean
-  lat?: number
-  lng?: number
-  height?: number
-  bounds?: [number, number, number, number]
-  crs?: string
-  location_name?: string
-  zoom?: number
+  has_location?: boolean;
+  lat?: number;
+  lng?: number;
+  height?: number;
+  bounds?: [number, number, number, number] | number[];
+  crs?: string;
+  location_name?: string;
+  zoom?: number;
 }
+
 export interface QMLAnalysisResult {
-  enabled: boolean
-  device: string
-  task: string
-  qubits: number
-  layers: number
-  circuit_depth: number
-  parameters: number
-  prediction: string
-  confidence: number
-  class_probabilities?: Record<string, number>
-  quantum_features?: number[]
-  simulation_latency_ms: number
-  total_latency_ms: number
+  enabled: boolean;
+  device: string;
+  task: string;
+  qubits: number;
+  layers: number;
+  circuit_depth: number;
+  parameters: number;
+  prediction: string;
+  confidence: number;
+  class_probabilities?: Record<string, number>;
+  quantum_features?: number[];
+  simulation_latency_ms: number;
+  total_latency_ms: number;
 }
+
 export interface ClassicalVsQMLComparison {
-  agrees: boolean | null
-  verdict: string
-  classical_prediction: string
-  qml_prediction: string
-  classical_confidence: number
-  qml_confidence: number
-  confidence_delta: number
-  calibrated_agreement_score: number
-  status_message: string
+  agrees: boolean | null;
+  verdict: string;
+  classical_prediction: string;
+  qml_prediction: string;
+  classical_confidence: number;
+  qml_confidence: number;
+  confidence_delta: number;
+  calibrated_agreement_score: number;
+  status_message: string;
   parameter_comparison?: {
-    classical_model_parameters: number
-    quantum_circuit_parameters: number
-    quantum_parameter_reduction: string
-    "quantum_bits (qubits)"?: number
-    quantum_circuit_depth?: number
-  }
+    classical_model_parameters: number;
+    quantum_circuit_parameters: number;
+    quantum_parameter_reduction: string;
+    "quantum_bits (qubits)"?: number;
+    quantum_circuit_depth?: number;
+  };
   latency_comparison?: {
-    classical_inference_ms: number
-    quantum_simulation_ms: number
-    simulation_delta_ms: number
-  }
-  insights?: string[]
+    classical_inference_ms: number;
+    quantum_simulation_ms: number;
+    simulation_delta_ms: number;
+  };
+  insights?: string[];
 }
+
 export interface AnalysisResponse {
-  id: string
-  mode: AnalysisMode
-  query: string
-  answer: string
-  confidence: Confidence
-  confidenceScore: number
-  evidence: string[]
-  annotations: GroundingAnnotation[]
-  steps: ExecutionStep[]
-  model: string
-  processingTime: string
-  resolution: string
-  imageType: string
-  createdAt: string
-  images: ImageInput[]
-  reportUrl?: string
-  rawImageUrl?: string
-  overlayImageUrl?: string
-  geographicLocation?: GeographicLocation
-  qml_analysis?: QMLAnalysisResult
-  classical_vs_qml_comparison?: ClassicalVsQMLComparison
+  id: string;
+  mode: AnalysisMode;
+  query: string;
+  answer: string;
+  confidence: Confidence;
+  confidenceScore: number;
+  evidence: string[];
+  annotations: GroundingAnnotation[];
+  steps: ExecutionStep[];
+  model: string;
+  processingTime: string;
+  resolution: string;
+  imageType: string;
+  createdAt: string;
+  images: ImageInput[];
+  reportUrl?: string;
+  rawImageUrl?: string;
+  overlayImageUrl?: string;
+  geographicLocation?: GeographicLocation;
+  globeUrl?: string;
+  hsiData?: {
+    isHsi: boolean;
+    cubeMetadata?: {
+      height: number;
+      width: number;
+      bands: number;
+      wavelengthRange?: [number, number];
+      sensor?: string;
+      crs?: string;
+    };
+    rgbComposite?: string;
+    cirComposite?: string;
+    evidenceImage?: string;
+    spectralSignature?: {
+      wavelengths: number[];
+      meanCurve: number[];
+      stdCurve: number[];
+      absorptionFeatures?: Array<{
+        wavelength_nm: number;
+        reflectance?: number;
+        dip_depth: number;
+        diagnostic_feature: string;
+      }>;
+    };
+    topClasses?: Array<{ class_name: string; confidence: number }>;
+  };
+  qml_analysis?: QMLAnalysisResult;
+  classical_vs_qml_comparison?: ClassicalVsQMLComparison;
 }
-export const modes: { id: AnalysisMode; label: string; description: string; icon: string }[] = [{ id: "single", label: "Single image", description: "Explore one scene", icon: "◈" }, { id: "temporal", label: "Bi-temporal", description: "Detect change over time", icon: "◌" }, { id: "fusion", label: "Optical + SAR", description: "Fuse complementary sensors", icon: "⌘" }]
-export const examples: Record<AnalysisMode, string[]> = { single: ["What land use types are visible in this image?", "Describe the water bodies and vegetation coverage.", "Highlight the water body referred to in the query"], temporal: ["What changes are visible between these two dates?", "Has the built-up area increased, decreased, or remained unchanged?", "Show me areas of significant vegetation loss."], fusion: ["Identify flooded regions using combined modality data.", "Compare the optical and radar signatures of this area."] }
+
+export const modes: { id: AnalysisMode; label: string; description: string; icon: string }[] = [
+  { id: "single", label: "Single image", description: "Explore one scene", icon: "◈" },
+  { id: "temporal", label: "Bi-temporal", description: "Detect change over time", icon: "◌" },
+  { id: "fusion", label: "Optical + SAR", description: "Fuse complementary sensors", icon: "⌘" }
+]
+
+export const examples: Record<AnalysisMode, string[]> = {
+  single: ["What land use types are visible in this image?", "Describe the water bodies and vegetation coverage.", "Highlight the water body referred to in the query"],
+  temporal: ["What changes are visible between these two dates?", "Has the built-up area increased, decreased, or remained unchanged?", "Show me areas of significant vegetation loss."],
+  fusion: ["Identify flooded regions using combined modality data.", "Compare the optical and radar signatures of this area."]
+}
+
 export const formatBytes = (bytes: number) => `${(bytes / 1024 / 1024).toFixed(1)} MB`
-export const makeImage = (name: string, label: string, modality?: "OPTICAL" | "SAR", date?: string): ImageInput => ({ id: `${name}-${Date.now()}`, name, size: 3200000, url: `/satellite-${modality === "SAR" ? "sar" : "optical"}.svg`, label, modality, date })
-export const demoScenarios = [{ id: "urban", title: "Urban growth", mode: "temporal" as const, query: "What changes are visible between these two dates?", response: "The analysis identifies **measurable urban expansion** along the eastern edge of the scene. New built-up surfaces appear as a connected 18% increase, while the central road corridor remains stable. The highlighted evidence regions show where impervious cover replaced mixed vegetation." }, { id: "flood", title: "Flood mapping", mode: "fusion" as const, query: "Identify flooded regions using combined modality data.", response: "Fused optical and SAR evidence suggests **standing water across the southern lowlands**. The radar-dark regions align with low-lying agricultural parcels and are distinct from persistent water bodies. Confidence is medium because cloud cover limits optical confirmation." }, { id: "landuse", title: "Land use scan", mode: "single" as const, query: "What land use types are visible in this image?", response: "The scene is predominantly **agricultural**, with rectangular cultivated parcels, a compact settlement cluster, and a riparian vegetation corridor. A paved road network divides the northern fields from denser development in the southwest." }, { id: "deforestation", title: "Vegetation loss", mode: "temporal" as const, query: "Show me areas of significant vegetation loss.", response: "A concentrated vegetation-loss signature appears in the northwest quadrant. The change region covers approximately 6.4 hectares and has a fragmented edge consistent with clearing activity. Validate against seasonal imagery before operational decisions." }]
-export const imagePresets = { optical: makeImage("sentinel-2-north.png", "Optical scene", "OPTICAL", "18 Aug 2025"), sar: makeImage("sentinel-1-radar.png", "Radar scene", "SAR", "18 Aug 2025"), before: makeImage("scene-before.png", "Earlier image", "OPTICAL", "12 Apr 2024"), after: makeImage("scene-after.png", "Later image", "OPTICAL", "18 Aug 2025") }
-export const demoRequest = (mode: AnalysisMode, query: string, lang: "en" | "hi" | "mr" = "en"): AnalysisRequest => ({ mode, query, images: mode === "single" ? [imagePresets.optical] : mode === "temporal" ? [imagePresets.before, imagePresets.after] : [imagePresets.optical, imagePresets.sar], response_language: lang })
+
+export const makeImage = (name: string, label: string, modality?: "OPTICAL" | "SAR", date?: string): ImageInput => ({
+  id: `${name}-${Date.now()}`,
+  name,
+  size: 3200000,
+  url: `/satellite-${modality === "SAR" ? "sar" : "optical"}.svg`,
+  label,
+  modality,
+  date
+})
+
+export const demoScenarios = [
+  {
+    id: "urban",
+    title: "Urban growth",
+    mode: "temporal" as const,
+    query: "What changes are visible between these two dates?",
+    response: "The analysis identifies **measurable urban expansion** along the eastern edge of the scene. New built-up surfaces appear as a connected 18% increase, while the central road corridor remains stable. The highlighted evidence regions show where impervious cover replaced mixed vegetation."
+  },
+  {
+    id: "flood",
+    title: "Flood mapping",
+    mode: "fusion" as const,
+    query: "Identify flooded regions using combined modality data.",
+    response: "Fused optical and SAR evidence suggests **standing water across the southern lowlands**. The radar-dark regions align with low-lying agricultural parcels and are distinct from persistent water bodies. Confidence is medium because cloud cover limits optical confirmation."
+  },
+  {
+    id: "landuse",
+    title: "Land use scan",
+    mode: "single" as const,
+    query: "What land use types are visible in this image?",
+    response: "The scene is predominantly **agricultural**, with rectangular cultivated parcels, a compact settlement cluster, and a riparian vegetation corridor. A paved road network divides the northern fields from denser development in the southwest."
+  },
+  {
+    id: "deforestation",
+    title: "Vegetation loss",
+    mode: "temporal" as const,
+    query: "Show me areas of significant vegetation loss.",
+    response: "A concentrated vegetation-loss signature appears in the northwest quadrant. The change region covers approximately 6.4 hectares and has a fragmented edge consistent with clearing activity. Validate against seasonal imagery before operational decisions."
+  }
+]
+
+export const imagePresets = {
+  optical: makeImage("sentinel-2-north.png", "Optical scene", "OPTICAL", "18 Aug 2025"),
+  sar: makeImage("sentinel-1-radar.png", "Radar scene", "SAR", "18 Aug 2025"),
+  before: makeImage("scene-before.png", "Earlier image", "OPTICAL", "12 Apr 2024"),
+  after: makeImage("scene-after.png", "Later image", "OPTICAL", "18 Aug 2025")
+}
+
+export const demoRequest = (mode: AnalysisMode, query: string, lang: "en" | "hi" | "mr" = "en"): AnalysisRequest => ({
+  mode,
+  query,
+  images: mode === "single" ? [imagePresets.optical] : mode === "temporal" ? [imagePresets.before, imagePresets.after] : [imagePresets.optical, imagePresets.sar],
+  response_language: lang
+})
+
 export const getDemoResult = (request: AnalysisRequest): AnalysisResponse => {
   const lang = (request.response_language || "en") as SupportedLanguage;
   const langDict = translations[lang] || translations.en;
@@ -298,7 +403,15 @@ export const analysisAPI = {
           }
         });
         formData.append("query", request.query);
-        const backendMode = request.mode === "temporal" ? "bi_temporal" : request.mode === "fusion" ? "optical_sar" : "single";
+        let backendMode = request.mode === "temporal" ? "bi_temporal" : request.mode === "fusion" ? "optical_sar" : "single";
+        if (request.images.length === 2 && backendMode === "single") {
+          const qLower = (request.query || "").toLowerCase();
+          if (qLower.includes("sar") || qLower.includes("radar")) {
+            backendMode = "optical_sar";
+          } else {
+            backendMode = "bi_temporal";
+          }
+        }
         formData.append("input_mode", backendMode);
         formData.append("response_language", request.response_language || "en");
 
@@ -353,73 +466,73 @@ export const analysisAPI = {
           evidenceList.push("Spectral indices verified via normalized band ratios.");
         }
 
-  // Extract grounding annotations
-  const annotations: GroundingAnnotation[] = []
-  if (resData.bounding_box) {
-    const bbox = resData.bounding_box
-    const [ymin, xmin, ymax, xmax] = Array.isArray(bbox) ? bbox : [0.1, 0.1, 0.9, 0.9]
-    annotations.push({
-      label: resData.target_label || "Identified Target",
-      x: Math.round(xmin * 100),
-      y: Math.round(ymin * 100),
-      width: Math.max(8, Math.round((xmax - xmin) * 100)),
-      height: Math.max(8, Math.round((ymax - ymin) * 100)),
-      color: "cyan"
-    })
-  } else if (resData.predicted_regions && Array.isArray(resData.predicted_regions)) {
-    resData.predicted_regions.forEach((reg: any, i: number) => {
-      const bbox = reg.bbox || [0.2 + i * 0.1, 0.2 + i * 0.1, 0.5 + i * 0.1, 0.5 + i * 0.1]
-      annotations.push({
-        label: reg.label || `Region 0${i + 1}`,
-        x: Math.round(bbox[1] * 100),
-        y: Math.round(bbox[0] * 100),
-        width: Math.max(8, Math.round((bbox[3] - bbox[1]) * 100)),
-        height: Math.max(8, Math.round((bbox[2] - bbox[0]) * 100)),
-        color: i % 2 === 0 ? "cyan" : "amber"
-      })
-    })
-  } else if (Array.isArray(resData.regions)) {
-    resData.regions.forEach((r: any, idx: number) => {
-      const bbox = r.bbox || [0, 0, 1, 1]
-      annotations.push({
-        label: r.label || `Region ${idx + 1}`,
-        x: Math.round(bbox[1] * 100),
-        y: Math.round(bbox[0] * 100),
-        width: Math.max(5, Math.round((bbox[3] - bbox[1]) * 100)),
-        height: Math.max(5, Math.round((bbox[2] - bbox[0]) * 100)),
-        color: idx === 0 ? "cyan" : "amber"
-      })
-    })
-  }
+        // Extract grounding annotations
+        const annotations: GroundingAnnotation[] = []
+        if (resData.bounding_box) {
+          const bbox = resData.bounding_box
+          const [ymin, xmin, ymax, xmax] = Array.isArray(bbox) ? bbox : [0.1, 0.1, 0.9, 0.9]
+          annotations.push({
+            label: resData.target_label || "Identified Target",
+            x: Math.round(xmin * 100),
+            y: Math.round(ymin * 100),
+            width: Math.max(8, Math.round((xmax - xmin) * 100)),
+            height: Math.max(8, Math.round((ymax - ymin) * 100)),
+            color: "cyan"
+          })
+        } else if (resData.predicted_regions && Array.isArray(resData.predicted_regions)) {
+          resData.predicted_regions.forEach((reg: any, i: number) => {
+            const bbox = reg.bbox || [0.2 + i * 0.1, 0.2 + i * 0.1, 0.5 + i * 0.1, 0.5 + i * 0.1]
+            annotations.push({
+              label: reg.label || `Region 0${i + 1}`,
+              x: Math.round(bbox[1] * 100),
+              y: Math.round(bbox[0] * 100),
+              width: Math.max(8, Math.round((bbox[3] - bbox[1]) * 100)),
+              height: Math.max(8, Math.round((bbox[2] - bbox[0]) * 100)),
+              color: i % 2 === 0 ? "cyan" : "amber"
+            })
+          })
+        } else if (Array.isArray(resData.regions)) {
+          resData.regions.forEach((r: any, idx: number) => {
+            const bbox = r.bbox || [0, 0, 1, 1]
+            annotations.push({
+              label: r.label || `Region ${idx + 1}`,
+              x: Math.round(bbox[1] * 100),
+              y: Math.round(bbox[0] * 100),
+              width: Math.max(5, Math.round((bbox[3] - bbox[1]) * 100)),
+              height: Math.max(5, Math.round((bbox[2] - bbox[0]) * 100)),
+              color: idx === 0 ? "cyan" : "amber"
+            })
+          })
+        }
 
-  // Map execution steps from backend trace
-  const traceSteps = data.execution_trace?.steps || []
-  const executionSteps: ExecutionStep[] = traceSteps.map((s: any) => ({
-    label: s.action?.replace(/_/g, " ")?.toUpperCase() || "PIPELINE STEP",
-    detail: s.details || "Validated radiometric inputs",
-    duration: "0.3s",
-    status: "complete" as const
-  }))
+        // Map execution steps from backend trace
+        const traceSteps = data.execution_trace?.steps || []
+        const executionSteps: ExecutionStep[] = traceSteps.map((s: any) => ({
+          label: s.action?.replace(/_/g, " ")?.toUpperCase() || "PIPELINE STEP",
+          detail: s.details || "Validated radiometric inputs",
+          duration: "0.3s",
+          status: "complete" as const
+        }))
 
-  if (executionSteps.length === 0) {
-    executionSteps.push({ label: "INPUT VALIDATION", detail: "Verified raster dimensions and CRS", duration: "0.2s", status: "complete" })
-    executionSteps.push({ label: "TASK ROUTING", detail: `Specialist assigned to ${data.task || "vqa"}`, duration: "0.2s", status: "complete" })
-    executionSteps.push({ label: "REASONING SYNTHESIS", detail: resData.engine || "Multimodal Remote-Sensing Engine", duration: "0.5s", status: "complete" })
-  }
+        if (executionSteps.length === 0) {
+          executionSteps.push({ label: "INPUT VALIDATION", detail: "Verified raster dimensions and CRS", duration: "0.2s", status: "complete" })
+          executionSteps.push({ label: "TASK ROUTING", detail: `Specialist assigned to ${data.task || "vqa"}`, duration: "0.2s", status: "complete" })
+          executionSteps.push({ label: "REASONING SYNTHESIS", detail: resData.engine || "Multimodal Remote-Sensing Engine", duration: "0.5s", status: "complete" })
+        }
 
-  // Determine evidence image URL
-  let primaryUrl = ""
-  if (resData.evidence_image) {
-    primaryUrl = resData.evidence_image
-  } else if (resData.evidence?.change_heatmap) {
-    primaryUrl = resData.evidence.change_heatmap
-  } else if (resData.evidence?.fused_composite) {
-    primaryUrl = resData.evidence.fused_composite
-  } else if (data.image_previews && data.image_previews[0]) {
-    primaryUrl = data.image_previews[0]
-  } else if (initialImages[0]?.url) {
-    primaryUrl = initialImages[0].url
-  }
+        // Determine evidence image URL
+        let primaryUrl = ""
+        if (resData.evidence_image) {
+          primaryUrl = resData.evidence_image
+        } else if (resData.evidence?.change_heatmap) {
+          primaryUrl = resData.evidence.change_heatmap
+        } else if (resData.evidence?.fused_composite) {
+          primaryUrl = resData.evidence.fused_composite
+        } else if (data.image_previews && data.image_previews[0]) {
+          primaryUrl = data.image_previews[0]
+        } else if (request.images[0]?.url) {
+          primaryUrl = request.images[0].url
+        }
 
         const updatedImages: ImageInput[] = request.images.map((img, idx) => ({
           ...img,
@@ -442,6 +555,33 @@ export const analysisAPI = {
         const confVal = data.confidence || 0.92;
         const confLevel: Confidence = confVal >= 0.88 ? "high" : confVal >= 0.75 ? "medium" : "low";
 
+        const isHsi = data.detected_modality === "hyperspectral" || Boolean(resData.cube_metadata);
+        const hsiData = isHsi ? {
+          isHsi: true,
+          cubeMetadata: resData.cube_metadata ? {
+            height: resData.cube_metadata.height,
+            width: resData.cube_metadata.width,
+            bands: resData.cube_metadata.bands,
+            wavelengthRange: resData.cube_metadata.wavelength_range_nm,
+            sensor: resData.cube_metadata.sensor,
+            crs: resData.cube_metadata.crs
+          } : undefined,
+          rgbComposite: resData.rgb_composite,
+          cirComposite: resData.cir_composite,
+          evidenceImage: resData.evidence_image || overlayUrl,
+          spectralSignature: resData.spectral_signature ? {
+            wavelengths: resData.spectral_signature.wavelengths,
+            meanCurve: resData.spectral_signature.mean_curve,
+            stdCurve: resData.spectral_signature.std_curve,
+            absorptionFeatures: resData.spectral_signature.absorption_features
+          } : undefined,
+          topClasses: resData.top_classes
+        } : undefined;
+
+        const geo = data.geographic_location || resData.geographic_location;
+        const targetLabel = resData.target_label || (request.images[0]?.name ? `Satellite Target: ${request.images[0].name}` : "Earth Observation Scene");
+        const globeUrl = buildTrinetraUrl(geo, targetLabel);
+
         return {
           id: data.request_id || `analysis-${Date.now()}`,
           mode: request.mode,
@@ -452,16 +592,18 @@ export const analysisAPI = {
           evidence: evidenceList,
           annotations: annotations,
           steps: executionSteps,
-          model: resData.engine || "SatQuery Multimodal Reasoning Engine",
+          model: resData.engine || (isHsi ? "HyperFree-B Hyperspectral Specialist" : "SatQuery Multimodal Reasoning Engine"),
           processingTime: "1.1s",
-          resolution: data.inputs_metadata?.[0] ? `${data.inputs_metadata[0].width}x${data.inputs_metadata[0].height}` : "10 m / pixel",
-          imageType: data.inputs_metadata?.[0]?.modality?.toUpperCase() || (request.mode === "fusion" ? "OPTICAL + SAR" : "SENTINEL-2 MSI"),
+          resolution: resData.cube_metadata ? `${resData.cube_metadata.bands} bands (${resData.cube_metadata.width}x${resData.cube_metadata.height})` : (data.inputs_metadata?.[0] ? `${data.inputs_metadata[0].width}x${data.inputs_metadata[0].height}` : "10 m / pixel"),
+          imageType: isHsi ? `HYPERSPECTRAL (${resData.cube_metadata?.bands || 224} BANDS)` : (data.inputs_metadata?.[0]?.modality?.toUpperCase() || (request.mode === "fusion" ? "OPTICAL + SAR" : "SENTINEL-2 MSI")),
           createdAt: new Date().toISOString(),
           images: updatedImages,
           reportUrl: data.request_id ? `/api/v1/reports/${data.request_id}/html` : undefined,
           rawImageUrl: rawUrl,
           overlayImageUrl: overlayUrl,
-          geographicLocation: data.geographic_location || undefined,
+          geographicLocation: geo,
+          globeUrl: globeUrl || undefined,
+          hsiData: hsiData,
           qml_analysis: data.qml_analysis || undefined,
           classical_vs_qml_comparison: data.classical_vs_qml_comparison || undefined,
         };
@@ -475,12 +617,77 @@ export const analysisAPI = {
     await new Promise((resolve) => setTimeout(resolve, 800));
     return getDemoResult(request);
   },
+
+  inspectImage: async (file: File): Promise<{ geographicLocation?: GeographicLocation; globeUrl?: string }> => {
+    try {
+      const formData = new FormData();
+      formData.append("file", file);
+      const res = await fetch("/api/v1/inspect-image", {
+        method: "POST",
+        body: formData,
+      });
+      if (res.ok) {
+        const data = await res.json();
+        return {
+          geographicLocation: data.geographic_location,
+          globeUrl: data.globe_url,
+        };
+      }
+    } catch (e) {
+      console.warn("[analysisAPI.inspectImage] Error inspecting image:", e);
+    }
+    return {};
+  },
 };
 
 export const saveHistory = (item: AnalysisResponse) => {
   if (typeof window === "undefined") return
-  const history = JSON.parse(localStorage.getItem("satquery-history") || "[]") as AnalysisResponse[]
-  localStorage.setItem("satquery-history", JSON.stringify([item, ...history].slice(0, 20)))
+  try {
+    // Strip giant base64 image strings before writing to localStorage to prevent quota overflow
+    const sanitizedItem: AnalysisResponse = {
+      ...item,
+      rawImageUrl: item.rawImageUrl && item.rawImageUrl.startsWith("data:") && item.rawImageUrl.length > 500
+        ? "/satellite-optical.svg"
+        : item.rawImageUrl,
+      overlayImageUrl: item.overlayImageUrl && item.overlayImageUrl.startsWith("data:") && item.overlayImageUrl.length > 500
+        ? "/satellite-optical.svg"
+        : item.overlayImageUrl,
+      images: (item.images || []).map((img) => ({
+        ...img,
+        file: undefined,
+        url: img.url && img.url.startsWith("data:") && img.url.length > 500 ? "/satellite-optical.svg" : img.url
+      })),
+      hsiData: item.hsiData ? {
+        ...item.hsiData,
+        rgbComposite: undefined,
+        cirComposite: undefined,
+        evidenceImage: undefined
+      } : undefined
+    }
+
+    const rawHistory = localStorage.getItem("satquery-history") || "[]"
+    let history: AnalysisResponse[] = []
+    try {
+      history = JSON.parse(rawHistory)
+    } catch {
+      history = []
+    }
+
+    const newHistory = [sanitizedItem, ...history].slice(0, 10)
+    try {
+      localStorage.setItem("satquery-history", JSON.stringify(newHistory))
+    } catch (quotaErr) {
+      // If quota exceeded, purge older entries and save only the latest 3
+      console.warn("[Storage] Quota exceeded. Pruning older mission history records.");
+      try {
+        localStorage.setItem("satquery-history", JSON.stringify([sanitizedItem, ...history].slice(0, 3)))
+      } catch {
+        localStorage.removeItem("satquery-history")
+      }
+    }
+  } catch (err) {
+    console.warn("[Storage] Non-fatal history storage error:", err)
+  }
 }
 
 export const loadHistory = (): AnalysisResponse[] => {
@@ -561,7 +768,7 @@ export const navItems = [
 ]
 
 /**
- * Constructs a secure, validated exploration URL for TRINETRA (Project B).
+ * Constructs a secure, validated exploration URL for TRINETRA / Shatnetra 3D Earth Globe.
  * Uses NEXT_PUBLIC_TRINETRA_URL (defaulting to http://localhost:4173 in development).
  */
 export function buildTrinetraUrl(geo?: GeographicLocation, label?: string): string {
@@ -572,14 +779,13 @@ export function buildTrinetraUrl(geo?: GeographicLocation, label?: string): stri
   const params = new URLSearchParams()
   params.set("lat", geo.lat.toFixed(5))
   params.set("lng", geo.lng.toFixed(5))
+  params.set("lon", geo.lng.toFixed(5))
   params.set("height", (geo.height || 5000).toString())
   params.set("source", "satquery")
   const targetName = label || geo.location_name || "SatQuery Analysis Target"
   params.set("name", targetName)
   if (geo.bounds && geo.bounds.length === 4) {
-    params.set("bbox", geo.bounds.map((b) => b.toFixed(4)).join(","))
+    params.set("bbox", geo.bounds.map((b: number) => b.toFixed(4)).join(","))
   }
-  return `${baseUrl}/explore?${params.toString()}`
+  return `${baseUrl}/?${params.toString()}`
 }
-
-

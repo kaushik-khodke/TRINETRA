@@ -64,11 +64,17 @@ def run_evaluation(args):
 
 if __name__ == "__main__":
     parser = argparse.ArgumentParser(description="Evaluate RS-VQA checkpoint.")
-    parser.add_argument("--checkpoint", type=str, required=True, help="Path to best_model.pt.")
-    parser.add_argument("--data_dir", type=str, required=True, help="Directory containing RSVQA JSONs.")
-    parser.add_argument("--vocab", type=str, default=None)
+    default_ckpt = os.path.join(os.path.dirname(__file__), "..", "..", "models", "checkpoints", "rs_vqa_model", "model.pt")
+    if not os.path.exists(default_ckpt):
+        default_ckpt = os.path.join(os.path.dirname(__file__), "runs", "run_balanced", "best_model.pt")
+    default_data = r"D:\datasets\RSVQA_LR"
+    default_vocab = os.path.join(os.path.dirname(__file__), "manifests", "rsvqa_vocab.json")
+
+    parser.add_argument("--checkpoint", type=str, default=default_ckpt, help=f"Path to best_model.pt (default: {default_ckpt}).")
+    parser.add_argument("--data_dir", type=str, default=default_data, help=f"Directory containing RSVQA JSONs (default: {default_data}).")
+    parser.add_argument("--vocab", type=str, default=default_vocab, help="Path to vocabulary JSON.")
     parser.add_argument("--batch_size", type=int, default=32)
-    parser.add_argument("--max_samples", type=int, default=None)
+    parser.add_argument("--max_samples", type=int, default=1000, help="Number of test samples to evaluate (default: 1000, None for all).")
     parser.add_argument("--output_json", type=str, default=None)
     args = parser.parse_args()
 

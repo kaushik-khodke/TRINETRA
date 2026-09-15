@@ -9,11 +9,14 @@ import sys
 import time
 import argparse
 from pathlib import Path
+
+if hasattr(sys.stdout, "reconfigure"):
+    sys.stdout.reconfigure(line_buffering=True)
+
 import numpy as np
 import torch
 import torch.nn as nn
 from torch.utils.data import DataLoader
-from torch.cuda.amp import autocast, GradScaler
 
 training_dir = os.path.abspath(os.path.join(os.path.dirname(__file__), ".."))
 if training_dir not in sys.path:
@@ -38,7 +41,7 @@ def evaluate_vqa(model: nn.Module, loader: DataLoader, device: torch.device) -> 
     with torch.no_grad():
         for imgs, tokens, targets in loader:
             imgs, tokens = imgs.to(device), tokens.to(device)
-            with autocast(enabled=(device.type == "cuda")):
+            with torch.amp.autocast(device_type=device.type, enabled=(device.type == "cuda")):
                 logits = model(imgs, tokens)
             all_logits.append(logits.cpu().numpy())
             all_targets.append(targets.numpy())
@@ -65,8 +68,11 @@ def train_rsvqa(args):
     print(f"Hardware: {device} ({torch.cuda.get_device_name(0) if torch.cuda.is_available() else 'CPU'})")
     print("============================================================\n")
 
+    patience = args.patience if args.patience is not None else profile.patience
+    max_train = args.max_train_samples if args.max_train_samples is not None else profile.max_train_samples
+
     # 1. Load Genuine Datasets
-    train_ds = RSVqaGenuineDataset(args.data_dir, split="train", vocab_path=vocab_path, max_samples=profile.max_train_samples)
+    train_ds = RSVqaGenuineDataset(args.data_dir, split="train", vocab_path=vocab_path, max_samples=max_train)
     val_ds = RSVqaGenuineDataset(args.data_dir, split="val", vocab_path=vocab_path, max_samples=profile.max_val_samples)
     test_ds = RSVqaGenuineDataset(args.data_dir, split="test", vocab_path=vocab_path, max_samples=profile.max_test_samples)
 
@@ -87,7 +93,8 @@ def train_rsvqa(args):
     # 3. Training Loop with AMP & Early Stopping
     criterion = nn.CrossEntropyLoss()
     optimizer = torch.optim.AdamW(model.parameters(), lr=lr, weight_decay=1e-4)
-    scaler = GradScaler(enabled=profile.use_amp)
+    scaler = torch.amp.GradScaler('cuda', enabled=(profile.use_amp and device.type == "cuda"))
+    scheduler = torch.optim.lr_scheduler.CosineAnnealingLR(optimizer, T_max=epochs, eta_min=1e-5)
 
     ckpt_mgr = CheckpointManager(output_dir, "rs_vqa_model")
     reporter = TrainingReporter(output_dir)
@@ -105,7 +112,7 @@ def train_rsvqa(args):
         for imgs, tokens, targets in train_loader:
             imgs, tokens, targets = imgs.to(device), tokens.to(device), targets.to(device)
             optimizer.zero_grad()
-            with autocast(enabled=(device.type == "cuda" and profile.use_amp)):
+            with torch.amp.autocast(device_type=device.type, enabled=(device.type == "cuda" and profile.use_amp)):
                 logits = model(imgs, tokens)
                 loss = criterion(logits, targets)
 
@@ -114,6 +121,7 @@ def train_rsvqa(args):
             scaler.update()
             total_loss += loss.item()
 
+        scheduler.step()
         avg_loss = total_loss / len(train_loader)
         val_metrics = evaluate_vqa(model, val_loader, device)
         cur_acc = val_metrics["top1_accuracy_pct"]
@@ -134,8 +142,8 @@ def train_rsvqa(args):
 
         ckpt_mgr.save_checkpoint(model, epoch, is_best, cur_acc)
 
-        if patience_counter >= profile.patience:
-            print(f"\n[EARLY STOPPING] Validation accuracy plateaued for {profile.patience} epochs.")
+        if patience_counter >= patience:
+            print(f"\n[EARLY STOPPING] Validation accuracy plateaued for {patience} epochs.")
             break
 
     total_time = time.time() - t_start
@@ -183,6 +191,8 @@ if __name__ == "__main__":
     parser.add_argument("--epochs", type=int, default=None)
     parser.add_argument("--batch_size", type=int, default=None)
     parser.add_argument("--lr", type=float, default=None)
+    parser.add_argument("--patience", type=int, default=None, help="Patience epochs before early stopping.")
+    parser.add_argument("--max_train_samples", type=int, default=None, help="Max training samples override.")
     parser.add_argument("--output_dir", type=str, default=None)
     parser.add_argument("--seed", type=int, default=42)
     parser.add_argument("--export", action="store_true", help="Deploy best model directly to backend/models/checkpoints/rs_vqa_model/")

@@ -9,11 +9,13 @@ import sys
 import time
 import argparse
 from pathlib import Path
+
+if hasattr(sys.stdout, "reconfigure"):
+    sys.stdout.reconfigure(line_buffering=True)
 import numpy as np
 import torch
 import torch.nn as nn
 from torch.utils.data import DataLoader
-from torch.cuda.amp import autocast, GradScaler
 
 training_dir = os.path.abspath(os.path.join(os.path.dirname(__file__), ".."))
 if training_dir not in sys.path:
@@ -21,7 +23,7 @@ if training_dir not in sys.path:
 
 from common.seed import set_seed
 from common.profiling import get_profile_config
-from common.metrics import fusion_metrics
+from common.metrics import fusion_metrics, change_metrics
 from common.checkpoint import CheckpointManager
 from common.reporting import TrainingReporter
 
@@ -30,19 +32,25 @@ from model import OpticalSARCrossAttentionNet, OpticalOnlyBaseline, SAROnlyBasel
 
 DATASET_NAME = "SEN1-2 (Paired Sentinel-1 SAR & Sentinel-2 Optical)"
 
-def evaluate_fusion(model: nn.Module, loader: DataLoader, device: torch.device) -> float:
+def evaluate_fusion(model: nn.Module, loader: DataLoader, device: torch.device, criterion: nn.Module = None):
     model.eval()
     correct = 0
     total = 0
+    total_loss = 0.0
     with torch.no_grad():
         for opt, sar, targets in loader:
             opt, sar, targets = opt.to(device), sar.to(device), targets.to(device)
-            with autocast():
+            with torch.amp.autocast(device_type=device.type, enabled=(device.type == 'cuda')):
                 logits = model(opt, sar)
+                if criterion is not None:
+                    loss = criterion(logits, targets)
+                    total_loss += loss.item() * len(targets)
             preds = torch.argmax(logits, dim=-1)
             correct += int((preds == targets).sum().item())
             total += len(targets)
-    return float(correct / total) * 100.0 if total > 0 else 0.0
+    acc = float(correct / total) * 100.0 if total > 0 else 0.0
+    avg_loss = float(total_loss / total) if (total > 0 and criterion is not None) else 0.0
+    return (acc, avg_loss) if criterion is not None else acc
 
 def evaluate_single_modality(model: nn.Module, loader: DataLoader, device: torch.device, is_opt: bool = True) -> float:
     model.eval()
@@ -51,7 +59,7 @@ def evaluate_single_modality(model: nn.Module, loader: DataLoader, device: torch
         for opt, sar, targets in loader:
             x = opt.to(device) if is_opt else sar.to(device)
             targets = targets.to(device)
-            with autocast():
+            with torch.amp.autocast(device_type=device.type, enabled=(device.type == 'cuda')):
                 logits = model(x)
             preds = torch.argmax(logits, dim=-1)
             correct += int((preds == targets).sum().item())
@@ -65,6 +73,7 @@ def train_optical_sar(args):
     epochs = args.epochs if args.epochs else profile.epochs
     batch_size = args.batch_size if args.batch_size else profile.batch_size
     lr = args.lr if args.lr else profile.lr
+    patience = args.patience if args.patience is not None else max(profile.patience, 5)
     output_dir = args.output_dir or os.path.join(os.path.dirname(__file__), "runs", f"run_{args.profile}")
     manifest_dir = args.manifest_dir or os.path.join(os.path.dirname(__file__), "manifests")
 
@@ -80,13 +89,17 @@ def train_optical_sar(args):
     val_manifest = os.path.join(manifest_dir, "optical_sar_val.txt")
     test_manifest = os.path.join(manifest_dir, "optical_sar_test.txt")
 
-    train_ds = OpticalSARGenuineDataset(args.data_dir, train_manifest, image_size=profile.image_size, max_samples=profile.max_train_samples)
+    train_ds = OpticalSARGenuineDataset(args.data_dir, train_manifest, image_size=profile.image_size, max_samples=profile.max_train_samples, augment=True)
     val_ds = OpticalSARGenuineDataset(args.data_dir, val_manifest, image_size=profile.image_size, max_samples=profile.max_val_samples)
     test_ds = OpticalSARGenuineDataset(args.data_dir, test_manifest, image_size=profile.image_size, max_samples=profile.max_test_samples)
 
-    train_loader = DataLoader(train_ds, batch_size=batch_size, shuffle=True, num_workers=profile.num_workers, pin_memory=True)
-    val_loader = DataLoader(val_ds, batch_size=batch_size, shuffle=False, num_workers=profile.num_workers)
-    test_loader = DataLoader(test_ds, batch_size=batch_size, shuffle=False, num_workers=profile.num_workers)
+    eff_batch = min(batch_size, max(1, len(train_ds)))
+    val_batch = min(batch_size, max(1, len(val_ds)))
+    test_batch = min(batch_size, max(1, len(test_ds)))
+
+    train_loader = DataLoader(train_ds, batch_size=eff_batch, shuffle=True, num_workers=profile.num_workers, pin_memory=torch.cuda.is_available())
+    val_loader = DataLoader(val_ds, batch_size=val_batch, shuffle=False, num_workers=profile.num_workers)
+    test_loader = DataLoader(test_ds, batch_size=test_batch, shuffle=False, num_workers=profile.num_workers)
 
     # 2. Section 15 & 16 Mandatory: OPTICAL-ONLY & SAR-ONLY BASELINE EVALUATION
     print("------------------------------------------------------------")
@@ -106,13 +119,15 @@ def train_optical_sar(args):
     model = OpticalSARCrossAttentionNet().to(device)
     criterion = nn.CrossEntropyLoss()
     optimizer = torch.optim.AdamW(model.parameters(), lr=lr, weight_decay=1e-4)
-    scaler = GradScaler(enabled=profile.use_amp)
+    scaler = torch.amp.GradScaler('cuda', enabled=(profile.use_amp and device.type == "cuda"))
+    scheduler = torch.optim.lr_scheduler.CosineAnnealingLR(optimizer, T_max=epochs, eta_min=1e-5)
 
     ckpt_mgr = CheckpointManager(output_dir, "optical_sar_model")
     reporter = TrainingReporter(output_dir)
 
     history = {"train_loss": [], "val_loss": [], "val_metric": []}
     best_acc = -1.0
+    best_val_loss = 999.0
     patience_counter = 0
 
     t_start = time.time()
@@ -124,7 +139,7 @@ def train_optical_sar(args):
         for opt, sar, targets in train_loader:
             opt, sar, targets = opt.to(device), sar.to(device), targets.to(device)
             optimizer.zero_grad()
-            with autocast(enabled=profile.use_amp):
+            with torch.amp.autocast(device_type=device.type, enabled=(profile.use_amp and device.type == "cuda")):
                 logits = model(opt, sar)
                 loss = criterion(logits, targets)
 
@@ -133,27 +148,34 @@ def train_optical_sar(args):
             scaler.update()
             total_loss += loss.item()
 
+        scheduler.step()
         avg_loss = total_loss / len(train_loader)
-        cur_acc = evaluate_fusion(model, val_loader, device)
+        cur_acc, cur_val_loss = evaluate_fusion(model, val_loader, device, criterion=criterion)
 
         history["train_loss"].append(round(avg_loss, 4))
-        history["val_loss"].append(round(100.0 - cur_acc, 4))
+        history["val_loss"].append(round(cur_val_loss, 4))
         history["val_metric"].append(cur_acc)
 
         elapsed = time.time() - e_start
-        print(f"Epoch [{epoch:02d}/{epochs:02d}] ({elapsed:.1f}s) - Loss: {avg_loss:.4f} | Val Fused Acc: {cur_acc:.2f}%")
+        print(f"Epoch [{epoch:02d}/{epochs:02d}] ({elapsed:.1f}s) - Train Loss: {avg_loss:.4f} | Val Loss: {cur_val_loss:.4f} | Val Fused Acc: {cur_acc:.2f}%")
 
-        is_best = cur_acc > best_acc
-        if is_best:
+        is_best = False
+        if cur_acc > best_acc:
             best_acc = cur_acc
+            best_val_loss = cur_val_loss
+            is_best = True
+            patience_counter = 0
+        elif abs(cur_acc - best_acc) < 1e-4 and cur_val_loss < (best_val_loss - 0.005):
+            best_val_loss = cur_val_loss
+            is_best = True
             patience_counter = 0
         else:
             patience_counter += 1
 
         ckpt_mgr.save_checkpoint(model, epoch, is_best, cur_acc)
 
-        if patience_counter >= profile.patience:
-            print(f"\n[EARLY STOPPING] Validation accuracy plateaued for {profile.patience} epochs.")
+        if patience_counter >= patience:
+            print(f"\n[EARLY STOPPING] Validation metrics plateaued for {patience} epochs.")
             break
 
     total_time = time.time() - t_start
@@ -165,12 +187,29 @@ def train_optical_sar(args):
     print("------------------------------------------------------------")
     best_weights = torch.load(ckpt_mgr.best_model_path, map_location=device)
     model.load_state_dict(best_weights)
-    fused_test_acc = evaluate_fusion(model, test_loader, device)
+    model.eval()
+
+    test_preds, test_targets = [], []
+    with torch.no_grad():
+        for opt, sar, targets in test_loader:
+            opt, sar = opt.to(device), sar.to(device)
+            with torch.amp.autocast(device_type=device.type, enabled=(profile.use_amp and device.type == "cuda")):
+                logits = model(opt, sar)
+            preds = torch.argmax(logits, dim=-1)
+            test_preds.extend(preds.cpu().numpy())
+            test_targets.extend(targets.numpy())
+
+    test_preds = np.array(test_preds)
+    test_targets = np.array(test_targets)
+    c_metrics = change_metrics(test_preds, test_targets)
+    fused_test_acc = c_metrics["accuracy_pct"]
 
     comp_metrics = fusion_metrics(opt_base_acc, sar_base_acc, fused_test_acc)
+    comp_metrics["test_macro_f1"] = c_metrics["macro_f1"]
     print(f"Optical-Only Baseline: {comp_metrics['optical_only_accuracy']:.2f}%")
     print(f"SAR-Only Baseline:     {comp_metrics['sar_only_accuracy']:.2f}%")
     print(f"Optical+SAR Trained:   {comp_metrics['optical_sar_fused_accuracy']:.2f}%")
+    print(f"Test Macro F1-Score:   {comp_metrics['test_macro_f1']:.4f}")
     print(f"Improvement vs Opt:    {'+' if comp_metrics['fusion_delta_vs_optical'] >= 0 else ''}{comp_metrics['fusion_delta_vs_optical']:.2f}%")
     print(f"Improvement vs SAR:    {'+' if comp_metrics['fusion_delta_vs_sar'] >= 0 else ''}{comp_metrics['fusion_delta_vs_sar']:.2f}%")
     print("============================================================\n")
@@ -199,6 +238,7 @@ if __name__ == "__main__":
     parser.add_argument("--epochs", type=int, default=None)
     parser.add_argument("--batch_size", type=int, default=None)
     parser.add_argument("--lr", type=float, default=None)
+    parser.add_argument("--patience", type=int, default=None, help="Epochs to wait before early stopping (default: max(profile, 5))")
     parser.add_argument("--output_dir", type=str, default=None)
     parser.add_argument("--seed", type=int, default=42)
     parser.add_argument("--export", action="store_true", help="Deploy best model to backend/models/checkpoints/optical_sar_model/")

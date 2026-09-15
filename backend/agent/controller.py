@@ -2,6 +2,7 @@
 SatQuery AI — Master Agent Controller
 The central orchestration layer. Routes requests, validates inputs, sequences specialist tools,
 integrates multimodal evidence, and logs observable execution traces.
+Powered by LangGraph StateGraph Workflow Runtime with PennyLane QML validation.
 """
 
 import os
@@ -17,15 +18,10 @@ from typing import List, Dict, Any, Optional
 from agent.registry import TOOL_REGISTRY, get_tool
 from agent.classifier import TaskClassifier
 from agent.trace import ExecutionTrace
+from agent.langgraph_orchestrator import LangGraphOrchestrator
 from llm.agent_planner import AgentPlanner
 from llm.model_registry import local_registry
 from observability.langfuse_tracer import LangfuseTracer
-from services.validator.validator import InputValidator
-from services.vqa.vqa_service import RSVqaSpecialist
-from services.captioning.captioning_service import RSCaptionSpecialist
-from services.grounding.grounding_service import RSGroundingSpecialist
-from services.change.change_service import BiTemporalChangeSpecialist
-from services.optical_sar.optical_sar_service import OpticalSarFusionSpecialist
 from services.reports.report_service import MissionReportGenerator
 from geospatial.reader import GeospatialReader
 from geospatial.overlays import EvidenceOverlayEngine
@@ -39,11 +35,7 @@ class AgentController:
     def __init__(self):
         self.classifier = TaskClassifier()
         self.planner = AgentPlanner()
-        self.vqa_specialist = RSVqaSpecialist()
-        self.caption_specialist = RSCaptionSpecialist()
-        self.grounding_specialist = RSGroundingSpecialist()
-        self.change_specialist = BiTemporalChangeSpecialist()
-        self.optical_sar_specialist = OpticalSarFusionSpecialist()
+        self.langgraph = LangGraphOrchestrator()
 
     def process_request(
         self,
@@ -60,7 +52,7 @@ class AgentController:
             detected_task="pending"
         )
         active_model = local_registry.get_active_model()
-        trace.llm_model = (active_model.active_model or active_model.default_model) if active_model else "qwen3.5:9b"
+        trace.llm_model = (active_model.active_model or active_model.default_model) if active_model else "local-llm"
 
         with LangfuseTracer.trace_analysis(
             query=query,
@@ -72,228 +64,34 @@ class AgentController:
         ) as trace_ctx:
             trace.trace_id = trace_ctx.trace_id
 
-            # Step 1: Input Validation
-            with trace_ctx.tool("validate-inputs", input_data={"files": file_paths, "mode": input_mode}) as span:
-                trace.add_step(
-                    stage="validation",
-                    action="inspect_inputs",
-                    tool="validator",
-                    details=f"Validating {len(file_paths)} input raster(s) for mode '{input_mode}'."
-                )
-
-                # Security check: file paths must exist and be accessible
-                for p in file_paths:
-                    if not os.path.isfile(p):
-                        err = f"Target raster file does not exist: {p}"
-                        span.update(output={"error": err})
-                        trace.fail(err)
-                        dump = trace.model_dump() if hasattr(trace, "model_dump") else trace.dict()
-                        return {
-                            "request_id": trace.request_id,
-                            "trace_id": trace.trace_id,
-                            "status": "failed",
-                            "error": err,
-                            "execution_trace": dump
-                        }
-
-                val_report = InputValidator.validate(file_paths, requested_mode=input_mode, declared_modalities=declared_modalities)
-                if not val_report.valid:
-                    err = val_report.error_message or "Input validation failed."
-                    span.update(output={"error": err})
-                    trace.fail(err)
-                    dump = trace.model_dump() if hasattr(trace, "model_dump") else trace.dict()
-                    return {
-                        "request_id": trace.request_id,
-                        "trace_id": trace.trace_id,
-                        "status": "failed",
-                        "error": err,
-                        "execution_trace": dump
-                    }
-
-                span.update(output={"status": "valid", "file_count": len(file_paths)})
-                trace.add_step(
-                    stage="validation",
-                    action="validation_passed",
-                    tool="validator",
-                    details=f"All files verified: {', '.join(os.path.basename(p) for p in file_paths)}."
-                )
-
-            # Step 2: Agent Planning & Task Classification
-            num_images = len(file_paths)
-            image_modalities = [m["modality"] for m in val_report.images_metadata]
-
-            with trace_ctx.agent("plan-agent-workflow", input_data={"query": query, "modalities": image_modalities}) as span:
-                exec_plan = self.planner.plan(
-                    query=query,
-                    input_mode=input_mode,
-                    num_images=num_images,
-                    image_modalities=image_modalities
-                )
-                classification = self.classifier.classify(query, input_mode, num_images, image_modalities)
-                
-                # Align detected task and update Langfuse trace name to descriptive label
-                task = exec_plan.intent.task if exec_plan.intent.task else classification.task
-                trace.detected_task = task
-                trace_ctx.update_task(task)
-
-                span.update(output={
-                    "task": task,
-                    "confidence": exec_plan.intent.confidence,
-                    "target_features": exec_plan.intent.target_features,
-                    "reasoning": exec_plan.intent.reasoning
-                })
-
-                trace.add_step(
-                    stage="planning",
-                    action="decompose_query",
-                    details=f"Multi-step agent plan formed for task '{task}' with confidence {exec_plan.intent.confidence:.2f}. Strategy: {exec_plan.intent.reasoning}"
-                )
-
-            # Step 3: Specialist Tool Selection & Strict Parameter Safety
-            target_tool_id = classification.recommended_tools[1] if len(classification.recommended_tools) > 1 else "rs_vqa"
-            tool_meta = get_tool(target_tool_id)
-
-            with trace_ctx.tool("verify-parameters", input_data={"tool": tool_meta.tool_id, "custom_params": custom_parameters}) as span:
-                permitted_params = tool_meta.permitted_parameters.copy()
-                if custom_parameters:
-                    for k, v in custom_parameters.items():
-                        if k in permitted_params:
-                            # Bound check thresholds
-                            if "threshold" in k and isinstance(v, (int, float)):
-                                if 0.0 <= float(v) <= 1.0:
-                                    permitted_params[k] = float(v)
-                            elif "sar_threshold_db" in k and isinstance(v, (int, float)):
-                                if -50.0 <= float(v) <= 50.0:
-                                    permitted_params[k] = float(v)
-                            elif isinstance(v, (str, int, float, bool, list)):
-                                permitted_params[k] = v
-
-                permitted_params["response_language"] = response_language
-
-                trace.selected_tools = [
-                    {"name": "validator", "version": "1.2.0"},
-                    {"name": tool_meta.name, "version": tool_meta.version}
-                ]
-                trace.parameters = permitted_params
-                span.update(output={"selected_tool": tool_meta.name, "safe_parameters": permitted_params})
-
-                trace.add_step(
-                    stage="planning",
-                    action="select_specialist_tool",
-                    tool=tool_meta.tool_id,
-                    parameters=permitted_params,
-                    details=f"Selected tool '{tool_meta.name}' [{tool_meta.version}] with verified safe parameters."
-                )
-
-            # Step 4: Raster Ingestion
-            with trace_ctx.tool("ingest-rasters", input_data={"files": file_paths}) as span:
-                loaded_arrays = []
-                loaded_metas = []
-                image_previews = []
-                for i, path in enumerate(file_paths):
-                    arr, meta = GeospatialReader.read_image(path, detected_modality=image_modalities[i])
-                    loaded_arrays.append(arr)
-                    loaded_metas.append(meta.to_dict())
-                    rgb_preview = GeospatialReader.to_rgb_preview(arr, image_modalities[i])
-                    image_previews.append(EvidenceOverlayEngine.to_base64(rgb_preview))
-
-                span.update(output={"loaded_count": len(loaded_arrays), "dimensions": [m.get("shape") for m in loaded_metas]})
-
-            # Step 5: Execute Specialist Workflow
-            trace.add_step(
-                stage="execution",
-                action="run_inference",
-                tool=tool_meta.tool_id,
-                details=f"Invoking {tool_meta.name} with inputs."
+            # Execute compiled LangGraph Workflow StateGraph
+            final_response = self.langgraph.run(
+                request_id=trace.request_id,
+                trace_id=trace.trace_id,
+                file_paths=file_paths,
+                query=query,
+                input_mode=input_mode,
+                declared_modalities=declared_modalities,
+                custom_parameters=custom_parameters,
+                response_language=response_language
             )
 
+            # Experimental PennyLane QML Research Validation Branch
+            qml_comparison_payload = None
             try:
-                specialist_agent_name = f"execute-{task.replace('_', '-')}-specialist"
-                with trace_ctx.agent(specialist_agent_name, input_data={"task": task, "tool": tool_meta.tool_id, "language": response_language}) as span:
-                    if task == "optical_sar_fusion":
-                        result = self.optical_sar_specialist.execute(
-                            images_arr=loaded_arrays,
-                            metas=loaded_metas,
-                            query=query,
-                            parameters=permitted_params
-                        )
-                    elif task == "change_analysis":
-                        result = self.change_specialist.execute(
-                            images_arr=loaded_arrays,
-                            metas=loaded_metas,
-                            query=query,
-                            parameters=permitted_params
-                        )
-                    elif task == "grounding":
-                        result = self.grounding_specialist.execute(
-                            image_arr=loaded_arrays[0],
-                            meta=loaded_metas[0],
-                            query=query,
-                            parameters=permitted_params
-                        )
-                    elif task == "captioning":
-                        result = self.caption_specialist.execute(
-                            image_arr=loaded_arrays[0],
-                            meta=loaded_metas[0],
-                            query=query,
-                            parameters=permitted_params
-                        )
-                    else:  # default vqa
-                        result = self.vqa_specialist.execute(
-                            image_arr=loaded_arrays[0],
-                            meta=loaded_metas[0],
-                            query=query,
-                            parameters=permitted_params
-                        )
+                task = final_response.get("detected_task", "vqa")
+                if qml_config.is_task_supported(task) and qml_config.enabled and final_response.get("status") == "completed":
+                    loaded_arrays = []
+                    loaded_metas = []
+                    for fp in file_paths:
+                        try:
+                            arr, meta = GeospatialReader.read_image(fp)
+                            loaded_arrays.append(arr)
+                            loaded_metas.append(meta.to_dict() if hasattr(meta, "to_dict") else meta)
+                        except Exception:
+                            pass
 
-                    span.update(output={
-                        "confidence": result.get("confidence", 0.90),
-                        "answer_snippet": (result.get("answer") or result.get("caption") or "")[:120]
-                    })
-
-                trace.add_step(
-                    stage="integration",
-                    action="integrate_evidence",
-                    tool=tool_meta.tool_id,
-                    details="Integrated textual conclusions, visual evidence overlays, and confidence metrics."
-                )
-
-                # Step 5b: Experimental PennyLane QML Research Branch (Section 27 Langfuse Hierarchy)
-                qml_comparison_payload = None
-                try:
-                    qml_is_supported = qml_config.is_task_supported(task)
-                    
-                    with trace_ctx.tool("qml_capability_check", input_data={"task": task, "qml_enabled": qml_config.enabled}) as cap_span:
-                        cap_span.update(output={
-                            "qml_enabled": qml_config.enabled,
-                            "task": task,
-                            "supported": qml_is_supported,
-                            "device": qml_config.device_name,
-                            "qubits": qml_config.num_qubits,
-                            "layers": qml_config.num_layers,
-                            "qml_model_version": "qml_change_levir10k"
-                        })
-
-                    if qml_is_supported and qml_config.enabled:
-                        trace.add_step(
-                            stage="execution",
-                            action="quantum_validation",
-                            tool="quantum_validation",
-                            details=f"Executing PennyLane VQC circuit and cross-paradigm agreement analysis for '{task}'."
-                        )
-
-                        # Feature extraction span
-                        with trace_ctx.tool("feature_extraction", input_data={"task": task, "num_rasters": len(loaded_arrays)}) as feat_span:
-                            t_feat_0 = time.perf_counter()
-                            raw_feats = QMLService.extract_compact_features(task, loaded_arrays, loaded_metas)
-                            feat_latency_ms = (time.perf_counter() - t_feat_0) * 1000.0
-                            feat_span.update(output={
-                                "raw_dim": len(raw_feats),
-                                "reduced_dim": qml_config.num_qubits,
-                                "latency_ms": round(feat_latency_ms, 2)
-                            })
-
-                        # QML simulation span
+                    if loaded_arrays:
                         with trace_ctx.tool("qml_simulation", input_data={"device": qml_config.device_name, "qubits": qml_config.num_qubits}) as sim_span:
                             t_sim_0 = time.perf_counter()
                             qml_comparison_payload = QMLService.run_comparative_analysis(
@@ -301,119 +99,47 @@ class AgentController:
                                 query=query,
                                 images_arr=loaded_arrays,
                                 metas=loaded_metas,
-                                classical_result=result,
+                                classical_result=final_response.get("result", final_response),
                                 response_language=response_language
                             )
                             sim_latency_ms = (time.perf_counter() - t_sim_0) * 1000.0
-                            sim_span.update(output={
-                                "device": qml_config.device_name,
-                                "qubits": qml_config.num_qubits,
-                                "layers": qml_config.num_layers,
-                                "qml_model_version": "qml_change_levir10k",
-                                "latency_ms": round(sim_latency_ms, 2)
-                            })
-
-                        # QML prediction and agreement spans
-                        if qml_comparison_payload:
-                            q_branch = qml_comparison_payload.get("qml_research_branch", {})
-                            comp = qml_comparison_payload.get("classical_vs_qml_comparison", {})
-
-                            with trace_ctx.tool("qml_prediction", input_data={"task": task}) as pred_span:
-                                pred_span.update(output={
-                                    "prediction": q_branch.get("prediction"),
-                                    "confidence": q_branch.get("confidence"),
-                                    "class_probabilities": q_branch.get("class_probabilities"),
+                            if qml_comparison_payload:
+                                sim_span.update(output={
+                                    "device": qml_config.device_name,
+                                    "qubits": qml_config.num_qubits,
+                                    "layers": qml_config.num_layers,
                                     "qml_model_version": "qml_change_levir10k",
-                                    "latency_ms": q_branch.get("simulation_latency_ms")
+                                    "latency_ms": round(sim_latency_ms, 2)
                                 })
 
-                            with trace_ctx.tool("agreement_analysis", input_data={"classical": comp.get("classical_prediction"), "qml": comp.get("qml_prediction")}) as agr_span:
-                                agr_span.update(output={
-                                    "agreement": comp.get("agrees"),
-                                    "verdict": comp.get("verdict"),
-                                    "calibrated_agreement_score": comp.get("calibrated_agreement_score"),
-                                    "confidence_delta": comp.get("confidence_delta"),
-                                    "parameter_reduction": comp.get("parameter_comparison", {}).get("quantum_parameter_reduction")
-                                })
-                except Exception as qml_err:
-                    print(f"[AgentController] Non-fatal QML execution notice: {qml_err}")
+                        if qml_comparison_payload:
+                            final_response["qml_analysis"] = qml_comparison_payload.get("qml_research_branch")
+                            final_response["classical_vs_qml_comparison"] = qml_comparison_payload.get("classical_vs_qml_comparison")
+            except Exception as qml_err:
+                print(f"[AgentController] Non-fatal QML execution notice: {qml_err}")
 
-            except Exception as e:
-                trace_ctx.record_error(str(e))
-                trace.fail(f"Specialist tool execution error: {str(e)}")
-                dump = trace.model_dump() if hasattr(trace, "model_dump") else trace.dict()
-                return {
-                    "request_id": trace.request_id,
-                    "trace_id": trace.trace_id,
-                    "status": "failed",
-                    "error": str(e),
-                    "execution_trace": dump
-                }
+            # Generate mission intelligence reports if analysis was successful
+            if final_response.get("status") == "completed":
+                html_report_filename = f"report_{trace.request_id}.html"
+                json_report_filename = f"report_{trace.request_id}.json"
+                html_path = os.path.join(REPORTS_DIR, html_report_filename)
+                json_path = os.path.join(REPORTS_DIR, json_report_filename)
+                try:
+                    MissionReportGenerator.generate_html_report(final_response, html_path)
+                    MissionReportGenerator.generate_json_report(final_response, json_path)
+                    final_response["reports"] = {
+                        "html_report_url": f"/api/v1/reports/{trace.request_id}/html",
+                        "json_report_url": f"/api/v1/reports/{trace.request_id}/json"
+                    }
+                except Exception as e:
+                    print(f"[AgentController] Report generation note: {e}")
 
-            # Step 6: Generate Downloadable Report Files
-            report_html_filename = f"report_{trace.request_id[:8]}.html"
-            report_json_filename = f"report_{trace.request_id[:8]}.json"
-            html_path = os.path.join(REPORTS_DIR, report_html_filename)
-            json_path = os.path.join(REPORTS_DIR, report_json_filename)
+            trace_ctx.finalize(output={
+                "status": final_response.get("status", "completed"),
+                "task": final_response.get("detected_task", "unknown"),
+                "confidence": final_response.get("confidence", 0.90),
+                "answer": (final_response.get("answer") or "")[:250],
+                "reports": final_response.get("reports")
+            })
 
-        # Determine primary geographic location from verified raster inputs
-        primary_geo = None
-        for m in loaded_metas:
-            if m.get("has_geographic_location") and m.get("center_lat") is not None:
-                primary_geo = {
-                    "has_location": True,
-                    "lat": m["center_lat"],
-                    "lng": m["center_lng"],
-                    "height": 5000,
-                    "bounds": m.get("bounds"),
-                    "crs": m.get("crs"),
-                    "location_name": m.get("location_name") or m.get("filename")
-                }
-                break
-
-        if not primary_geo:
-            primary_geo = {
-                "has_location": False,
-                "lat": None,
-                "lng": None,
-                "height": None,
-                "bounds": None,
-                "crs": None
-            }
-
-        dump = trace.model_dump() if hasattr(trace, "model_dump") else trace.dict()
-        final_response = {
-            "request_id": trace.request_id,
-            "status": "completed",
-            "query": query,
-            "input_mode": input_mode,
-            "task": classification.task,
-            "confidence": result.get("confidence", 0.90),
-            "cloud_llm": False,
-            "agent_framework": "langchain",
-            "result": result,
-            "inputs_metadata": loaded_metas,
-            "geographic_location": primary_geo,
-            "image_previews": image_previews,
-            "qml_analysis": qml_comparison_payload.get("qml_research_branch") if qml_comparison_payload else None,
-            "classical_vs_qml_comparison": qml_comparison_payload.get("classical_vs_qml_comparison") if qml_comparison_payload else None,
-            "execution_trace": dump,
-            "reports": {
-                "html_report_url": f"/api/v1/reports/{trace.request_id}/html",
-                "json_report_url": f"/api/v1/reports/{trace.request_id}/json"
-            }
-        }
-        with trace_ctx.tool("generate-mission-reports", input_data={"request_id": trace.request_id}) as span:
-            MissionReportGenerator.generate_html_report(final_response, html_path)
-            MissionReportGenerator.generate_json_report(final_response, json_path)
-            span.update(output={"html_report": report_html_filename, "json_report": report_json_filename})
-
-        trace_ctx.finalize(output={
-            "status": "completed",
-            "task": task,
-            "confidence": result.get("confidence", 0.90),
-            "answer": (result.get("answer") or result.get("caption") or "")[:250],
-            "reports": final_response["reports"]
-        })
-
-        return final_response
+            return final_response

@@ -43,7 +43,8 @@ class ModelManager:
             "rs_vqa_model": "RS-VQA Multimodal Bilinear Network",
             "rs_grounding_model": "Text-Guided Bounding Box Detector",
             "change_specialist_model": "Siamese Bi-Temporal Differential Net",
-            "optical_sar_model": "Cross-Modal Dual-Encoder Fusion Net"
+            "optical_sar_model": "Cross-Modal Dual-Encoder Fusion Net",
+            "hyperfree_model": "HyperFree-B Hyperspectral Foundation Specialist"
         }
 
         for key, name in tool_dirs.items():
@@ -103,6 +104,9 @@ class ModelManager:
             model = SiameseChangeDiffNet().to(device)
         elif model_key == "optical_sar_model":
             model = OpticalSARCrossAttentionNet().to(device)
+        elif model_key == "hyperfree_model":
+            from models.hyperfree.model import HyperFreeB
+            model = HyperFreeB(num_classes=16).to(device)
         else:
             return None
 

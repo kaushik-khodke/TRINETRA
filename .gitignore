@@ -1,10 +1,10 @@
 # ==============================================================================
-# SatQuery AI — Production Git Ignore Specification
+# TRINETRA / SatQuery AI — Production Git Ignore Specification
 # SIH 2026 • Problem Statement 26167 • Indian Space Research Organisation (ISRO)
 # ==============================================================================
 
 # ------------------------------------------------------------------------------
-# 1. Python & Virtual Environments
+# 1. Python, Virtual Environments & Build Artifacts
 # ------------------------------------------------------------------------------
 __pycache__/
 *.py[cod]
@@ -18,6 +18,7 @@ ENV/
 env.bak/
 venv.bak/
 build/
+!shatnetra/build/
 develop-eggs/
 dist/
 downloads/
@@ -43,11 +44,11 @@ htmlcov/
 *.spec
 
 # ------------------------------------------------------------------------------
-# 2. Node.js & React Frontend (Vite)
+# 2. Node.js, Next.js & Frontend Build Outputs
 # ------------------------------------------------------------------------------
 node_modules/
 frontend/node_modules/
-dist/
+frontend/.next/
 frontend/dist/
 dist-ssr/
 frontend/dist-ssr/
@@ -59,29 +60,92 @@ pnpm-debug.log*
 lerna-debug.log*
 .vite/
 frontend/.vite/
+*.tsbuildinfo
 
 # ------------------------------------------------------------------------------
-# 3. Machine Learning Weights & Checkpoints (Heavy Artifacts)
+# 3. Datasets & Raw Geospatial Archives (STRICT: ZERO DATASETS ON GITHUB)
 # ------------------------------------------------------------------------------
-# Ignore large model binary weights (users download/train separately)
+# Block all local and downloaded dataset folders
+data/
+data/**
+**/data/
+**/data/**
+dataset/
+datasets/
+**/datasets/
+**/manifests/*.json
+**/manifests/*.txt
+!backend/models/checkpoints/**/rsvqa_vocab.json
+
+# Block all raw raster, hyperspectral, and spatial archive files
+*.mat
+*.hdr
+*.dat
+*.tif
+*.tiff
+*.h5
+*.hdf5
+*.nc
+*.geojson
+*.tar
+*.tar.gz
+*.tgz
+*.zip
+*.rar
+*.7z
+
+# Whitelist ONLY lightweight sample demonstration files in backend/sample_data
+!backend/sample_data/
+!backend/sample_data/*.tif
+!backend/sample_data/*.jpg
+!backend/sample_data/*.jpeg
+!backend/sample_data/*.png
+!backend/sample_data/*.mat
+!backend/sample_data/.gitkeep
+
+# ------------------------------------------------------------------------------
+# 4. Machine Learning Checkpoints: BEST PRODUCTION MODELS ONLY
+# ------------------------------------------------------------------------------
+# Block all training checkpoints, runs, logs, and intermediate weights globally
 *.pt
 *.pth
+*.ckpt
 *.bin
 *.safetensors
 *.onnx
-*.ckpt
-*.h5
 *.tflite
 *.pb
+runs/
+**/runs/
 wandb/
 lightning_logs/
-runs/
+epoch_*.pt
+last.pt
+optimizer.pt
+*backup*.pt
+*_prev*.pt
+*.pt.zip
 
-# Preserve directory structure in version control
+# Allow checkpoint directories to be tracked
+!backend/models/checkpoints/
+!backend/models/checkpoints/**/
 !backend/models/checkpoints/**/.gitkeep
 
+# EXPLICIT WHITELIST: ONLY the single best deployed production models (*.pt)
+!backend/models/checkpoints/bigearthnet_adapted/model.pt
+!backend/models/checkpoints/rs_vqa_model/model.pt
+!backend/models/checkpoints/rs_grounding_model/model.pt
+!backend/models/checkpoints/change_specialist_model/model.pt
+!backend/models/checkpoints/optical_sar_model/model.pt
+!backend/models/checkpoints/hyperfree_model/model.pt
+!backend/models/checkpoints/rs_vqa_model/rsvqa_vocab.json
+
+# Explicitly re-block any backup models in checkpoints directory
+backend/models/checkpoints/**/*_backup.pt
+backend/models/checkpoints/**/*backup*.pt
+
 # ------------------------------------------------------------------------------
-# 4. Geospatial Runtime Data, Uploads & Generated Reports
+# 5. Geospatial Runtime Uploads & Generated Outputs
 # ------------------------------------------------------------------------------
 backend/uploads/*
 !backend/uploads/.gitkeep
@@ -99,12 +163,8 @@ outputs/*
 *.xml.bak
 *.tif.tmp
 
-# Whitelist standard sample benchmark rasters
-!backend/sample_data/
-!backend/sample_data/**
-
 # ------------------------------------------------------------------------------
-# 5. Environment Variables & Credentials
+# 6. Environment Variables, Secrets & API Keys
 # ------------------------------------------------------------------------------
 .env
 .env.local
@@ -115,7 +175,7 @@ outputs/*
 *.key
 
 # ------------------------------------------------------------------------------
-# 6. Operating System & Editor Artifacts
+# 7. Operating System & Editor Artifacts
 # ------------------------------------------------------------------------------
 .DS_Store
 .DS_Store?
@@ -141,11 +201,8 @@ $RECYCLE.BIN/
 scratch/
 *.tmp
 
-# TypeScript build cache
-*.tsbuildinfo
-
 # ------------------------------------------------------------------------------
-# 7. Project B — TRINETRA / Shatnetra Globe Application (Vite + Cesium)
+# 8. TRINETRA / Shatnetra 3D Globe Application (Vite + Cesium)
 # ------------------------------------------------------------------------------
 shatnetra/node_modules/
 shatnetra/dist/

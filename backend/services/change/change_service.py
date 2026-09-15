@@ -4,6 +4,8 @@ Performs differential change analysis, answers change-based questions,
 quantifies urban/land shifts, and generates visual change maps.
 """
 
+import os
+import torch
 import numpy as np
 from PIL import Image
 from typing import Dict, Any, List
@@ -26,18 +28,56 @@ class BiTemporalChangeSpecialist:
         parameters: Dict[str, Any]
     ) -> Dict[str, Any]:
         ckpt = ModelRegistryStatus.load_weights_if_available("change_specialist_model")
+        has_neural_weights = ckpt is not None
+        neural_change = None
 
         arr_t1 = images_arr[0]
         arr_t2 = images_arr[1]
 
+        # Active forward pass through trained Siamese Neural Network
+        if has_neural_weights:
+            try:
+                model = ModelRegistryStatus.load_or_get_model("change_specialist_model")
+                if model is not None:
+                    device = next(model.parameters()).device
+                    raw_p1 = GeospatialReader.to_rgb_preview(arr_t1, metas[0].get("modality", "optical"))
+                    p1 = raw_p1 if hasattr(raw_p1, "resize") else Image.fromarray(raw_p1)
+                    p1 = p1.resize((256, 256), Image.BILINEAR)
+
+                    raw_p2 = GeospatialReader.to_rgb_preview(arr_t2, metas[1].get("modality", "optical"))
+                    p2 = raw_p2 if hasattr(raw_p2, "resize") else Image.fromarray(raw_p2)
+                    p2 = p2.resize((256, 256), Image.BILINEAR)
+                    t1_arr = np.transpose(np.array(p1, dtype=np.float32) / 255.0, (2, 0, 1))
+                    t2_arr = np.transpose(np.array(p2, dtype=np.float32) / 255.0, (2, 0, 1))
+                    t1_tensor = torch.from_numpy(t1_arr).unsqueeze(0).to(device)
+                    t2_tensor = torch.from_numpy(t2_arr).unsqueeze(0).to(device)
+
+                    model.eval()
+                    with torch.no_grad():
+                        logits, _ = model(t1_tensor, t2_tensor)
+                        probs = torch.softmax(logits, dim=-1).squeeze(0).cpu().tolist()
+
+                    classes = ["Unchanged / Stable", "Increased Development / New Structures", "Decreased / Cleared / Receded"]
+                    top_idx = int(np.argmax(probs))
+                    neural_change = {
+                        "detected_class": classes[top_idx],
+                        "confidence": round(float(probs[top_idx]), 4),
+                        "class_probabilities": {cls_name: round(float(p), 4) for cls_name, p in zip(classes, probs)}
+                    }
+            except Exception as e:
+                print(f"[BiTemporalChangeSpecialist] Neural inference warning: {e}")
+
         # Compute difference matrix & statistics
         diff_matrix, stats = GeospatialNormalizer.compute_bitemporal_change(arr_t1, arr_t2)
+        if neural_change:
+            stats["neural_classification"] = neural_change["detected_class"]
+            stats["neural_confidence"] = f"{int(neural_change['confidence'] * 100)}%"
 
         # Synthesize evidence-grounded answer via LLM reasoning engine
         spatial_dist = {
             "quadrants": stats.get("quadrants", {}),
             "top_sectors": stats.get("top_sectors", []),
-            "trend": stats.get("trend", "expansion")
+            "trend": neural_change["detected_class"] if neural_change else stats.get("trend", "expansion")
         }
 
         response_lang = parameters.get("response_language", "en") if parameters else "en"
@@ -48,9 +88,9 @@ class BiTemporalChangeSpecialist:
             response_language=response_lang
         )
 
-        engine_type = f"PyTorch Checkpoint ({ckpt})" if ckpt else synthesis["engine"]
+        engine_type = f"PyTorch Neural Checkpoint ({os.path.basename(ckpt)})" if has_neural_weights else synthesis["engine"]
         answer = synthesis["answer"]
-        confidence = synthesis["confidence"]
+        confidence = neural_change["confidence"] if neural_change else synthesis["confidence"]
         status = stats.get("trend", "detected")
 
         # Render visual change heatmap overlay on T2
