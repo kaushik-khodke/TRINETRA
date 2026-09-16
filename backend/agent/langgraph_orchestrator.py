@@ -27,6 +27,7 @@ from services.grounding.grounding_service import RSGroundingSpecialist
 from services.change.change_service import BiTemporalChangeSpecialist
 from services.optical_sar.optical_sar_service import OpticalSarFusionSpecialist
 from services.hyperspectral.hsi_service import HyperFreeHSISpecialist
+from services.intelligence_builder import StructuredIntelligenceBuilder
 from geospatial.reader import GeospatialReader
 
 class AgentWorkflowState(TypedDict):
@@ -485,6 +486,23 @@ class LangGraphOrchestrator:
 
         out["geographic_location"] = geo_location
 
+        # Synthesize Structured Multimodal Intelligence Response
+        struct_intel = StructuredIntelligenceBuilder.build(
+            task=out.get("task") or state["detected_task"],
+            modality=state["detected_modality"],
+            query=state["query"],
+            specialist_output=out,
+            geo_location=geo_location,
+            validation_report=state.get("validation_report"),
+            raw_b64=out.get("raw_preview")
+        )
+
+        out["structured_intelligence"] = struct_intel
+        if struct_intel.get("regions"):
+            out["regions"] = struct_intel["regions"]
+        if struct_intel.get("structured_answer"):
+            out["structured_answer"] = struct_intel["structured_answer"]
+
         final_resp = {
             "request_id": state["request_id"],
             "trace_id": state["trace_id"],
@@ -495,9 +513,14 @@ class LangGraphOrchestrator:
             "detected_task": state["detected_task"],
             "detected_modality": state["detected_modality"],
             "selected_tools": state["selected_tools"],
-            "confidence": out.get("confidence", 0.90),
+            "confidence": struct_intel.get("composite_confidence", out.get("confidence", 0.90)),
             "result": out,
             "answer": out.get("answer", "Analysis completed."),
+            "structured_answer": struct_intel.get("structured_answer"),
+            "structured_intelligence": struct_intel,
+            "regions": struct_intel.get("regions", out.get("regions", [])),
+            "bounding_box": out.get("bounding_box"),
+            "evidence_image": out.get("evidence_image") or out.get("evidence"),
             "engine": out.get("engine", "TRINETRA Agent"),
             "agent_framework": "langchain",
             "cloud_llm": False,
@@ -509,11 +532,12 @@ class LangGraphOrchestrator:
                 "spectral_signature": out.get("spectral_signature"),
                 "cube_metadata": out.get("cube_metadata"),
                 "bounding_box": out.get("bounding_box"),
-                "regions": out.get("regions"),
+                "regions": struct_intel.get("regions", out.get("regions")),
                 "geojson": out.get("geojson"),
                 "change_stats": out.get("change_stats"),
                 "fused_stats": out.get("fused_stats"),
-                "top_classes": out.get("top_classes")
+                "top_classes": out.get("top_classes"),
+                "measurements": struct_intel.get("measurements")
             },
             "execution_trace": trace_dict
         }

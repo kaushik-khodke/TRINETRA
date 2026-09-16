@@ -103,15 +103,25 @@ class BiTemporalChangeSpecialist:
         preview_t2_b64 = EvidenceOverlayEngine.to_base64(rgb_t2)
         change_map_b64 = EvidenceOverlayEngine.to_base64(change_map_img)
 
+        fallback_used = not (has_neural_weights and neural_change is not None)
+        fallback_reason = None if not fallback_used else ("No change_specialist_model checkpoint found on disk" if not has_neural_weights else "Neural inference failure")
+        ckpt_hash = ModelRegistryStatus.get_checkpoint_hash(ckpt) if ckpt else None
+
         return {
             "task": "change_analysis",
             "tool": self.tool_id,
             "version": self.version,
             "engine": engine_type,
+            "requested_model": "change_specialist_model",
+            "loaded_model": os.path.basename(ckpt) if (has_neural_weights and not fallback_used) else None,
+            "checkpoint_hash": ckpt_hash,
+            "fallback_used": fallback_used,
+            "fallback_reason": fallback_reason,
             "query": query,
             "answer": answer,
             "change_status": status,
             "confidence": round(confidence, 2),
+            "confidence_calibrated": False,
             "change_statistics": stats,
             "evidence": {
                 "t1_preview": preview_t1_b64,

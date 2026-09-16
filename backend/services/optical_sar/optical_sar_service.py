@@ -4,6 +4,7 @@ Jointly reasons over co-registered Optical spectral bands and SAR microwave back
 to extract complementary surface and structural characteristics.
 """
 
+import os
 import numpy as np
 from PIL import Image
 from typing import Dict, Any, List
@@ -80,7 +81,7 @@ class OpticalSarFusionSpecialist:
             response_language=response_lang
         )
 
-        engine_type = f"PyTorch Checkpoint ({ckpt})" if ckpt else synthesis["engine"]
+        engine_type = f"PyTorch Checkpoint ({os.path.basename(ckpt)})" if ckpt else synthesis["engine"]
         answer = synthesis["answer"]
         confidence = synthesis["confidence"]
 
@@ -89,18 +90,46 @@ class OpticalSarFusionSpecialist:
         sar_rgb = GeospatialReader.to_rgb_preview(sar_arr, "sar")
         composite = EvidenceOverlayEngine.render_optical_sar_composite(opt_rgb, sar_rgb)
 
+        # 5. Compute dynamic statistical cross-modal correlation
+        corr_data = GeospatialNormalizer.compute_cross_modal_correlation(opt_arr, sar_arr)
+
+        # 6. Inspect geometric coregistration validity from raster metadata
+        opt_crs = opt_meta.get("crs") or opt_meta.get("projection")
+        sar_crs = sar_meta.get("crs") or sar_meta.get("projection")
+        if opt_crs and sar_crs and opt_crs == sar_crs:
+            alignment_status = "Verified geometric coregistration (matched CRS)"
+            coregistered = True
+        elif not opt_crs or not sar_crs:
+            alignment_status = "Unverified alignment: missing spatial coordinate reference (CRS) metadata"
+            coregistered = False
+        else:
+            alignment_status = f"Differing CRS ({opt_crs} vs {sar_crs}) - reprojection required"
+            coregistered = False
+
+        fallback_used = ckpt is None
+        fallback_reason = None if not fallback_used else "No optical_sar_model checkpoint found on disk"
+        ckpt_hash = ModelRegistryStatus.get_checkpoint_hash(ckpt) if ckpt else None
+
         return {
             "task": "optical_sar_fusion",
             "tool": self.tool_id,
             "version": self.version,
             "engine": engine_type,
+            "requested_model": "optical_sar_model",
+            "loaded_model": os.path.basename(ckpt) if ckpt else None,
+            "checkpoint_hash": ckpt_hash,
+            "fallback_used": fallback_used,
+            "fallback_reason": fallback_reason,
             "query": query,
             "answer": answer,
             "confidence": confidence,
+            "confidence_calibrated": False,
+            "coregistered": coregistered,
             "fusion_correlations": {
-                "optical_sar_correlation": 0.84,
-                "structural_coherence": "High dual-sensor concordance",
-                "spectral_radar_alignment": "Verified cross-modal radiometric registration"
+                "optical_sar_correlation": corr_data["optical_sar_correlation"],
+                "structural_coherence": corr_data["structural_coherence"],
+                "spectral_radar_alignment": alignment_status,
+                "sample_pixel_count": corr_data["sample_pixel_count"]
             },
             "sensor_contributions": {
                 "optical": f"Spectral chlorophyll NDVI ({fused_veg_pct}%) and multi-band water absorption",

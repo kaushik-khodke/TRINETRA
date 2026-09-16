@@ -15,9 +15,114 @@ export interface ImageInput {
   geographicLocation?: GeographicLocation;
   globeUrl?: string;
 }
-export interface ExecutionStep { label: string; detail: string; duration: string; status: "complete" | "active" | "pending" }
-export interface AnalysisRequest { mode: AnalysisMode; images: ImageInput[]; query: string; response_language?: "en" | "hi" | "mr" }
-export interface GroundingAnnotation { label: string; x: number; y: number; width: number; height: number; color: "cyan" | "amber" }
+export interface ExecutionStep {
+  label: string;
+  detail: string;
+  duration: string;
+  status: "complete" | "active" | "pending" | "completed";
+  title?: string;
+  timestamp?: string;
+}
+
+export interface GroundingAnnotation {
+  id?: string;
+  label: string;
+  x: number;
+  y: number;
+  width: number;
+  height: number;
+  color: "cyan" | "amber" | "emerald" | "violet" | "rose" | string;
+  score?: number;
+  confidence?: number;
+  area?: string;
+  area_ha?: number;
+  area_px?: number;
+  direction?: string;
+  relativeLocation?: string;
+  geometryType?: "bbox" | "point" | "polygon";
+  polygonCoords?: number[][];
+}
+
+export interface IntelligenceFinding {
+  id: string;
+  title: string;
+  type?: "observed" | "inferred" | "uncertain" | string;
+  category?: "OBSERVED" | "INFERRED" | "UNCERTAIN" | string;
+  description: string;
+  confidence: number;
+  evidence_ids?: string[];
+  region_ids?: string[];
+  supporting_regions?: string[];
+  details?: string;
+}
+
+export interface IntelligenceRegion {
+  id: string;
+  label: string;
+  geometry_type?: "bbox" | "point" | "polygon" | string;
+  bbox: [number, number, number, number] | number[];
+  score?: number;
+  confidence?: number;
+  centroid?: { lat: number | null; lng: number | null; x?: number; y?: number };
+  pixel_area?: number | null;
+  area_pixels?: number | null;
+  area_ha?: number | null;
+  physical_area_m2?: number | null;
+  relative_location?: string | null;
+  direction?: string | null;
+  evidence?: string[];
+  polygon_coords?: number[][];
+}
+
+export interface AnalysisRequest {
+  mode: AnalysisMode;
+  query: string;
+  images: ImageInput[];
+  response_language?: "en" | "hi" | "mr" | string;
+}
+
+export interface IntelligenceEvidence {
+  id: string;
+  type: "visual" | "spectral" | "radiometric" | "geospatial" | "temporal" | "sar" | string;
+  description: string;
+  source: string;
+  value?: any;
+  unit?: string | null;
+}
+
+export interface IntelligenceMeasurement {
+  value: number | string;
+  unit?: string | null;
+  source?: string;
+}
+
+export interface StructuredIntelligence {
+  summary: string;
+  structured_answer?: string;
+  findings: IntelligenceFinding[];
+  regions: IntelligenceRegion[];
+  evidence: IntelligenceEvidence[];
+  measurements: Record<string, IntelligenceMeasurement>;
+  spatial_context: {
+    has_georeferencing: boolean;
+    crs: string;
+    center_lat: number | null;
+    center_lng: number | null;
+    bounding_box: number[] | null;
+    location_name: string;
+    resolution: string;
+  };
+  uncertainty: string[];
+  recommendations: string[];
+  composite_confidence: number;
+  visual_outputs: {
+    raw_image?: string | null;
+    annotated_image?: string | null;
+    heatmap?: string | null;
+    spectral_plot?: string | null;
+    geojson?: any;
+  };
+}
 
 export interface GeographicLocation {
   has_location?: boolean;
@@ -120,6 +225,9 @@ export interface AnalysisResponse {
   };
   qml_analysis?: QMLAnalysisResult;
   classical_vs_qml_comparison?: ClassicalVsQMLComparison;
+  structured_intelligence?: StructuredIntelligence;
+  heatmapUrl?: string;
+  spectralUrl?: string;
 }
 
 export const modes: { id: AnalysisMode; label: string; description: string; icon: string }[] = [
@@ -392,12 +500,12 @@ export const fetchQMLBenchmarks = async (): Promise<QMLBenchmarkData | null> => 
 
 export const analysisAPI = {
   submitAnalysis: async (request: AnalysisRequest): Promise<AnalysisResponse> => {
-    const hasRealFiles = request.images.some((img) => img.file instanceof File);
+    const hasRealFiles = request.images.some((img: ImageInput) => img.file instanceof File);
 
     if (hasRealFiles) {
       try {
         const formData = new FormData();
-        request.images.forEach((img) => {
+        request.images.forEach((img: ImageInput) => {
           if (img.file) {
             formData.append("files", img.file);
           }
@@ -466,41 +574,54 @@ export const analysisAPI = {
           evidenceList.push("Spectral indices verified via normalized band ratios.");
         }
 
-        // Extract grounding annotations
+        const structIntel: StructuredIntelligence | undefined = data.structured_intelligence || resData.structured_intelligence;
+
+        // Extract grounding annotations with tactical palettes
         const annotations: GroundingAnnotation[] = []
-        if (resData.bounding_box) {
+        const tacticalColors = ["emerald", "cyan", "amber", "violet", "rose"]
+
+        if (structIntel?.regions && Array.isArray(structIntel.regions) && structIntel.regions.length > 0) {
+          structIntel.regions.forEach((r: any, idx: number) => {
+            const bbox = r.bbox || [0.1, 0.1, 0.9, 0.9]
+            const areaStr = r.physical_area_m2 ? `${(r.physical_area_m2 / 10000).toFixed(1)} ha` : (r.pixel_area ? `${r.pixel_area} px` : undefined)
+            annotations.push({
+              id: r.id || `R0${idx + 1}`,
+              label: r.label || `Region ${idx + 1}`,
+              x: Math.round(bbox[1] * 100),
+              y: Math.round(bbox[0] * 100),
+              width: Math.max(6, Math.round((bbox[3] - bbox[1]) * 100)),
+              height: Math.max(6, Math.round((bbox[2] - bbox[0]) * 100)),
+              color: tacticalColors[idx % tacticalColors.length],
+              score: r.score,
+              area: areaStr,
+              relativeLocation: r.relative_location,
+              geometryType: r.geometry_type || "bbox",
+              polygonCoords: r.polygon_coords
+            })
+          })
+        } else if (resData.bounding_box) {
           const bbox = resData.bounding_box
           const [ymin, xmin, ymax, xmax] = Array.isArray(bbox) ? bbox : [0.1, 0.1, 0.9, 0.9]
           annotations.push({
+            id: "R01",
             label: resData.target_label || "Identified Target",
             x: Math.round(xmin * 100),
             y: Math.round(ymin * 100),
             width: Math.max(8, Math.round((xmax - xmin) * 100)),
             height: Math.max(8, Math.round((ymax - ymin) * 100)),
-            color: "cyan"
-          })
-        } else if (resData.predicted_regions && Array.isArray(resData.predicted_regions)) {
-          resData.predicted_regions.forEach((reg: any, i: number) => {
-            const bbox = reg.bbox || [0.2 + i * 0.1, 0.2 + i * 0.1, 0.5 + i * 0.1, 0.5 + i * 0.1]
-            annotations.push({
-              label: reg.label || `Region 0${i + 1}`,
-              x: Math.round(bbox[1] * 100),
-              y: Math.round(bbox[0] * 100),
-              width: Math.max(8, Math.round((bbox[3] - bbox[1]) * 100)),
-              height: Math.max(8, Math.round((bbox[2] - bbox[0]) * 100)),
-              color: i % 2 === 0 ? "cyan" : "amber"
-            })
+            color: "emerald"
           })
         } else if (Array.isArray(resData.regions)) {
           resData.regions.forEach((r: any, idx: number) => {
             const bbox = r.bbox || [0, 0, 1, 1]
             annotations.push({
+              id: r.id || `R0${idx + 1}`,
               label: r.label || `Region ${idx + 1}`,
               x: Math.round(bbox[1] * 100),
               y: Math.round(bbox[0] * 100),
               width: Math.max(5, Math.round((bbox[3] - bbox[1]) * 100)),
               height: Math.max(5, Math.round((bbox[2] - bbox[0]) * 100)),
-              color: idx === 0 ? "cyan" : "amber"
+              color: tacticalColors[idx % tacticalColors.length]
             })
           })
         }
@@ -534,7 +655,7 @@ export const analysisAPI = {
           primaryUrl = request.images[0].url
         }
 
-        const updatedImages: ImageInput[] = request.images.map((img, idx) => ({
+        const updatedImages: ImageInput[] = request.images.map((img: ImageInput, idx: number) => ({
           ...img,
           url: idx === 0 ? primaryUrl : (data.image_previews?.[idx] || img.url),
         }));
@@ -601,6 +722,9 @@ export const analysisAPI = {
           reportUrl: data.request_id ? `/api/v1/reports/${data.request_id}/html` : undefined,
           rawImageUrl: rawUrl,
           overlayImageUrl: overlayUrl,
+          heatmapUrl: structIntel?.visual_outputs?.heatmap || resData.evidence?.change_heatmap || resData.change_heatmap || undefined,
+          spectralUrl: structIntel?.visual_outputs?.spectral_plot || resData.spectral_plot || undefined,
+          structured_intelligence: structIntel,
           geographicLocation: geo,
           globeUrl: globeUrl || undefined,
           hsiData: hsiData,

@@ -15,6 +15,7 @@ from geospatial.reader import GeospatialReader
 from geospatial.overlays import EvidenceOverlayEngine
 from services.llm_engine import LLMReasoningEngine
 from models.loader import ModelManager
+from models.tokenizer import tokenize_sequence
 
 class RSVqaSpecialist:
     def __init__(self):
@@ -33,11 +34,8 @@ class RSVqaSpecialist:
                 if model is not None:
                     device = next(model.parameters()).device
                     
-                    # Preprocess question tokens
-                    words = query.lower().replace("?", "").replace(",", "").split()
-                    token_ids = [abs(hash(w)) % 4900 + 100 for w in words[:16]]
-                    while len(token_ids) < 16:
-                        token_ids.append(0)
+                    # Preprocess question tokens using deterministic cryptographic hashing
+                    token_ids = tokenize_sequence(query, max_length=16, vocab_size=5000, offset=100)
                     token_tensor = torch.tensor([token_ids], dtype=torch.long, device=device)
 
                     # Preprocess image raster to 224x224 RGB tensor
@@ -136,14 +134,24 @@ class RSVqaSpecialist:
         evidence_b64 = EvidenceOverlayEngine.to_base64(overlay_img)
         raw_b64 = EvidenceOverlayEngine.to_base64(rgb_preview)
 
+        fallback_used = not (has_neural_weights and neural_pred is not None)
+        fallback_reason = None if not fallback_used else ("No checkpoint on disk" if not has_neural_weights else "Neural inference failure")
+        ckpt_hash = ModelManager.get_checkpoint_hash(ckpt) if ckpt else None
+
         return {
             "task": "vqa",
             "tool": self.tool_id,
             "version": self.version,
             "engine": engine_name,
+            "requested_model": "rs_vqa_model",
+            "loaded_model": os.path.basename(ckpt) if (has_neural_weights and not fallback_used) else None,
+            "checkpoint_hash": ckpt_hash,
+            "fallback_used": fallback_used,
+            "fallback_reason": fallback_reason,
             "query": query,
             "answer": synthesis["answer"],
-            "confidence": synthesis["confidence"],
+            "confidence": neural_pred["confidence"] if (neural_pred and neural_pred.get("confidence") is not None) else synthesis["confidence"],
+            "confidence_calibrated": False,
             "evidence_image": evidence_b64,
             "raw_preview": raw_b64,
             "evidence_metrics": {

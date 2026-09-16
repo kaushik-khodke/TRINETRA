@@ -8,6 +8,7 @@ Supports English ('en'), Hindi ('hi'), and Marathi ('mr') with scientific token 
 """
 
 import os
+import numpy as np
 from typing import Dict, Any, Optional, List
 from llm.ollama_provider import OllamaProvider
 from llm.model_registry import LocalModelRegistry
@@ -179,10 +180,12 @@ Instructions:
 
             resp = OllamaProvider.generate(prompt, role="planner", max_tokens=240)
             if resp.success and resp.text:
+                conf = round(float(np.clip(0.50 + mean_diff * 1.5, 0.50, 0.88)), 2)
                 return {
                     "answer": resp.text,
                     "engine": f"Local Ollama ({resp.model}) Grounded Change Reasoning",
-                    "confidence": 0.95,
+                    "confidence": conf,
+                    "confidence_calibrated": False,
                     "model_role": resp.role,
                     "latency_ms": resp.latency_ms
                 }
@@ -276,10 +279,12 @@ Instructions:
                     f"with primary activity {sectors_text} reflecting new infrastructure development."
                 )
 
+        conf = round(float(np.clip(0.50 + mean_diff * 1.5, 0.50, 0.85)), 2)
         return {
             "answer": answer,
             "engine": "Bi-Temporal Differential Feature Engine (Local Physics)",
-            "confidence": 0.91,
+            "confidence": conf,
+            "confidence_calibrated": False,
             "model_role": "local_physics",
             "latency_ms": 12.5
         }
@@ -322,10 +327,13 @@ Instructions:
 
             resp = OllamaProvider.generate(prompt, role="planner", max_tokens=240)
             if resp.success and resp.text:
+                water_diff = abs(opt_metrics.get("water_pct", 0) - sar_metrics.get("water_pct", 0))
+                conf = round(float(np.clip(0.85 - (water_diff * 0.005), 0.55, 0.88)), 2)
                 return {
                     "answer": resp.text,
                     "engine": f"Local Ollama ({resp.model}) Cross-Modal Fusion",
-                    "confidence": 0.95,
+                    "confidence": conf,
+                    "confidence_calibrated": False,
                     "model_role": resp.role,
                     "latency_ms": resp.latency_ms
                 }
@@ -426,10 +434,13 @@ Instructions:
                     f"and low-backscatter hydrological zones ({fused_water}%)."
                 )
 
+        water_diff = abs(opt_metrics.get("water_pct", 0) - sar_metrics.get("water_pct", 0))
+        conf = round(float(np.clip(0.82 - (water_diff * 0.005), 0.50, 0.84)), 2)
         return {
             "answer": answer,
             "engine": "Cross-Modal Dual-Encoder Fusion Engine (Local Physics)",
-            "confidence": 0.93,
+            "confidence": conf,
+            "confidence_calibrated": False,
             "model_role": "local_physics",
             "latency_ms": 14.0
         }
@@ -509,10 +520,12 @@ Provide a direct, concise (1-2 sentence) confirmation describing where the featu
 
             resp = OllamaProvider.generate(prompt, role="planner", max_tokens=180)
             if resp.success and resp.text:
+                conf = round(float(boxes[0].get("score", 0.75)), 2) if boxes else 0.45
                 return {
                     "answer": resp.text,
                     "engine": f"Local Ollama ({resp.model}) Grounded Localization",
-                    "confidence": 0.94,
+                    "confidence": conf,
+                    "confidence_calibrated": False,
                     "model_role": resp.role,
                     "latency_ms": resp.latency_ms
                 }
@@ -534,10 +547,12 @@ Provide a direct, concise (1-2 sentence) confirmation describing where the featu
             else:
                 answer = f"No prominent isolated spatial boundary matching '{query}' could be distinguished above the detection threshold."
 
+        conf = round(float(boxes[0].get("score", 0.70)), 2) if boxes else 0.40
         return {
             "answer": answer,
             "engine": "Text-Guided Region Grounding Engine (Local Physics)",
-            "confidence": 0.92,
+            "confidence": conf,
+            "confidence_calibrated": False,
             "model_role": "local_physics",
             "latency_ms": 11.0
         }
@@ -623,10 +638,12 @@ Provide a concise 2-sentence confirmation explaining the spatial location of the
 
             resp = OllamaProvider.generate(prompt, role="planner", max_tokens=180)
             if resp.success and resp.text:
+                conf = round(float(boxes[0].get("score", 0.75)), 2) if boxes else 0.45
                 return {
                     "answer": resp.text,
                     "engine": f"Local Ollama ({resp.model}) Grounding Synthesis",
-                    "confidence": 0.94,
+                    "confidence": conf,
+                    "confidence_calibrated": False,
                     "model_role": resp.role,
                     "latency_ms": resp.latency_ms
                 }
@@ -636,18 +653,22 @@ Provide a concise 2-sentence confirmation explaining the spatial location of the
             b0 = boxes[0]
             bbox = b0.get("bbox", [0.2, 0.2, 0.8, 0.8])
             label = b0.get("label", query)
+            score_val = float(b0.get("score", 0.75))
             answer = (
                 f"Successfully localized '{query}' within the scene at normalized coordinates "
                 f"[Y: {bbox[0]}–{bbox[2]}, X: {bbox[1]}–{bbox[3]}]. "
-                f"Classified as '{label}' with {int(b0.get('score', 0.9) * 100)}% spatial alignment confidence."
+                f"Classified as '{label}' with {int(score_val * 100)}% spatial alignment score."
             )
+            conf = round(score_val, 2)
         else:
             answer = f"No localized region matching '{query}' met the required confidence threshold across the scene."
+            conf = 0.40
 
         return {
             "answer": answer,
             "engine": "Remote-Sensing Visual Grounding Engine",
-            "confidence": 0.92,
+            "confidence": conf,
+            "confidence_calibrated": False,
             "model_role": "local_grounding",
             "latency_ms": 15.0
         }

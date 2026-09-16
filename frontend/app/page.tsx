@@ -2,7 +2,7 @@
 
 import { useEffect, useMemo, useRef, useState } from "react"
 import { usePathname, useRouter } from "next/navigation"
-import { Activity, ArrowRight, BarChart3, Check, ChevronDown, Clock3, Cpu, ExternalLink, FileImage, GitCompareArrows, Globe, ImagePlus, Layers3, LogIn, LogOut, Maximize2, Menu, MoveHorizontal, PanelTop, Radar, Search, Send, ShieldCheck, Sparkles, Upload, X } from "lucide-react"
+import { Activity, AlertCircle, ArrowRight, BarChart3, Check, CheckCircle2, ChevronDown, Clock3, Compass, Cpu, Download, ExternalLink, Eye, FileImage, FileText, Flame, GitCompareArrows, Globe, HelpCircle, ImagePlus, Layers, Layers3, LogIn, LogOut, Maximize2, Menu, MoveHorizontal, PanelTop, Radar, Search, Send, ShieldCheck, Sparkles, Upload, X } from "lucide-react"
 import {
   analysisAPI,
   buildTrinetraUrl,
@@ -23,6 +23,11 @@ import {
   type ClassicalVsQMLComparison,
   type QMLAnalysisResult,
   type QMLBenchmarkData,
+  type StructuredIntelligence,
+  type IntelligenceFinding,
+  type IntelligenceRegion,
+  type IntelligenceEvidence,
+  type IntelligenceMeasurement,
 } from "@/lib/types"
 import { I18nProvider, useTranslation, type SupportedLanguage } from "@/lib/i18n"
 import { HsiViewer } from "@/components/hyperspectral/HsiViewer"
@@ -754,7 +759,19 @@ function ExecutionTrace() {
   )
 }
 
-function EvidenceViewer({ result }: { result: AnalysisResponse }) {
+function EvidenceViewer({
+  result,
+  selectedRegionId,
+  onSelectRegion,
+  activeLayer,
+  setActiveLayer,
+}: {
+  result: AnalysisResponse
+  selectedRegionId: string | null
+  onSelectRegion: (id: string | null) => void
+  activeLayer: "annotated" | "raw" | "heatmap" | "spectral"
+  setActiveLayer: (layer: "annotated" | "raw" | "heatmap" | "spectral") => void
+}) {
   const { t } = useTranslation()
   const headEyebrow =
     result.mode === "fusion" ? t("evidence.eyebrow.fused") : t("evidence.eyebrow.grounded")
@@ -762,6 +779,7 @@ function EvidenceViewer({ result }: { result: AnalysisResponse }) {
   const [viewMode, setViewMode] = useState<"single" | "side_by_side" | "overlay">("single")
   const [sliderPos, setSliderPos] = useState<number>(50)
   const [isDragging, setIsDragging] = useState<boolean>(false)
+  const [hoveredRegion, setHoveredRegion] = useState<any | null>(null)
   const containerRef = useRef<HTMLDivElement>(null)
 
   const handlePointerMove = (e: React.PointerEvent<HTMLDivElement>) => {
@@ -772,13 +790,27 @@ function EvidenceViewer({ result }: { result: AnalysisResponse }) {
     setSliderPos(Math.round(pct))
   }
 
-  const baseImg = result.rawImageUrl || (result.images && result.images[0]?.url) || "/satellite-optical.svg"
-  const overlayImg = result.overlayImageUrl || (result.images && result.images.length > 1 ? result.images[1]?.url : null) || baseImg
+  const rawImg = result.rawImageUrl || (result.images && result.images[0]?.url) || "/satellite-optical.svg"
+  const annotatedImg = result.overlayImageUrl || (result.images && result.images.length > 1 ? result.images[1]?.url : null) || rawImg
+  const heatmapImg = result.heatmapUrl || annotatedImg
+  const spectralImg = result.spectralUrl || annotatedImg
+
+  const currentDisplayImg =
+    activeLayer === "raw"
+      ? rawImg
+      : activeLayer === "heatmap"
+      ? heatmapImg
+      : activeLayer === "spectral"
+      ? spectralImg
+      : annotatedImg
+
   const baseLabel = result.mode === "temporal" ? "TIME 1 (BEFORE)" : result.mode === "fusion" ? "OPTICAL (MSI)" : "ORIGINAL RASTER"
   const overlayLabel = result.mode === "temporal" ? "TIME 2 (AFTER)" : result.mode === "fusion" ? "SAR (RADAR)" : "GROUNDED EVIDENCE"
 
   const globeUrl = result.globeUrl || (result.images && (result.images[0] as any)?.globeUrl)
   const geo = result.geographicLocation || (result.images && (result.images[0] as any)?.geographicLocation)
+
+  const annotations = result.annotations || []
 
   return (
     <div className="evidence">
@@ -788,6 +820,48 @@ function EvidenceViewer({ result }: { result: AnalysisResponse }) {
           <h3>{t("evidence.head.title")}</h3>
         </div>
         <div className="viewer-controls" style={{ display: "flex", alignItems: "center", gap: "6px", flexWrap: "wrap" }}>
+          {/* Layer toggles */}
+          <div className="layer-controls" style={{ display: "inline-flex", gap: "4px", background: "rgba(0,0,0,0.4)", padding: "2px", borderRadius: "6px" }}>
+            <button
+              type="button"
+              className={`layer-btn ${activeLayer === "raw" ? "active" : ""}`}
+              onClick={() => setActiveLayer("raw")}
+              title="View Raw Source Imagery"
+            >
+              🛰️ RAW
+            </button>
+            <button
+              type="button"
+              className={`layer-btn ${activeLayer === "annotated" ? "active" : ""}`}
+              onClick={() => setActiveLayer("annotated")}
+              title="View Annotated Tactical Overlay"
+            >
+              🎯 ANNOTATED
+            </button>
+            {result.heatmapUrl && (
+              <button
+                type="button"
+                className={`layer-btn ${activeLayer === "heatmap" ? "active" : ""}`}
+                onClick={() => setActiveLayer("heatmap")}
+                title="View Heatmap / Attention Activation"
+              >
+                🔥 HEATMAP
+              </button>
+            )}
+            {result.spectralUrl && (
+              <button
+                type="button"
+                className={`layer-btn ${activeLayer === "spectral" ? "active" : ""}`}
+                onClick={() => setActiveLayer("spectral")}
+                title="View Spectral Profile / Composite"
+              >
+                🌈 SPECTRAL
+              </button>
+            )}
+          </div>
+
+          <div style={{ width: "1px", height: "16px", background: "rgba(255,255,255,0.15)", margin: "0 2px" }} />
+
           <button
             type="button"
             className={viewMode === "single" ? "active" : ""}
@@ -845,27 +919,36 @@ function EvidenceViewer({ result }: { result: AnalysisResponse }) {
       {viewMode === "side_by_side" ? (
         <div className="side-by-side-grid">
           <div className="side-panel">
-            <img src={baseImg} alt={baseLabel} />
+            <img src={rawImg} alt={baseLabel} />
             <div className="side-badge">
               <i className="cyan-dot" /> {baseLabel}
             </div>
           </div>
-          <div className="side-panel">
-            <img src={overlayImg} alt={overlayLabel} />
-            {result.annotations.map((annotation) => (
-              <div
-                key={annotation.label}
-                className={`annotation ${annotation.color}`}
-                style={{
-                  left: `${annotation.x}%`,
-                  top: `${annotation.y}%`,
-                  width: `${annotation.width}%`,
-                  height: `${annotation.height}%`,
-                }}
-              >
-                <span>{annotation.label}</span>
-              </div>
-            ))}
+          <div className="side-panel" style={{ position: "relative" }}>
+            <img src={currentDisplayImg} alt={overlayLabel} />
+            {annotations.map((annotation) => {
+              const isSelected = selectedRegionId === annotation.id
+              return (
+                <div
+                  key={annotation.id || annotation.label}
+                  className={`annotation ${annotation.color || "cyan"}`}
+                  style={{
+                    left: `${annotation.x}%`,
+                    top: `${annotation.y}%`,
+                    width: `${annotation.width}%`,
+                    height: `${annotation.height}%`,
+                    border: isSelected ? "2px solid #10b981" : undefined,
+                    boxShadow: isSelected ? "0 0 14px rgba(16, 185, 129, 0.9)" : undefined,
+                    cursor: "pointer",
+                  }}
+                  onClick={() => onSelectRegion(selectedRegionId === annotation.id ? null : (annotation.id || null))}
+                  onMouseEnter={() => setHoveredRegion(annotation)}
+                  onMouseLeave={() => setHoveredRegion(null)}
+                >
+                  <span>{annotation.id ? `[${annotation.id}] ${annotation.label}` : annotation.label}</span>
+                </div>
+              )
+            })}
             <div className="side-badge">
               <i className="amber-dot" /> {overlayLabel}
             </div>
@@ -888,12 +971,12 @@ function EvidenceViewer({ result }: { result: AnalysisResponse }) {
             onPointerUp={() => setIsDragging(false)}
             onPointerCancel={() => setIsDragging(false)}
           >
-            <img className="curtain-base-img" src={baseImg} alt={baseLabel} />
+            <img className="curtain-base-img" src={rawImg} alt={baseLabel} />
             <div
               className="curtain-overlay-wrap"
               style={{ clipPath: `inset(0 ${100 - sliderPos}% 0 0)` }}
             >
-              <img className="curtain-overlay-img" src={overlayImg} alt={overlayLabel} />
+              <img className="curtain-overlay-img" src={currentDisplayImg} alt={overlayLabel} />
             </div>
             <div className="curtain-divider" style={{ left: `${sliderPos}%` }}>
               <div className="curtain-handle">
@@ -921,25 +1004,82 @@ function EvidenceViewer({ result }: { result: AnalysisResponse }) {
           </div>
         </div>
       ) : (
-        <div className="viewer">
-          <img src={result.images[0]?.url || "/satellite-optical.svg"} alt={t("aria.preview")} />
-          {result.annotations.map((annotation) => (
+        <div className="viewer" style={{ position: "relative" }}>
+          <img src={currentDisplayImg} alt={t("aria.preview")} />
+
+          {/* Interactive Bounding Box / Region Overlays */}
+          {activeLayer === "annotated" && annotations.map((annotation) => {
+            const isSelected = selectedRegionId === annotation.id
+            return (
+              <div
+                key={annotation.id || annotation.label}
+                className={`annotation ${annotation.color || "cyan"}`}
+                style={{
+                  left: `${annotation.x}%`,
+                  top: `${annotation.y}%`,
+                  width: `${annotation.width}%`,
+                  height: `${annotation.height}%`,
+                  border: isSelected ? "2px solid #10b981" : undefined,
+                  boxShadow: isSelected ? "0 0 14px rgba(16, 185, 129, 0.9)" : undefined,
+                  cursor: "pointer",
+                }}
+                onClick={() => onSelectRegion(selectedRegionId === annotation.id ? null : (annotation.id || null))}
+                onMouseEnter={() => setHoveredRegion(annotation)}
+                onMouseLeave={() => setHoveredRegion(null)}
+              >
+                <span>{annotation.id ? `[${annotation.id}] ${annotation.label}` : annotation.label}</span>
+              </div>
+            )
+          })}
+
+          {/* Floating tactical HUD tooltip */}
+          {hoveredRegion && (
             <div
-              key={annotation.label}
-              className={`annotation ${annotation.color}`}
+              className="tactical-hud-tooltip"
               style={{
-                left: `${annotation.x}%`,
-                top: `${annotation.y}%`,
-                width: `${annotation.width}%`,
-                height: `${annotation.height}%`,
+                position: "absolute",
+                left: `${Math.min(85, Math.max(15, hoveredRegion.x + hoveredRegion.width / 2))}%`,
+                top: `${Math.max(10, hoveredRegion.y - 12)}%`,
+                transform: "translate(-50%, -100%)",
+                pointerEvents: "none",
+                zIndex: 30,
+                background: "rgba(10, 15, 25, 0.94)",
+                border: "1px solid #56d7df",
+                padding: "8px 12px",
+                borderRadius: "6px",
+                boxShadow: "0 4px 20px rgba(0,0,0,0.6)",
               }}
             >
-              <span>{annotation.label}</span>
+              <div className="tooltip-head" style={{ display: "flex", justifyContent: "space-between", gap: "8px", borderBottom: "1px solid rgba(86, 215, 223, 0.3)", paddingBottom: "3px", marginBottom: "4px" }}>
+                <span className="tooltip-id" style={{ color: "#10b981", fontWeight: 700, fontFamily: "monospace" }}>{hoveredRegion.id || "TARGET"}</span>
+                <span className="tooltip-label" style={{ color: "#ffffff", fontWeight: 600 }}>{hoveredRegion.label}</span>
+              </div>
+              <div className="tooltip-body" style={{ display: "grid", gridTemplateColumns: "auto auto", gap: "2px 8px", fontSize: "10px" }}>
+                <span style={{ color: "rgba(255,255,255,0.5)" }}>CONFIDENCE:</span>
+                <b style={{ color: "#56d7df", textAlign: "right" }}>{Math.round((hoveredRegion.confidence || 0) * 100)}%</b>
+                {hoveredRegion.area_ha != null && (
+                  <>
+                    <span style={{ color: "rgba(255,255,255,0.5)" }}>AREA:</span>
+                    <b style={{ color: "#f59e0b", textAlign: "right" }}>{hoveredRegion.area_ha} ha</b>
+                  </>
+                )}
+                {hoveredRegion.direction && (
+                  <>
+                    <span style={{ color: "rgba(255,255,255,0.5)" }}>SECTOR:</span>
+                    <b style={{ color: "#a78bfa", textAlign: "right" }}>{hoveredRegion.direction.toUpperCase()}</b>
+                  </>
+                )}
+                <span style={{ color: "rgba(255,255,255,0.5)" }}>CENTROID:</span>
+                <b style={{ color: "#f1f5f9", textAlign: "right" }}>
+                  X:{Math.round(hoveredRegion.x + hoveredRegion.width / 2)}% Y:{Math.round(hoveredRegion.y + hoveredRegion.height / 2)}%
+                </b>
+              </div>
             </div>
-          ))}
+          )}
+
           <div className="viewer-badge">
-            <Pill tone="dark">{result.imageType}</Pill>
-            <span>10 m / px</span>
+            <Pill tone="dark">{activeLayer.toUpperCase()} &bull; {result.imageType}</Pill>
+            <span>{result.resolution || "10 m / px"}</span>
           </div>
         </div>
       )}
@@ -1089,6 +1229,502 @@ function QuantumResearchWidget({
   )
 }
 
+function IntelligenceTabs({
+  result,
+  selectedRegionId,
+  onSelectRegion,
+}: {
+  result: AnalysisResponse
+  selectedRegionId: string | null
+  onSelectRegion: (id: string | null) => void
+}) {
+  const [activeTab, setActiveTab] = useState<
+    "findings" | "evidence" | "measurements" | "spatial" | "spectral" | "models" | "trace"
+  >("findings")
+
+  const intel = result.structured_intelligence
+  const findings = intel?.findings || []
+  const regions = intel?.regions || []
+  const measurements = intel?.measurements || {}
+  const spatial = intel?.spatial_context
+  const uncertainty = intel?.uncertainty || []
+  const recommendations = intel?.recommendations || []
+
+  // If findings are empty, derive fallback findings from evidence
+  const displayedFindings = findings.length > 0 ? findings : [
+    {
+      id: "F01",
+      category: "OBSERVED" as const,
+      title: "Primary Sensor Observations",
+      description: result.answer,
+      confidence: result.confidenceScore,
+      supporting_regions: regions.map((r) => r.id),
+      details: "Derived directly from vision-language orchestrator and specialist detections."
+    },
+    ...result.evidence.map((ev, idx) => ({
+      id: `F0${idx + 2}`,
+      category: "OBSERVED" as const,
+      title: `Evidence Item #${idx + 1}`,
+      description: ev,
+      confidence: result.confidenceScore,
+      supporting_regions: [],
+      details: "Extracted from multi-spectral feature verification."
+    }))
+  ]
+
+  const measurementEntries = Object.entries(measurements)
+
+  return (
+    <div className="intel-workstation-tabs" style={{ marginTop: "1rem" }}>
+      {/* 7 Tab buttons */}
+      <div className="intel-tabs-header">
+        <button
+          type="button"
+          className={`intel-tab-btn ${activeTab === "findings" ? "active" : ""}`}
+          onClick={() => setActiveTab("findings")}
+        >
+          📋 Findings ({displayedFindings.length})
+        </button>
+        <button
+          type="button"
+          className={`intel-tab-btn ${activeTab === "evidence" ? "active" : ""}`}
+          onClick={() => setActiveTab("evidence")}
+        >
+          🔎 Evidence ({regions.length > 0 ? regions.length : result.evidence.length})
+        </button>
+        <button
+          type="button"
+          className={`intel-tab-btn ${activeTab === "measurements" ? "active" : ""}`}
+          onClick={() => setActiveTab("measurements")}
+        >
+          📐 Measurements ({measurementEntries.length})
+        </button>
+        <button
+          type="button"
+          className={`intel-tab-btn ${activeTab === "spatial" ? "active" : ""}`}
+          onClick={() => setActiveTab("spatial")}
+        >
+          🌍 Spatial Context
+        </button>
+        <button
+          type="button"
+          className={`intel-tab-btn ${activeTab === "spectral" ? "active" : ""}`}
+          onClick={() => setActiveTab("spectral")}
+        >
+          🌈 Spectral & Sensor
+        </button>
+        <button
+          type="button"
+          className={`intel-tab-btn ${activeTab === "models" ? "active" : ""}`}
+          onClick={() => setActiveTab("models")}
+        >
+          🧠 Models & QML
+        </button>
+        <button
+          type="button"
+          className={`intel-tab-btn ${activeTab === "trace" ? "active" : ""}`}
+          onClick={() => setActiveTab("trace")}
+        >
+          ⚡ Mission Trace
+        </button>
+      </div>
+
+      {/* Tab 1: Findings */}
+      {activeTab === "findings" && (
+        <div className="intel-tab-content">
+          {intel?.summary && (
+            <div style={{ padding: "12px", background: "rgba(86, 215, 223, 0.05)", border: "1px solid rgba(86, 215, 223, 0.2)", borderRadius: "8px", marginBottom: "12px", fontSize: "13px", lineHeight: "1.5" }}>
+              <span style={{ color: "#56d7df", fontWeight: 700, display: "block", marginBottom: "4px" }}>EXECUTIVE SUMMARY:</span>
+              <p style={{ margin: 0, color: "#e2e8f0" }}>{intel.summary}</p>
+            </div>
+          )}
+
+          <div style={{ display: "flex", flexDirection: "column", gap: "10px" }}>
+            {displayedFindings.map((finding) => {
+              const cat = (finding.category || "OBSERVED").toLowerCase()
+              const isLinkedToSelected = selectedRegionId && finding.supporting_regions?.includes(selectedRegionId)
+              return (
+                <div
+                  key={finding.id}
+                  className={`finding-card ${isLinkedToSelected ? "active" : ""}`}
+                  style={{
+                    padding: "12px",
+                    background: "rgba(255, 255, 255, 0.02)",
+                    border: isLinkedToSelected ? "1px solid #10b981" : "1px solid rgba(255, 255, 255, 0.08)",
+                    borderRadius: "8px",
+                  }}
+                >
+                  <div className="finding-header" style={{ display: "flex", justifyContent: "space-between", alignItems: "center", marginBottom: "6px" }}>
+                    <div style={{ display: "flex", alignItems: "center", gap: "8px" }}>
+                      <span className={`taxonomy-badge ${cat}`}>{finding.category}</span>
+                      <strong style={{ color: "#f8fafc", fontSize: "13px" }}>{finding.title}</strong>
+                    </div>
+                    <span style={{ fontSize: "11px", color: "rgba(255, 255, 255, 0.5)", fontFamily: "monospace" }}>
+                      Conf: <b style={{ color: "#56d7df" }}>{Math.round((finding.confidence || 0) * 100)}%</b>
+                    </span>
+                  </div>
+                  <p style={{ margin: "4px 0 8px", fontSize: "12px", color: "#cbd5e1", lineHeight: "1.4" }}>
+                    {finding.description}
+                  </p>
+                  {finding.supporting_regions && finding.supporting_regions.length > 0 && (
+                    <div style={{ display: "flex", alignItems: "center", gap: "6px", flexWrap: "wrap", marginTop: "6px" }}>
+                      <span style={{ fontSize: "10px", color: "rgba(255,255,255,0.4)", textTransform: "uppercase" }}>Grounded In:</span>
+                      {finding.supporting_regions.map((rid) => (
+                        <button
+                          key={rid}
+                          type="button"
+                          onClick={() => onSelectRegion(selectedRegionId === rid ? null : rid)}
+                          style={{
+                            background: selectedRegionId === rid ? "rgba(16, 185, 129, 0.3)" : "rgba(86, 215, 223, 0.12)",
+                            border: selectedRegionId === rid ? "1px solid #10b981" : "1px solid rgba(86, 215, 223, 0.3)",
+                            color: selectedRegionId === rid ? "#10b981" : "#56d7df",
+                            padding: "1px 6px",
+                            borderRadius: "4px",
+                            fontSize: "10px",
+                            fontFamily: "monospace",
+                            cursor: "pointer",
+                          }}
+                        >
+                          [{rid}]
+                        </button>
+                      ))}
+                    </div>
+                  )}
+                </div>
+              )
+            })}
+          </div>
+
+          {(uncertainty.length > 0 || recommendations.length > 0) && (
+            <div style={{ marginTop: "14px", display: "grid", gridTemplateColumns: "1fr 1fr", gap: "10px" }}>
+              {uncertainty.length > 0 && (
+                <div style={{ padding: "10px", background: "rgba(245, 158, 11, 0.05)", border: "1px solid rgba(245, 158, 11, 0.2)", borderRadius: "6px" }}>
+                  <span style={{ color: "#f59e0b", fontSize: "11px", fontWeight: 700, display: "block", marginBottom: "4px" }}>⚠️ UNCERTAINTIES & CAVEATS</span>
+                  <ul style={{ margin: 0, paddingLeft: "16px", fontSize: "11px", color: "#e2e8f0" }}>
+                    {uncertainty.map((u, idx) => (
+                      <li key={idx} style={{ marginBottom: "2px" }}>{u}</li>
+                    ))}
+                  </ul>
+                </div>
+              )}
+              {recommendations.length > 0 && (
+                <div style={{ padding: "10px", background: "rgba(16, 185, 129, 0.05)", border: "1px solid rgba(16, 185, 129, 0.2)", borderRadius: "6px" }}>
+                  <span style={{ color: "#10b981", fontSize: "11px", fontWeight: 700, display: "block", marginBottom: "4px" }}>💡 RECOMMENDATIONS</span>
+                  <ul style={{ margin: 0, paddingLeft: "16px", fontSize: "11px", color: "#e2e8f0" }}>
+                    {recommendations.map((r, idx) => (
+                      <li key={idx} style={{ marginBottom: "2px" }}>{r}</li>
+                    ))}
+                  </ul>
+                </div>
+              )}
+            </div>
+          )}
+        </div>
+      )}
+
+      {/* Tab 2: Evidence */}
+      {activeTab === "evidence" && (
+        <div className="intel-tab-content">
+          {regions.length > 0 ? (
+            <table className="intel-table">
+              <thead>
+                <tr>
+                  <th>Region</th>
+                  <th>Classification</th>
+                  <th>Confidence</th>
+                  <th>Physical Area</th>
+                  <th>Pixel Bounds</th>
+                  <th>Sector</th>
+                </tr>
+              </thead>
+              <tbody>
+                {regions.map((reg) => {
+                  const isSelected = selectedRegionId === reg.id
+                  return (
+                    <tr
+                      key={reg.id}
+                      onClick={() => onSelectRegion(isSelected ? null : reg.id)}
+                      style={{
+                        background: isSelected ? "rgba(16, 185, 129, 0.12)" : "transparent",
+                        cursor: "pointer",
+                      }}
+                    >
+                      <td>
+                        <span style={{ color: isSelected ? "#10b981" : "#56d7df", fontFamily: "monospace", fontWeight: 700 }}>
+                          [{reg.id}]
+                        </span>
+                      </td>
+                      <td style={{ fontWeight: 600 }}>{reg.label}</td>
+                      <td>
+                        <span style={{ color: "#10b981", fontFamily: "monospace" }}>
+                          {Math.round((reg.confidence || 0) * 100)}%
+                        </span>
+                      </td>
+                      <td>
+                        {reg.area_ha != null ? `${reg.area_ha} ha` : `${reg.area_pixels?.toLocaleString() || "—"} px`}
+                      </td>
+                      <td style={{ fontFamily: "monospace", fontSize: "11px", color: "rgba(255,255,255,0.6)" }}>
+                        {JSON.stringify(reg.bbox || [])}
+                      </td>
+                      <td style={{ textTransform: "uppercase", fontSize: "11px", color: "#a78bfa" }}>
+                        {reg.direction || "CENTER"}
+                      </td>
+                    </tr>
+                  )
+                })}
+              </tbody>
+            </table>
+          ) : (
+            <div className="evidence-list">
+              {result.evidence.map((item, index) => (
+                <div key={item}>
+                  <span>0{index + 1}</span>
+                  {item}
+                  <Check />
+                </div>
+              ))}
+            </div>
+          )}
+
+          {/* Quick links to visual artifacts */}
+          <div style={{ display: "flex", gap: "10px", marginTop: "14px", flexWrap: "wrap" }}>
+            {result.overlayImageUrl && (
+              <a
+                href={result.overlayImageUrl}
+                target="_blank"
+                rel="noreferrer"
+                style={{ fontSize: "11px", color: "#56d7df", textDecoration: "underline", display: "inline-flex", alignItems: "center", gap: "4px" }}
+              >
+                <ExternalLink size={12} /> Download Tactical Overlay
+              </a>
+            )}
+            {result.heatmapUrl && (
+              <a
+                href={result.heatmapUrl}
+                target="_blank"
+                rel="noreferrer"
+                style={{ fontSize: "11px", color: "#f59e0b", textDecoration: "underline", display: "inline-flex", alignItems: "center", gap: "4px" }}
+              >
+                <ExternalLink size={12} /> Download Heatmap Activation
+              </a>
+            )}
+            {result.spectralUrl && (
+              <a
+                href={result.spectralUrl}
+                target="_blank"
+                rel="noreferrer"
+                style={{ fontSize: "11px", color: "#a78bfa", textDecoration: "underline", display: "inline-flex", alignItems: "center", gap: "4px" }}
+              >
+                <ExternalLink size={12} /> Download Spectral Profile
+              </a>
+            )}
+          </div>
+        </div>
+      )}
+
+      {/* Tab 3: Measurements */}
+      {activeTab === "measurements" && (
+        <div className="intel-tab-content">
+          {measurementEntries.length > 0 ? (
+            <table className="intel-table">
+              <thead>
+                <tr>
+                  <th>Measurement Parameter</th>
+                  <th>Quantified Value</th>
+                  <th>Unit</th>
+                  <th>Algorithmic Source / Trace</th>
+                </tr>
+              </thead>
+              <tbody>
+                {measurementEntries.map(([key, item]) => {
+                  const label = key.replace(/_/g, " ").toUpperCase()
+                  return (
+                    <tr key={key}>
+                      <td style={{ fontWeight: 600, color: "#f8fafc" }}>{label}</td>
+                      <td style={{ color: "#56d7df", fontFamily: "monospace", fontSize: "13px", fontWeight: 700 }}>
+                        {typeof item.value === "number" ? Number(item.value.toFixed(4)) : String(item.value)}
+                      </td>
+                      <td style={{ color: "rgba(255,255,255,0.6)", fontFamily: "monospace" }}>{item.unit || "unitless"}</td>
+                      <td style={{ color: "rgba(255,255,255,0.5)", fontSize: "11px" }}>{item.source || "Deterministic Sensor Processing"}</td>
+                    </tr>
+                  )
+                })}
+              </tbody>
+            </table>
+          ) : (
+            <div style={{ padding: "16px", textAlign: "center", color: "rgba(255,255,255,0.4)", fontSize: "12px" }}>
+              No direct numerical measurements computed for this scene.
+            </div>
+          )}
+        </div>
+      )}
+
+      {/* Tab 4: Spatial Context */}
+      {activeTab === "spatial" && (
+        <div className="intel-tab-content">
+          <div style={{ display: "grid", gridTemplateColumns: "repeat(auto-fit, minmax(200px, 1fr))", gap: "10px" }}>
+            <div style={{ padding: "12px", background: "rgba(255, 255, 255, 0.02)", border: "1px solid rgba(255, 255, 255, 0.08)", borderRadius: "6px" }}>
+              <span style={{ fontSize: "11px", color: "rgba(255, 255, 255, 0.4)", textTransform: "uppercase" }}>Georeferencing Status</span>
+              <div style={{ fontSize: "13px", fontWeight: 700, color: spatial?.has_georeferencing ? "#10b981" : "#f59e0b", marginTop: "4px" }}>
+                {spatial?.has_georeferencing ? "✓ Georeferenced (GeoTIFF)" : "Non-Georeferenced Pixel Grid"}
+              </div>
+            </div>
+            <div style={{ padding: "12px", background: "rgba(255, 255, 255, 0.02)", border: "1px solid rgba(255, 255, 255, 0.08)", borderRadius: "6px" }}>
+              <span style={{ fontSize: "11px", color: "rgba(255, 255, 255, 0.4)", textTransform: "uppercase" }}>Center Coordinates</span>
+              <div style={{ fontSize: "13px", fontWeight: 700, color: "#56d7df", fontFamily: "monospace", marginTop: "4px" }}>
+                {spatial?.center_lat != null && spatial?.center_lng != null
+                  ? `${spatial.center_lat.toFixed(4)}°N, ${spatial.center_lng.toFixed(4)}°E`
+                  : result.geographicLocation?.lat != null
+                  ? `${result.geographicLocation.lat.toFixed(4)}°N, ${result.geographicLocation.lng?.toFixed(4)}°E`
+                  : "N/A"}
+              </div>
+            </div>
+            <div style={{ padding: "12px", background: "rgba(255, 255, 255, 0.02)", border: "1px solid rgba(255, 255, 255, 0.08)", borderRadius: "6px" }}>
+              <span style={{ fontSize: "11px", color: "rgba(255, 255, 255, 0.4)", textTransform: "uppercase" }}>Spatial Resolution / GSD</span>
+              <div style={{ fontSize: "13px", fontWeight: 700, color: "#f8fafc", fontFamily: "monospace", marginTop: "4px" }}>
+                {spatial?.resolution || result.resolution || "10 m / px"}
+              </div>
+            </div>
+            <div style={{ padding: "12px", background: "rgba(255, 255, 255, 0.02)", border: "1px solid rgba(255, 255, 255, 0.08)", borderRadius: "6px" }}>
+              <span style={{ fontSize: "11px", color: "rgba(255, 255, 255, 0.4)", textTransform: "uppercase" }}>Coordinate Reference System</span>
+              <div style={{ fontSize: "13px", fontWeight: 700, color: "#a78bfa", fontFamily: "monospace", marginTop: "4px" }}>
+                {spatial?.crs || result.geographicLocation?.crs || "EPSG:4326 (WGS84)"}
+              </div>
+            </div>
+          </div>
+
+          {(result.globeUrl || result.geographicLocation?.has_location) && (
+            <div style={{ marginTop: "14px", padding: "12px", background: "rgba(86, 215, 223, 0.06)", border: "1px solid rgba(86, 215, 223, 0.2)", borderRadius: "6px", display: "flex", justifyContent: "space-between", alignItems: "center" }}>
+              <div>
+                <strong style={{ color: "#56d7df", display: "block" }}>3D Earth Visualization Link Ready</strong>
+                <span style={{ fontSize: "12px", color: "rgba(255, 255, 255, 0.7)" }}>
+                  Stream full high-resolution digital globe layers directly over Cesium in Shatnetra.
+                </span>
+              </div>
+              <a
+                href={result.globeUrl || (result.geographicLocation ? buildTrinetraUrl(result.geographicLocation, result.images[0]?.name || "Target") : "#")}
+                target="_blank"
+                rel="noreferrer"
+                style={{
+                  display: "inline-flex",
+                  alignItems: "center",
+                  gap: "6px",
+                  padding: "6px 12px",
+                  background: "#10b981",
+                  color: "#022c22",
+                  borderRadius: "6px",
+                  fontWeight: 700,
+                  fontSize: "12px",
+                  textDecoration: "none",
+                }}
+              >
+                <Globe size={14} /> Fly to Target <ArrowRight size={12} />
+              </a>
+            </div>
+          )}
+        </div>
+      )}
+
+      {/* Tab 5: Spectral & Sensor */}
+      {activeTab === "spectral" && (
+        <div className="intel-tab-content">
+          <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: "10px" }}>
+            <div style={{ padding: "12px", background: "rgba(255, 255, 255, 0.02)", border: "1px solid rgba(255, 255, 255, 0.08)", borderRadius: "6px" }}>
+              <span style={{ fontSize: "11px", color: "rgba(255, 255, 255, 0.4)", textTransform: "uppercase" }}>Sensor Type</span>
+              <div style={{ fontSize: "14px", fontWeight: 700, color: "#56d7df", marginTop: "4px" }}>
+                {result.imageType} ({result.mode.toUpperCase()} MODE)
+              </div>
+              <p style={{ fontSize: "12px", color: "rgba(255,255,255,0.6)", marginTop: "6px" }}>
+                Multi-spectral bands calibrated against top-of-atmosphere reflectance and surface backscatter.
+              </p>
+            </div>
+            <div style={{ padding: "12px", background: "rgba(255, 255, 255, 0.02)", border: "1px solid rgba(255, 255, 255, 0.08)", borderRadius: "6px" }}>
+              <span style={{ fontSize: "11px", color: "rgba(255, 255, 255, 0.4)", textTransform: "uppercase" }}>Band Math Indices</span>
+              <div style={{ fontSize: "12px", color: "#e2e8f0", marginTop: "6px", display: "flex", flexDirection: "column", gap: "4px" }}>
+                <div>&bull; <b>NDVI:</b> Normalized Difference Vegetation Index (B08 - B04) / (B08 + B04)</div>
+                <div>&bull; <b>NDWI:</b> Normalized Difference Water Index (B03 - B08) / (B03 + B08)</div>
+                <div>&bull; <b>SAR Amplitude:</b> Dual-pol VV / VH log-ratio detection</div>
+              </div>
+            </div>
+          </div>
+          {result.spectralUrl && (
+            <div style={{ marginTop: "12px", textAlign: "center" }}>
+              <img src={result.spectralUrl} alt="Spectral Profile Curve" style={{ maxWidth: "100%", maxHeight: "240px", borderRadius: "6px", border: "1px solid rgba(255,255,255,0.1)" }} />
+            </div>
+          )}
+        </div>
+      )}
+
+      {/* Tab 6: Models & QML */}
+      {activeTab === "models" && (
+        <div className="intel-tab-content">
+          <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: "10px", marginBottom: "14px" }}>
+            <div style={{ padding: "12px", background: "rgba(255, 255, 255, 0.02)", border: "1px solid rgba(255, 255, 255, 0.08)", borderRadius: "6px" }}>
+              <div style={{ color: "#56d7df", fontWeight: 700, fontSize: "12px", marginBottom: "6px" }}>VISION-LANGUAGE AGENT BACKBONE</div>
+              <div style={{ fontSize: "13px", color: "#f8fafc" }}>{result.model}</div>
+              <div style={{ fontSize: "11px", color: "rgba(255,255,255,0.5)", marginTop: "4px" }}>
+                Deterministic LangGraph multi-node state machine with domain guardrails.
+              </div>
+            </div>
+            <div style={{ padding: "12px", background: "rgba(255, 255, 255, 0.02)", border: "1px solid rgba(255, 255, 255, 0.08)", borderRadius: "6px" }}>
+              <div style={{ color: "#10b981", fontWeight: 700, fontSize: "12px", marginBottom: "6px" }}>SPECIALIST DETECTORS</div>
+              <div style={{ fontSize: "11px", color: "#e2e8f0", lineHeight: "1.4" }}>
+                <div>&bull; BigEarthNet-19 Multi-label Land Cover Classifier</div>
+                <div>&bull; RSVQA High-Resolution Target Grounding</div>
+                <div>&bull; Connected-Component Region Detector & Spatial Direction Interpreter</div>
+              </div>
+            </div>
+          </div>
+
+          <QuantumResearchWidget
+            comparison={result.classical_vs_qml_comparison}
+            qml={result.qml_analysis}
+          />
+        </div>
+      )}
+
+      {/* Tab 7: Trace */}
+      {activeTab === "trace" && (
+        <div className="intel-tab-content">
+          <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", marginBottom: "10px", padding: "8px 12px", background: "rgba(255,255,255,0.02)", borderRadius: "6px" }}>
+            <span style={{ fontSize: "12px", color: "rgba(255,255,255,0.6)" }}>Execution Latency: <b style={{ color: "#56d7df" }}>{result.processingTime}</b></span>
+            <span style={{ fontSize: "12px", color: "rgba(255,255,255,0.6)" }}>Execution Steps: <b style={{ color: "#10b981" }}>{result.steps?.length || 0} nodes</b></span>
+          </div>
+
+          <div style={{ display: "flex", flexDirection: "column", gap: "6px" }}>
+            {result.steps?.map((step, idx) => (
+              <div
+                key={idx}
+                style={{
+                  display: "flex",
+                  alignItems: "center",
+                  justifyContent: "space-between",
+                  padding: "8px 12px",
+                  background: "rgba(255,255,255,0.02)",
+                  border: "1px solid rgba(255,255,255,0.06)",
+                  borderRadius: "6px",
+                  fontSize: "12px",
+                }}
+              >
+                <div style={{ display: "flex", alignItems: "center", gap: "8px" }}>
+                  <span style={{ color: "#56d7df", fontFamily: "monospace" }}>0{idx + 1}</span>
+                  <span style={{ color: "#f8fafc" }}>{step.label || step.title || `Step ${idx + 1}`}</span>
+                </div>
+                <div style={{ display: "flex", alignItems: "center", gap: "8px" }}>
+                  <span style={{ fontSize: "11px", color: "rgba(255,255,255,0.4)" }}>{step.duration || step.timestamp || ""}</span>
+                  <span style={{ color: (step.status === "completed" || step.status === "complete") ? "#10b981" : "#f59e0b", fontSize: "11px", fontWeight: 700, textTransform: "uppercase" }}>
+                    {step.status}
+                  </span>
+                </div>
+              </div>
+            ))}
+          </div>
+        </div>
+      )}
+    </div>
+  )
+}
+
 function ResultView({
   result,
   technical,
@@ -1099,15 +1735,21 @@ function ResultView({
   setTechnical: (value: boolean) => void
 }) {
   const { t } = useTranslation()
-  const parts = result.answer.split(/(\*\*.*?\*\*)/g)
+  const [selectedRegionId, setSelectedRegionId] = useState<string | null>(null)
+  const [activeLayer, setActiveLayer] = useState<"annotated" | "raw" | "heatmap" | "spectral">("annotated")
+
   const confidenceKey = `confidence.${result.confidence}` as const
   const confidenceText = t(confidenceKey)
 
+  const intel = result.structured_intelligence
+  const regions = intel?.regions || []
+
   return (
-    <div className="result-view">
+    <div className="result-view workstation-container">
+      {/* Header with Title and Confidence */}
       <div className="result-top">
         <div>
-          <span className="eyebrow">{t("result.eyebrow", { mode: result.mode.toUpperCase() })}</span>
+          <span className="eyebrow">{t("result.eyebrow", { mode: result.mode.toUpperCase() })} &bull; SATELLITE INTELLIGENCE WORKSTATION</span>
           <h2>{t("result.title")}</h2>
         </div>
         <div className={`confidence ${result.confidence}`}>
@@ -1115,37 +1757,75 @@ function ResultView({
           <small>{confidenceText}</small>
         </div>
       </div>
-      <div className="answer">
-        {parts.map((part, index) =>
-          part.startsWith("**") ? (
-            <strong key={index}>{part.slice(2, -2)}</strong>
-          ) : (
-            <span key={index}>{part}</span>
-          )
-        )}
-      </div>
+
+      {/* Region Selector Chips Bar */}
+      {regions.length > 0 && (
+        <div className="region-chip-bar" style={{ display: "flex", gap: "6px", flexWrap: "wrap", margin: "10px 0" }}>
+          <button
+            type="button"
+            className={`region-chip ${selectedRegionId === null ? "active" : ""}`}
+            onClick={() => setSelectedRegionId(null)}
+            style={{
+              padding: "4px 10px",
+              borderRadius: "20px",
+              fontSize: "11px",
+              fontFamily: "monospace",
+              background: selectedRegionId === null ? "rgba(86, 215, 223, 0.25)" : "rgba(255, 255, 255, 0.05)",
+              border: selectedRegionId === null ? "1px solid #56d7df" : "1px solid rgba(255, 255, 255, 0.1)",
+              color: selectedRegionId === null ? "#56d7df" : "rgba(255, 255, 255, 0.6)",
+              cursor: "pointer",
+            }}
+          >
+            ALL REGIONS ({regions.length})
+          </button>
+          {regions.map((r) => {
+            const isSelected = selectedRegionId === r.id
+            return (
+              <button
+                key={r.id}
+                type="button"
+                className={`region-chip ${isSelected ? "active" : ""}`}
+                onClick={() => setSelectedRegionId(isSelected ? null : r.id)}
+                style={{
+                  padding: "4px 10px",
+                  borderRadius: "20px",
+                  fontSize: "11px",
+                  fontFamily: "monospace",
+                  background: isSelected ? "rgba(16, 185, 129, 0.25)" : "rgba(255, 255, 255, 0.05)",
+                  border: isSelected ? "1px solid #10b981" : "1px solid rgba(255, 255, 255, 0.1)",
+                  color: isSelected ? "#10b981" : "rgba(255, 255, 255, 0.6)",
+                  cursor: "pointer",
+                }}
+              >
+                [{r.id}] {r.label} ({Math.round((r.confidence || 0) * 100)}%)
+              </button>
+            )
+          })}
+        </div>
+      )}
+
+      {/* Main Evidence Viewer (Interactive Multi-layer + BBoxes + HUD) */}
       {result.hsiData?.isHsi ? (
         <HsiViewer {...result.hsiData} />
       ) : (
-        <EvidenceViewer result={result} />
+        <EvidenceViewer
+          result={result}
+          selectedRegionId={selectedRegionId}
+          onSelectRegion={setSelectedRegionId}
+          activeLayer={activeLayer}
+          setActiveLayer={setActiveLayer}
+        />
       )}
-      <div className="evidence-list">
-        {result.evidence.map((item, index) => (
-          <div key={item}>
-            <span>0{index + 1}</span>
-            {item}
-            <Check />
-          </div>
-        ))}
-      </div>
-      {/* Quantum Research Mode & Comparative Telemetry Widget */}
-      <QuantumResearchWidget
-        comparison={result.classical_vs_qml_comparison}
-        qml={result.qml_analysis}
+
+      {/* 7-Tab Analyst Suite */}
+      <IntelligenceTabs
+        result={result}
+        selectedRegionId={selectedRegionId}
+        onSelectRegion={setSelectedRegionId}
       />
 
       {/* Action Row: View on Globe (TRINETRA / Shatnetra) & View Report */}
-      <div className="action-row" style={{ marginTop: "1.2rem", marginBottom: "0.6rem", display: "flex", flexWrap: "wrap", gap: "0.75rem", alignItems: "center" }}>
+      <div className="action-row" style={{ marginTop: "1.4rem", marginBottom: "0.6rem", display: "flex", flexWrap: "wrap", gap: "0.75rem", alignItems: "center" }}>
         {result.globeUrl || result.geographicLocation?.has_location ? (
           <a
             href={result.globeUrl || (result.geographicLocation ? buildTrinetraUrl(result.geographicLocation, result.images[0]?.name || "Analysis Target") : "#")}
@@ -1235,6 +1915,8 @@ function ResultView({
           </span>
         )}
       </div>
+
+      {/* Technical Telemetry Metadata */}
       <button className="technical-toggle" onClick={() => setTechnical(!technical)}>
         <span>
           <span className="eyebrow">{t("meta.eyebrow")}</span>

@@ -6,6 +6,7 @@ performs forward passes, and provides fallback algorithmic CV reasoning.
 
 import os
 import glob
+import hashlib
 import torch
 import numpy as np
 from typing import Dict, Any, Optional, Tuple
@@ -29,12 +30,39 @@ CORINE_CLASSES = [
 ]
 
 class ModelManager:
-    """Manages PyTorch model lifecycles, checkpoint weights, and neural forward passes."""
+    """
+    Manages PyTorch model lifecycles, checkpoint verification, and forward passes.
+    Enforces truthful status reporting and observable fallback tracking.
+    """
 
-    _models = {}
+    _models: Dict[str, Any] = {}
+    _hashes: Dict[str, str] = {}
+
+    @classmethod
+    def get_checkpoint_hash(cls, file_path: str) -> Optional[str]:
+        """Calculates SHA-256 hash of a checkpoint file for strict provenance."""
+        if not file_path or not os.path.isfile(file_path):
+            return None
+        if file_path in cls._hashes:
+            return cls._hashes[file_path]
+        sha256 = hashlib.sha256()
+        try:
+            with open(file_path, "rb") as f:
+                while chunk := f.read(65536):
+                    sha256.update(chunk)
+            h = sha256.hexdigest()
+            cls._hashes[file_path] = h
+            return h
+        except Exception as e:
+            print(f"[ModelManager] Warning: failed to hash checkpoint {file_path}: {e}")
+            return None
 
     @classmethod
     def get_status(cls) -> Dict[str, Any]:
+        """
+        Returns truthful loading status for each model.
+        Never reports 'loaded: True' for heuristic fallback states.
+        """
         os.makedirs(CHECKPOINTS_DIR, exist_ok=True)
         report = {}
 
@@ -53,19 +81,26 @@ class ModelManager:
             ckpt_file = cls._find_checkpoint(target_path)
 
             if ckpt_file:
+                file_hash = cls.get_checkpoint_hash(ckpt_file)
                 report[key] = {
                     "name": name,
                     "loaded": True,
-                    "engine": "PyTorch Neural Checkpoint",
+                    "engine": f"PyTorch Neural Checkpoint ({os.path.basename(ckpt_file)})",
                     "checkpoint_file": os.path.basename(ckpt_file),
-                    "path": ckpt_file
+                    "checkpoint_hash": file_hash,
+                    "path": ckpt_file,
+                    "fallback_active": False,
+                    "fallback_reason": None
                 }
             else:
                 report[key] = {
                     "name": name,
-                    "loaded": True,
-                    "engine": "Algorithmic CV / Radiometric Engine",
-                    "checkpoint_file": "None (Awaiting user checkpoint upload)",
+                    "loaded": False,
+                    "engine": "Heuristic / Algorithmic CV Engine (Fallback)",
+                    "checkpoint_file": None,
+                    "checkpoint_hash": None,
+                    "fallback_active": True,
+                    "fallback_reason": "No checkpoint found on disk",
                     "expected_path": os.path.join("backend", "models", "checkpoints", key, "model.pt")
                 }
         return report
@@ -88,10 +123,18 @@ class ModelManager:
 
     @classmethod
     def load_or_get_model(cls, model_key: str):
+        """
+        Loads the PyTorch model with strict weight verification.
+        Never caches or returns uninitialized random weights on missing/failed weights.
+        """
         if model_key in cls._models:
             return cls._models[model_key]
 
         ckpt_path = cls._find_checkpoint(os.path.join(CHECKPOINTS_DIR, model_key))
+        if not ckpt_path or not os.path.exists(ckpt_path):
+            print(f"[ModelManager] No checkpoint on disk for '{model_key}'. Refusing to return uninitialized random-weight model.")
+            return None
+
         device = torch.device("cuda" if torch.cuda.is_available() else "cpu")
 
         if model_key == "bigearthnet_adapted":
@@ -110,17 +153,27 @@ class ModelManager:
         else:
             return None
 
-        if ckpt_path and os.path.exists(ckpt_path):
-            try:
-                state = torch.load(ckpt_path, map_location=device)
-                model.load_state_dict(state, strict=False)
-                model.eval()
-                print(f"[ModelManager] Loaded checkpoint {ckpt_path} successfully onto {device}.")
-            except Exception as e:
-                print(f"[ModelManager] Warning: failed to load state dict from {ckpt_path}: {e}")
-
-        cls._models[model_key] = model
-        return model
+        try:
+            state = torch.load(ckpt_path, map_location=device)
+            if isinstance(state, dict) and "state_dict" in state:
+                state = state["state_dict"]
+            elif isinstance(state, dict) and "model_state_dict" in state:
+                state = state["model_state_dict"]
+            
+            # Verify keys
+            missing, unexpected = model.load_state_dict(state, strict=False)
+            if missing:
+                print(f"[ModelManager] Checkpoint key mismatch: {len(missing)} missing keys in {ckpt_path}.")
+            if unexpected:
+                print(f"[ModelManager] Checkpoint key mismatch: {len(unexpected)} unexpected keys in {ckpt_path}.")
+            
+            model.eval()
+            cls._models[model_key] = model
+            print(f"[ModelManager] Loaded checkpoint {ckpt_path} successfully onto {device} (SHA256: {cls.get_checkpoint_hash(ckpt_path)[:12]}...).")
+            return model
+        except Exception as e:
+            print(f"[ModelManager] Critical error loading checkpoint {ckpt_path}: {e}")
+            return None
 
 # Backward compatibility alias
 ModelRegistryStatus = ModelManager

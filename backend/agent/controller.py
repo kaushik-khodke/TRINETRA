@@ -142,4 +142,29 @@ class AgentController:
                 "reports": final_response.get("reports")
             })
 
-            return final_response
+            return _make_json_safe(final_response)
+
+
+def _make_json_safe(obj: Any) -> Any:
+    """Recursively converts numpy scalars and non-serializable structures to standard Python JSON types."""
+    import numpy as np
+    if isinstance(obj, dict):
+        # Exclude large raw 2D numpy arrays if any leaked into dictionaries
+        return {
+            k: _make_json_safe(v)
+            for k, v in obj.items()
+            if not (isinstance(v, np.ndarray) and v.ndim > 1)
+        }
+    elif isinstance(obj, list):
+        return [_make_json_safe(x) for x in obj]
+    elif isinstance(obj, tuple):
+        return [_make_json_safe(x) for x in obj]
+    elif isinstance(obj, (np.integer, np.int64, np.int32, np.int16, np.int8)):
+        return int(obj)
+    elif isinstance(obj, (np.floating, np.float64, np.float32, np.float16)):
+        return float(obj)
+    elif isinstance(obj, (np.bool_, bool)):
+        return bool(obj)
+    elif isinstance(obj, np.ndarray):
+        return obj.tolist()
+    return obj
