@@ -106,6 +106,8 @@ class ModelManager:
                 }
         return report
 
+    get_model_status_report = get_status
+
     @classmethod
     def _find_checkpoint(cls, dir_path: str) -> Optional[str]:
         if not os.path.exists(dir_path):
@@ -145,14 +147,120 @@ class ModelManager:
         elif model_key == "rs_grounding_model":
             model = RSGroundingDetector().to(device)
         elif model_key == "change_specialist_model":
-            model = SiameseChangeDiffNet().to(device)
+            # Dynamic architecture detection for Stage 4 change models
+            cfg_path = os.path.join(os.path.dirname(ckpt_path), "config.json")
+            arch = None
+            if os.path.exists(cfg_path):
+                try:
+                    import json
+                    with open(cfg_path, "r", encoding="utf-8") as f:
+                        cfg = json.load(f)
+                        arch = cfg.get("model_architecture")
+                except Exception:
+                    pass
+
+            temp_state = torch.load(ckpt_path, map_location="cpu")
+            if isinstance(temp_state, dict) and "state_dict" in temp_state:
+                keys = list(temp_state["state_dict"].keys())
+            elif isinstance(temp_state, dict) and "model_state_dict" in temp_state:
+                keys = list(temp_state["model_state_dict"].keys())
+            elif isinstance(temp_state, dict):
+                keys = list(temp_state.keys())
+            else:
+                keys = []
+
+            if arch == "bit" or any("transformer" in k for k in keys):
+                from models.change_models import BitemporalInteractionTransformer
+                model = BitemporalInteractionTransformer().to(device)
+            elif arch in ["baseline", "siamese_unet"] or any("enc1.conv" in k or "conv_head" in k for k in keys):
+                from models.change_models import SiameseUNetBaseline
+                model = SiameseUNetBaseline().to(device)
+            else:
+                model = SiameseChangeDiffNet().to(device)
         elif model_key == "optical_sar_model":
-            model = OpticalSARCrossAttentionNet().to(device)
+            # Dynamic architecture detection for Stage 5 Optical-SAR models
+            cfg_path = os.path.join(os.path.dirname(ckpt_path), "config.json")
+            arch = None
+            if os.path.exists(cfg_path):
+                try:
+                    import json
+                    with open(cfg_path, "r", encoding="utf-8") as f:
+                        cfg = json.load(f)
+                        arch = cfg.get("model_architecture")
+                except Exception:
+                    pass
+
+            temp_state = torch.load(ckpt_path, map_location="cpu")
+            if isinstance(temp_state, dict) and "state_dict" in temp_state:
+                keys = list(temp_state["state_dict"].keys())
+            elif isinstance(temp_state, dict) and "model_state_dict" in temp_state:
+                keys = list(temp_state["model_state_dict"].keys())
+            elif isinstance(temp_state, dict):
+                keys = list(temp_state.keys())
+            else:
+                keys = []
+
+            all_keys_str = " ".join(keys)
+            if arch in ["concat", "concat_baseline"] or ("gate_layer" not in all_keys_str and "cross_attn" not in all_keys_str and "classifier" in all_keys_str):
+                from models.optical_sar_models import OpticalSARConcatBaseline
+                model = OpticalSARConcatBaseline().to(device)
+            elif arch in ["gated", "gated_fusion"] or "gate_layer" in all_keys_str:
+                from models.optical_sar_models import OpticalSARGatedFusionNet
+                model = OpticalSARGatedFusionNet().to(device)
+            else:
+                from models.optical_sar_models import OpticalSARCrossAttentionNet
+                model = OpticalSARCrossAttentionNet().to(device)
+
         elif model_key == "hyperfree_model":
-            from models.hyperfree.model import HyperFreeB
-            model = HyperFreeB(num_classes=16).to(device)
+            # Dynamic architecture detection for Stage 6 Hyperspectral models
+            cfg_path = os.path.join(os.path.dirname(ckpt_path), "config.json")
+            arch = None
+            in_c = 200
+            n_cls = 16
+            if os.path.exists(cfg_path):
+                try:
+                    import json
+                    with open(cfg_path, "r", encoding="utf-8") as f:
+                        cfg = json.load(f)
+                        arch = cfg.get("model_architecture")
+                        in_c = cfg.get("in_channels", 200)
+                        n_cls = cfg.get("num_classes", 16)
+                except Exception:
+                    pass
+
+            temp_state = torch.load(ckpt_path, map_location="cpu")
+            if isinstance(temp_state, dict) and "state_dict" in temp_state:
+                keys = list(temp_state["state_dict"].keys())
+            elif isinstance(temp_state, dict) and "model_state_dict" in temp_state:
+                keys = list(temp_state["model_state_dict"].keys())
+            elif isinstance(temp_state, dict):
+                keys = list(temp_state.keys())
+            else:
+                keys = []
+
+            all_keys_str = " ".join(keys)
+            if arch == "spectral_mlp" or ("mlp.0.weight" in keys and "blocks." not in all_keys_str):
+                from models.hyperspectral_models import SpectralMLPBaseline
+                model = SpectralMLPBaseline(in_channels=in_c, num_classes=n_cls).to(device)
+            elif arch == "hybridsn" or "conv3d_1" in all_keys_str:
+                from models.hyperspectral_models import HybridSNBaseline
+                model = HybridSNBaseline(in_channels=in_c, num_classes=n_cls).to(device)
+            elif "blocks." in all_keys_str or "spectral_patch_embed" in all_keys_str:
+                from models.hyperfree.model import HyperFreeB
+                max_p = 1024
+                if "pos_embed" in temp_state and hasattr(temp_state["pos_embed"], "shape"):
+                    max_p = int(temp_state["pos_embed"].shape[1]) - 1
+                model = HyperFreeB(num_classes=n_cls, max_patches=max_p).to(device)
+            else:
+                try:
+                    from models.hyperspectral_models import HyperFreeBAdapter
+                    model = HyperFreeBAdapter(in_channels=in_c, num_classes=n_cls).to(device)
+                except Exception:
+                    from models.hyperfree.model import HyperFreeB
+                    model = HyperFreeB(num_classes=n_cls).to(device)
         else:
             return None
+
 
         try:
             state = torch.load(ckpt_path, map_location=device)

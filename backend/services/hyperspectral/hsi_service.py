@@ -11,6 +11,7 @@ import json
 import base64
 import numpy as np
 import torch
+import torch.nn.functional as F
 from PIL import Image
 from typing import Dict, Any, List, Optional, Tuple
 
@@ -112,10 +113,24 @@ class HyperFreeHSISpecialist:
         spectral_metrics: Dict[str, Any] = {}
         anomaly_info = None
 
-        # Always run foundation model classification pass to rank top scene classes
+        # Always run classification pass to rank top scene classes
         with torch.no_grad():
-            preds = model(tensor_in, task="classification")
-            probs = preds["scene_probs"][0].cpu().numpy()
+            try:
+                preds = model(tensor_in, task="classification")
+                probs = preds["scene_probs"][0].cpu().numpy()
+            except TypeError:
+                # Specialist baseline returning raw logits (e.g. SpectralMLP, HybridSN, HyperFreeAdapter)
+                if tensor_in.ndim == 4 and tensor_in.shape[2] != tensor_in.shape[3]:
+                    # (1, B, H, W) -> spatial average to (1, B) if MLP expects 1D
+                    if hasattr(model, "mlp"):
+                        logits = model(tensor_in.mean(dim=(2, 3)))
+                    elif hasattr(model, "conv3d_1"):
+                        logits = model(tensor_in.unsqueeze(1))
+                    else:
+                        logits = model(tensor_in)
+                else:
+                    logits = model(tensor_in)
+                probs = F.softmax(logits, dim=-1)[0].cpu().numpy()
         top_indices = np.argsort(probs)[::-1][:5]
         for idx in top_indices:
             score = float(probs[idx])

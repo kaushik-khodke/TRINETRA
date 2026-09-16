@@ -76,16 +76,31 @@ class BiTemporalChangeSpecialist:
 
                     model.eval()
                     with torch.no_grad():
-                        logits, _ = model(t1_tensor, t2_tensor)
-                        probs = torch.softmax(logits, dim=-1).squeeze(0).cpu().tolist()
+                        out = model(t1_tensor, t2_tensor)
+                        logits = out[0] if isinstance(out, tuple) else out
 
-                    classes = ["Unchanged / Stable", "Increased Development / New Structures", "Decreased / Cleared / Receded"]
-                    top_idx = int(np.argmax(probs))
-                    neural_change = {
-                        "detected_class": classes[top_idx],
-                        "confidence": round(float(probs[top_idx]), 4),
-                        "class_probabilities": {cls_name: round(float(p), 4) for cls_name, p in zip(classes, probs)}
-                    }
+                        if logits.ndim == 4:
+                            # Dense change mask model (SiameseUNetBaseline or BIT): shape (B, 1, H, W)
+                            dense_probs = torch.sigmoid(logits).squeeze().cpu().numpy()
+                            change_ratio = float(np.mean(dense_probs >= 0.5))
+                            mean_conf = float(np.mean(dense_probs[dense_probs >= 0.5])) if change_ratio > 0.0 else float(1.0 - np.mean(dense_probs))
+                            detected_cls = "Detected Dense Structural Change" if change_ratio > 0.01 else "Unchanged / Stable"
+                            neural_change = {
+                                "detected_class": detected_cls,
+                                "confidence": round(mean_conf, 4),
+                                "change_area_ratio": round(change_ratio, 4),
+                                "dense_change_mask": (dense_probs >= 0.5).astype(np.uint8)
+                            }
+                        else:
+                            # Legacy 1D differential classifier
+                            probs = torch.softmax(logits, dim=-1).squeeze(0).cpu().tolist()
+                            classes = ["Unchanged / Stable", "Increased Development / New Structures", "Decreased / Cleared / Receded"]
+                            top_idx = int(np.argmax(probs))
+                            neural_change = {
+                                "detected_class": classes[top_idx],
+                                "confidence": round(float(probs[top_idx]), 4),
+                                "class_probabilities": {cls_name: round(float(p), 4) for cls_name, p in zip(classes, probs)}
+                            }
             except Exception as e:
                 print(f"[BiTemporalChangeSpecialist] Neural inference warning: {e}")
 
@@ -96,6 +111,9 @@ class BiTemporalChangeSpecialist:
         if neural_change:
             stats["neural_classification"] = neural_change["detected_class"]
             stats["neural_confidence"] = f"{int(neural_change['confidence'] * 100)}%"
+            if "change_area_ratio" in neural_change:
+                stats["neural_change_ratio"] = f"{round(neural_change['change_area_ratio'] * 100, 2)}%"
+
 
         # Synthesize evidence-grounded answer via LLM reasoning engine
         spatial_dist = {

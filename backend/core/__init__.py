@@ -10,7 +10,9 @@ from .exceptions import (
     ModelCheckpointError,
     ModalityResolutionError,
     InferenceTimeoutError,
-    ProvenanceIntegrityError
+    ProvenanceIntegrityError,
+    DatasetValidationError,
+    DatasetLeakageError
 )
 
 __all__ = [
@@ -21,5 +23,8 @@ __all__ = [
     "ModelCheckpointError",
     "ModalityResolutionError",
     "InferenceTimeoutError",
-    "ProvenanceIntegrityError"
+    "ProvenanceIntegrityError",
+    "DatasetValidationError",
+    "DatasetLeakageError"
 ]
+

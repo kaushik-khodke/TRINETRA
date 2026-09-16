@@ -249,8 +249,18 @@ class FailureCase(BaseModel):
         "model_divergence",
         "sensor_saturation",
         "missing_modality",
+        "seasonal_change",
+        "small_object_miss",
+        "boundary_error",
+        "spatial_boundary_confusion",
+        "spectral_metamerism",
+        "rare_class_starvation",
+        "water_absorption_noise",
+        "false_positive",
+        "false_negative",
         "other"
     ] = Field(..., description="Root-cause classification of failure")
     severity: Literal["low", "medium", "high", "critical"] = Field(default="medium")
     explanation: str = Field(..., description="Technical autopsy explaining why failure occurred")
     mitigation: Optional[str] = Field(default=None, description="Proposed algorithmic or data fix")
+

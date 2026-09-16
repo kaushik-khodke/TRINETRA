@@ -1,59 +1,97 @@
 """
-TRINETRA / SatQuery AI — Bi-Temporal Change Genuine Dataset Loader
-Loads real registered observation pairs (T1, T2) and ground-truth change masks.
-Zero synthetic or mock data.
+TRINETRA — Bi-Temporal Change Genuine Dataset Loader
+Loads real registered observation pairs (T1, T2) and ground-truth dense change masks.
+Governed by Stage 4 Change Detection Protocol. Zero synthetic or mock data.
 """
 
 import os
 import glob
-from typing import Tuple, Dict, Any, Optional
+from typing import Tuple, Dict, Any, Optional, List, Union
 from PIL import Image
 import numpy as np
 import torch
 from torch.utils.data import Dataset
 
+
 class BiTemporalChangeGenuineDataset(Dataset):
     """
-    Genuine PyTorch Dataset for Bi-Temporal Remote-Sensing Change Analysis.
-    Loads real pre-change (T1) and post-change (T2) images with true change labels.
+    Genuine PyTorch Dataset for Bi-Temporal Remote-Sensing Dense Change Analysis.
+    Loads real pre-change (T1) and post-change (T2) images with true dense change masks.
+    Compatible with LEVIR-CD, WHU-CD, OSCD, and Siam-Diff benchmark formats.
     """
     def __init__(
         self,
         data_dir: str,
-        manifest_file: str,
-        image_size: int = 224,
-        max_samples: Optional[int] = None
+        manifest_file: Optional[str] = None,
+        image_size: int = 256,
+        max_samples: Optional[int] = None,
+        return_dense_mask: bool = True
     ):
         self.data_dir = data_dir
         self.image_size = image_size
+        self.return_dense_mask = return_dense_mask
 
-        if not os.path.exists(manifest_file):
-            raise FileNotFoundError(f"Manifest '{manifest_file}' not found. Run prepare.py first.")
+        # Detect dataset directory layout
+        self.has_subdirs = (
+            os.path.exists(os.path.join(data_dir, "A")) and
+            os.path.exists(os.path.join(data_dir, "B"))
+        )
 
-        with open(manifest_file, "r", encoding="utf-8") as f:
-            self.sample_ids = [line.strip() for line in f if line.strip()]
+        if manifest_file and os.path.exists(manifest_file):
+            with open(manifest_file, "r", encoding="utf-8") as f:
+                self.sample_ids = [line.strip() for line in f if line.strip()]
+        else:
+            # Auto-discover from A/ directory if manifest not supplied
+            if self.has_subdirs:
+                a_files = sorted(glob.glob(os.path.join(data_dir, "A", "*.*")))
+                self.sample_ids = [
+                    os.path.splitext(os.path.basename(p))[0]
+                    for p in a_files
+                    if p.lower().endswith(('.png', '.jpg', '.jpeg', '.tif', '.tiff'))
+                ]
+            else:
+                # Flat pair directories
+                subdirs = [
+                    d for d in os.listdir(data_dir)
+                    if os.path.isdir(os.path.join(data_dir, d)) and not d.startswith(".")
+                ]
+                self.sample_ids = sorted(subdirs)
 
         if max_samples and max_samples < len(self.sample_ids):
             self.sample_ids = self.sample_ids[:max_samples]
 
-        self.is_levir = os.path.exists(os.path.join(data_dir, "A")) and os.path.exists(os.path.join(data_dir, "B"))
         print(f"[CHANGE DATASET] Loaded {len(self.sample_ids):,} verified bi-temporal pairs from {data_dir}.")
 
     def __len__(self) -> int:
         return len(self.sample_ids)
 
     def _load_image(self, path: str) -> np.ndarray:
+        """Loads and normalizes an RGB image to (3, H, W) float32 in [0, 1]."""
         img = Image.open(path).convert("RGB")
         if img.size != (self.image_size, self.image_size):
             img = img.resize((self.image_size, self.image_size), Image.BILINEAR)
         arr = np.array(img, dtype=np.float32) / 255.0
         return np.transpose(arr, (2, 0, 1))
 
+    def _load_mask(self, path: Optional[str]) -> np.ndarray:
+        """Loads ground-truth change mask to (1, H, W) binary float32 {0.0, 1.0}."""
+        if path and os.path.isfile(path):
+            mask = Image.open(path).convert("L")
+            if mask.size != (self.image_size, self.image_size):
+                mask = mask.resize((self.image_size, self.image_size), Image.NEAREST)
+            arr = np.array(mask, dtype=np.float32)
+            # Standard remote-sensing masks: 255 or >128 indicates change
+            bin_arr = (arr >= 128.0).astype(np.float32)
+            return np.expand_dims(bin_arr, axis=0)
+        else:
+            # Default zero mask if ground truth missing
+            return np.zeros((1, self.image_size, self.image_size), dtype=np.float32)
+
     def __getitem__(self, idx: int) -> Tuple[torch.Tensor, torch.Tensor, torch.Tensor]:
         sid = self.sample_ids[idx]
 
-        if self.is_levir:
-            # LEVIR-CD: A/<id>.*, B/<id>.*, label/<id>.*
+        if self.has_subdirs:
+            # Benchmark layout: A/<id>.*, B/<id>.*, label/<id>.*
             t1_files = glob.glob(os.path.join(self.data_dir, "A", f"{sid}.*"))
             t2_files = glob.glob(os.path.join(self.data_dir, "B", f"{sid}.*"))
             lbl_files = glob.glob(os.path.join(self.data_dir, "label", f"{sid}.*"))
@@ -63,41 +101,32 @@ class BiTemporalChangeGenuineDataset(Dataset):
 
             t1_arr = self._load_image(t1_files[0])
             t2_arr = self._load_image(t2_files[0])
-
-            # Read genuine ground-truth change mask
-            if lbl_files:
-                mask = Image.open(lbl_files[0]).convert("L")
-                mask_np = np.array(mask.resize((self.image_size, self.image_size), Image.NEAREST))
-                change_ratio = float(np.mean(mask_np > 128))
-                if change_ratio < 0.01:
-                    target_class = 0  # Unchanged
-                else:
-                    # Compare pixel luminance to determine expansion (built-up addition) vs reduction
-                    lum1 = np.mean(t1_arr)
-                    lum2 = np.mean(t2_arr)
-                    target_class = 1 if lum2 >= lum1 else 2  # 1: Expansion, 2: Reduction
-            else:
-                target_class = 0
+            lbl_path = lbl_files[0] if lbl_files else None
+            mask_arr = self._load_mask(lbl_path)
         else:
-            # OSCD or general pair folder: <sid>/date1.*, <sid>/date2.*
+            # Pair folder layout: <sid>/t1.*, <sid>/t2.*, <sid>/mask.*
             pair_dir = os.path.join(self.data_dir, sid)
-            imgs = sorted(glob.glob(os.path.join(pair_dir, "*.png")) + glob.glob(os.path.join(pair_dir, "*.tif")) + glob.glob(os.path.join(pair_dir, "*.jpg")))
+            imgs = sorted(
+                glob.glob(os.path.join(pair_dir, "*.png")) +
+                glob.glob(os.path.join(pair_dir, "*.tif")) +
+                glob.glob(os.path.join(pair_dir, "*.jpg"))
+            )
+            imgs = [img for img in imgs if not any(k in os.path.basename(img).lower() for k in ["cm", "mask", "label"])]
+
             if len(imgs) < 2:
                 raise FileNotFoundError(f"Need at least 2 date images in pair folder {pair_dir}.")
             t1_arr = self._load_image(imgs[0])
             t2_arr = self._load_image(imgs[1])
 
-            # Check for ground truth change mask in pair folder
-            mask_files = glob.glob(os.path.join(pair_dir, "*cm*.*")) + glob.glob(os.path.join(pair_dir, "*mask*.*"))
-            if mask_files:
-                mask = Image.open(mask_files[0]).convert("L")
-                mask_np = np.array(mask.resize((self.image_size, self.image_size), Image.NEAREST))
-                target_class = 1 if np.mean(mask_np > 128) >= 0.02 else 0
-            else:
-                target_class = 0
+            mask_files = (
+                glob.glob(os.path.join(pair_dir, "*cm*.*")) +
+                glob.glob(os.path.join(pair_dir, "*mask*.*")) +
+                glob.glob(os.path.join(pair_dir, "*label*.*"))
+            )
+            mask_arr = self._load_mask(mask_files[0] if mask_files else None)
 
         t1_tensor = torch.from_numpy(t1_arr)
         t2_tensor = torch.from_numpy(t2_arr)
-        label_tensor = torch.tensor(target_class, dtype=torch.long)
+        mask_tensor = torch.from_numpy(mask_arr)
 
-        return t1_tensor, t2_tensor, label_tensor
+        return t1_tensor, t2_tensor, mask_tensor

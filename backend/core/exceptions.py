@@ -118,3 +118,28 @@ class ProvenanceIntegrityError(TRINETRABaseException):
             severity="critical",
             mitigation="Re-run pipeline ensuring git commit, environment hash, and input hashes are recorded."
         )
+
+
+class DatasetValidationError(TRINETRABaseException):
+    """Raised when a benchmark dataset has missing files, invalid pairing, or corrupted rasters."""
+    def __init__(self, message: str, context: Optional[Dict[str, Any]] = None):
+        super().__init__(
+            message=message,
+            error_code="ERR_DATASET_VALIDATION",
+            context=context,
+            severity="high",
+            mitigation="Inspect dataset directory, verify paired samples in A/ and B/, and check image dimensions."
+        )
+
+
+class DatasetLeakageError(TRINETRABaseException):
+    """Raised when sample overlap is detected between train, validation, or test splits."""
+    def __init__(self, message: str, context: Optional[Dict[str, Any]] = None):
+        super().__init__(
+            message=message,
+            error_code="ERR_DATASET_LEAKAGE",
+            context=context,
+            severity="critical",
+            mitigation="Ensure train, val, and test splits are strictly disjoint sets with zero shared asset IDs."
+        )
+

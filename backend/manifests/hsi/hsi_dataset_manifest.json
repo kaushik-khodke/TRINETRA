@@ -1,0 +1,74 @@
+{
+  "valid": true,
+  "cube_shape": [
+    64,
+    64,
+    200
+  ],
+  "num_bands": 200,
+  "num_classes": 3,
+  "total_foreground_pixels": 2916,
+  "total_background_pixels": 1180,
+  "grid_config": {
+    "grid_rows": 4,
+    "grid_cols": 4,
+    "total_blocks": 16,
+    "patch_size": 7,
+    "boundary_margin": 3
+  },
+  "split_blocks": {
+    "train": [
+      0,
+      1,
+      2,
+      4,
+      5,
+      6,
+      8,
+      9,
+      10,
+      12
+    ],
+    "val": [
+      3,
+      7
+    ],
+    "test": [
+      11,
+      13,
+      14,
+      15
+    ]
+  },
+  "sample_counts": {
+    "train": 848,
+    "val": 144,
+    "test": 304,
+    "total_extracted": 1296
+  },
+  "class_distribution": {
+    "1": 2539,
+    "2": 361,
+    "3": 16
+  },
+  "train_normalization": {
+    "mean_sample": [
+      0.057898927479982376,
+      0.06387331336736679,
+      0.0696115493774414,
+      0.07367490231990814,
+      0.0759623721241951
+    ],
+    "std_sample": [
+      0.06746267527341843,
+      0.06654458492994308,
+      0.06560979038476944,
+      0.06499893963336945,
+      0.06443248689174652
+    ]
+  },
+  "errors": [],
+  "warnings": [
+    "Class 3 has very few labeled samples (16). Rare class starvation risk."
+  ]
+}
