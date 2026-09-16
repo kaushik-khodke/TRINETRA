@@ -12,6 +12,9 @@ from typing import Dict, Any, List
 from geospatial.normalizer import GeospatialNormalizer
 from geospatial.overlays import EvidenceOverlayEngine
 from geospatial.reader import GeospatialReader
+from geospatial.validator import GeospatialValidator
+from schemas.contracts import RasterMetadata
+from core.exceptions import AlignmentMismatchError
 from models.loader import ModelRegistryStatus
 from services.llm_engine import LLMReasoningEngine
 
@@ -31,8 +34,27 @@ class BiTemporalChangeSpecialist:
         has_neural_weights = ckpt is not None
         neural_change = None
 
-        arr_t1 = images_arr[0]
-        arr_t2 = images_arr[1]
+        raw_t1 = images_arr[0]
+        raw_t2 = images_arr[1]
+        def _build_meta(arr: np.ndarray, m: Any) -> RasterMetadata:
+            if isinstance(m, RasterMetadata):
+                return m
+            h, w = arr.shape[:2]
+            bands = 1 if arr.ndim == 2 else (arr.shape[2] if arr.ndim == 3 else 1)
+            d = dict(m) if isinstance(m, dict) else {}
+            d.setdefault("width", w)
+            d.setdefault("height", h)
+            d.setdefault("band_count", d.get("bands", bands))
+            d.setdefault("dtype", str(arr.dtype))
+            return RasterMetadata(**d)
+
+        meta1 = _build_meta(raw_t1, metas[0])
+        meta2 = _build_meta(raw_t2, metas[1])
+
+        # Stage 3 Geospatial Validation & Reference Grid Alignment
+        arr_t1, arr_t2, alignment_report = GeospatialValidator.align_rasters_to_reference_grid(
+            raw_t1, meta1, raw_t2, meta2, reference_grid="t1"
+        )
 
         # Active forward pass through trained Siamese Neural Network
         if has_neural_weights:
@@ -67,8 +89,10 @@ class BiTemporalChangeSpecialist:
             except Exception as e:
                 print(f"[BiTemporalChangeSpecialist] Neural inference warning: {e}")
 
-        # Compute difference matrix & statistics
-        diff_matrix, stats = GeospatialNormalizer.compute_bitemporal_change(arr_t1, arr_t2)
+        # Compute difference matrix & statistics with alignment report
+        diff_matrix, stats = GeospatialNormalizer.compute_bitemporal_change(
+            arr_t1, arr_t2, alignment_report=alignment_report
+        )
         if neural_change:
             stats["neural_classification"] = neural_change["detected_class"]
             stats["neural_confidence"] = f"{int(neural_change['confidence'] * 100)}%"
@@ -123,6 +147,7 @@ class BiTemporalChangeSpecialist:
             "confidence": round(confidence, 2),
             "confidence_calibrated": False,
             "change_statistics": stats,
+            "alignment_report": alignment_report.model_dump(),
             "evidence": {
                 "t1_preview": preview_t1_b64,
                 "t2_preview": preview_t2_b64,

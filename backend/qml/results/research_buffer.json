@@ -1,6 +1,6 @@
 {
   "version": "1.0.0",
-  "last_updated": "2026-09-16T09:28:09Z",
+  "last_updated": "2026-09-16T09:54:14Z",
   "samples": [
     {
       "sample_id": "qml_smp_e5bad2ca",
@@ -300,6 +300,29 @@
       "verified": false,
       "model_version": "qml_change_levir10k",
       "timestamp": "2026-09-16T09:28:08Z"
+    },
+    {
+      "sample_id": "qml_smp_3309ff76",
+      "dataset": "LEVIR_CD_patches",
+      "task": "vqa",
+      "feature_vector": [
+        3.141464,
+        0.035307,
+        0.032194,
+        3.141389,
+        1e-06,
+        2.908322
+      ],
+      "ground_truth": null,
+      "classical_prediction": "Increased",
+      "classical_confidence": 0.4936,
+      "qml_prediction": "Unchanged",
+      "qml_confidence": 0.3746,
+      "agreement": false,
+      "is_disagreement": true,
+      "verified": false,
+      "model_version": "qml_change_levir10k",
+      "timestamp": "2026-09-16T09:54:14Z"
     }
   ]
 }

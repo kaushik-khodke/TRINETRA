@@ -11,6 +11,9 @@ from typing import Dict, Any, List
 from geospatial.normalizer import GeospatialNormalizer
 from geospatial.overlays import EvidenceOverlayEngine
 from geospatial.reader import GeospatialReader
+from geospatial.validator import GeospatialValidator
+from schemas.contracts import RasterMetadata
+from core.exceptions import AlignmentMismatchError
 from models.loader import ModelRegistryStatus
 from services.llm_engine import LLMReasoningEngine
 
@@ -30,29 +33,56 @@ class OpticalSarFusionSpecialist:
 
         # Determine which image is optical and which is SAR
         if metas[0].get("modality", "").lower() == "sar" or metas[0].get("bands", 1) == 1:
-            sar_arr, sar_meta = images_arr[0], metas[0]
-            opt_arr, opt_meta = images_arr[1], metas[1]
+            raw_sar, sar_meta_dict = images_arr[0], metas[0]
+            raw_opt, opt_meta_dict = images_arr[1], metas[1]
         else:
-            opt_arr, opt_meta = images_arr[0], metas[0]
-            sar_arr, sar_meta = images_arr[1], metas[1]
+            raw_opt, opt_meta_dict = images_arr[0], metas[0]
+            raw_sar, sar_meta_dict = images_arr[1], metas[1]
+        def _build_meta(arr: np.ndarray, m: Any) -> RasterMetadata:
+            if isinstance(m, RasterMetadata):
+                return m
+            h, w = arr.shape[:2]
+            bands = 1 if arr.ndim == 2 else (arr.shape[2] if arr.ndim == 3 else 1)
+            d = dict(m) if isinstance(m, dict) else {}
+            d.setdefault("width", w)
+            d.setdefault("height", h)
+            d.setdefault("band_count", d.get("bands", bands))
+            d.setdefault("dtype", str(arr.dtype))
+            return RasterMetadata(**d)
+
+        opt_meta = _build_meta(raw_opt, opt_meta_dict)
+        sar_meta = _build_meta(raw_sar, sar_meta_dict)
+
+        # Stage 3 True Geometric Optical–SAR Coregistration Validation
+        alignment_report = GeospatialValidator.validate_optical_sar_coregistration(
+            opt_meta, sar_meta, raw_opt, raw_sar
+        )
+
+        if opt_meta.is_geotiff and sar_meta.is_geotiff and alignment_report.bounds_overlap_pct <= 0.0:
+            raise AlignmentMismatchError(
+                f"Zero spatial overlap between Optical ({opt_meta.filename}) and SAR ({sar_meta.filename}). Cannot perform cross-modal fusion on disjoint geographic locations."
+            )
+
+        # Preprocess optical with reflectance scaling & cloud/nodata masking
+        opt_arr, opt_manifest = GeospatialNormalizer.preprocess_optical(raw_opt, opt_meta)
+
+        # Preprocess SAR with decibel conversion & documented speckle filter policy
+        sar_db, sar_manifest = GeospatialNormalizer.preprocess_sar(raw_sar, sar_meta, apply_speckle_filter=False)
+        sar_arr = raw_sar
 
         # 1. Optical spectral analysis
-        ndvi = GeospatialNormalizer.compute_ndvi(opt_arr)
-        ndwi = GeospatialNormalizer.compute_ndwi(opt_arr)
+        indices = GeospatialNormalizer.compute_spectral_indices(raw_opt)
+        ndvi = indices["ndvi"]
+        ndwi = indices["ndwi"]
         opt_veg = float(np.mean(ndvi > 0.2))
         opt_water = float(np.mean(ndwi > 0.1))
 
         # 2. SAR radar backscatter analysis
-        sar_db = GeospatialNormalizer.compute_sar_db(sar_arr)
-        # Strong double-bounce scattering (> -5 dB) signifies vertical built-up structures
         high_backscatter_urban = float(np.mean(sar_db > -8.0))
-        # Specular low backscatter (< -18 dB) signifies flat open water surfaces
         low_backscatter_water = float(np.mean(sar_db < -18.0))
 
         # 3. Joint cross-modal reasoning
-        # Water agreement: both NDWI > 0.1 and SAR low backscatter
         fused_water_pct = round((opt_water * 0.5 + low_backscatter_water * 0.5) * 100, 1)
-        # Built-up agreement: strong SAR double-bounce confirms structural buildings independent of optical shadows/clouds
         fused_urban_pct = round(high_backscatter_urban * 100, 1)
         fused_veg_pct = round(opt_veg * 100, 1)
 
@@ -86,25 +116,14 @@ class OpticalSarFusionSpecialist:
         confidence = synthesis["confidence"]
 
         # 4. Generate visual composites
-        opt_rgb = GeospatialReader.to_rgb_preview(opt_arr, "optical")
-        sar_rgb = GeospatialReader.to_rgb_preview(sar_arr, "sar")
+        opt_rgb = GeospatialReader.to_rgb_preview(raw_opt, "optical")
+        sar_rgb = GeospatialReader.to_rgb_preview(raw_sar, "sar")
         composite = EvidenceOverlayEngine.render_optical_sar_composite(opt_rgb, sar_rgb)
 
-        # 5. Compute dynamic statistical cross-modal correlation
-        corr_data = GeospatialNormalizer.compute_cross_modal_correlation(opt_arr, sar_arr)
-
-        # 6. Inspect geometric coregistration validity from raster metadata
-        opt_crs = opt_meta.get("crs") or opt_meta.get("projection")
-        sar_crs = sar_meta.get("crs") or sar_meta.get("projection")
-        if opt_crs and sar_crs and opt_crs == sar_crs:
-            alignment_status = "Verified geometric coregistration (matched CRS)"
-            coregistered = True
-        elif not opt_crs or not sar_crs:
-            alignment_status = "Unverified alignment: missing spatial coordinate reference (CRS) metadata"
-            coregistered = False
-        else:
-            alignment_status = f"Differing CRS ({opt_crs} vs {sar_crs}) - reprojection required"
-            coregistered = False
+        # 5. Compute dynamic statistical cross-modal correlation with alignment report
+        corr_data = GeospatialNormalizer.compute_cross_modal_correlation(
+            raw_opt, raw_sar, alignment_report=alignment_report
+        )
 
         fallback_used = ckpt is None
         fallback_reason = None if not fallback_used else "No optical_sar_model checkpoint found on disk"
@@ -124,16 +143,21 @@ class OpticalSarFusionSpecialist:
             "answer": answer,
             "confidence": confidence,
             "confidence_calibrated": False,
-            "coregistered": coregistered,
+            "coregistered": alignment_report.coregistered,
+            "alignment_report": alignment_report.model_dump(),
             "fusion_correlations": {
                 "optical_sar_correlation": corr_data["optical_sar_correlation"],
                 "structural_coherence": corr_data["structural_coherence"],
-                "spectral_radar_alignment": alignment_status,
+                "spectral_radar_alignment": alignment_report.status_message,
                 "sample_pixel_count": corr_data["sample_pixel_count"]
             },
             "sensor_contributions": {
                 "optical": f"Spectral chlorophyll NDVI ({fused_veg_pct}%) and multi-band water absorption",
-                "sar": f"Microwave double-bounce structural built-up mapping ({fused_urban_pct}%) and specular radar attenuation"
+                "sar": f"Microwave double-bounce structural built-up mapping ({fused_urban_pct}%) and specular radar attenuation ({sar_manifest['polarization']})"
+            },
+            "preprocessing_manifests": {
+                "optical": opt_manifest,
+                "sar": sar_manifest
             },
             "evidence": {
                 "optical_preview": EvidenceOverlayEngine.to_base64(opt_rgb),

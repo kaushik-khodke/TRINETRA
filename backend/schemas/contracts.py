@@ -27,7 +27,7 @@ class InputAsset(BaseModel):
 
 
 class RasterMetadata(BaseModel):
-    """Geospatial raster metadata extracted directly from file headers (GDAL/Rasterio)."""
+    """Geospatial raster metadata extracted directly from file headers (GDAL/Rasterio/TIFF)."""
     schema_version: str = Field(default="2.0.0")
     width: int = Field(..., gt=0, description="Raster width in pixels")
     height: int = Field(..., gt=0, description="Raster height in pixels")
@@ -42,6 +42,24 @@ class RasterMetadata(BaseModel):
     modality: Literal["optical", "sar", "hyperspectral", "multispectral"] = Field(
         default="optical", description="Resolved physical sensor modality"
     )
+    is_geotiff: bool = Field(default=False, description="True if georeferencing metadata present")
+    acquisition_timestamp: Optional[str] = Field(default=None, description="ISO 8601 acquisition timestamp if present")
+    band_descriptions: Optional[List[str]] = Field(default=None, description="Names/channels of spectral bands")
+    filename: Optional[str] = Field(default="", description="Original raster filename")
+    center_lat: Optional[float] = Field(default=None, description="Center latitude in degrees")
+    center_lng: Optional[float] = Field(default=None, description="Center longitude in degrees")
+    location_name: Optional[str] = Field(default=None, description="Geographic location identifier")
+
+    @property
+    def has_geographic_location(self) -> bool:
+        return self.center_lat is not None and self.center_lng is not None
+
+    def to_dict(self) -> Dict[str, Any]:
+        """Backwards compatibility helper for existing service call-sites."""
+        d = self.model_dump()
+        d["bands"] = self.band_count
+        d["has_geographic_location"] = self.has_geographic_location
+        return d
 
     @field_validator("bounds")
     @classmethod
@@ -64,8 +82,12 @@ class AlignmentReport(BaseModel):
     resolution_ratio: float = Field(default=1.0, gt=0.0, description="Pixel resolution ratio (source / reference)")
     reprojection_needed: bool = Field(default=False, description="True if CRS transformation is required")
     resampling_applied: bool = Field(default=False, description="True if on-the-fly resampling was performed")
+    resampling_method: Optional[str] = Field(default=None, description="Resampling kernel: bilinear | nearest")
     coregistered: bool = Field(..., description="True only if geometric verification passes strict tolerance")
     offset_vector: Optional[List[float]] = Field(default=None, description="[dx, dy] estimated spatial registration shift")
+    intersection_bounds: Optional[List[float]] = Field(default=None, description="[minx, miny, maxx, maxy] overlap bbox")
+    valid_data_overlap_pct: Optional[float] = Field(default=None, ge=0.0, le=100.0, description="Overlap excluding nodata")
+    temporal_order_valid: Optional[bool] = Field(default=None, description="True if t1 <= t2 in bi-temporal analysis")
     status_message: str = Field(..., description="Human-readable geometric audit summary")
 
 

@@ -122,17 +122,19 @@ class InputValidator:
                     error_message=f"Failed to read raster at '{os.path.basename(path)}': {str(e)}"
                 )
 
-        # 3. Mode-specific pairing compatibility checks
+        # 3. Stage 3 Mode-Specific Geospatial Pairing & Alignment Verification
         compatibility: Dict[str, Any] = {
             "file_count": count,
             "all_geotiff": all(m.is_geotiff for m in parsed_metadata),
             "spatial_coverage_aligned": True
         }
 
+        from geospatial.validator import GeospatialValidator
+
         if requested_mode == "optical_sar":
             m0, m1 = parsed_metadata[0].modality.lower(), parsed_metadata[1].modality.lower()
-            has_optical = ("optical" in m0 or "optical" in m1 or parsed_metadata[0].bands >= 3 or parsed_metadata[1].bands >= 3)
-            has_sar = ("sar" in m0 or "sar" in m1 or parsed_metadata[0].bands == 1 or parsed_metadata[1].bands == 1)
+            has_optical = ("optical" in m0 or "optical" in m1 or parsed_metadata[0].band_count >= 3 or parsed_metadata[1].band_count >= 3)
+            has_sar = ("sar" in m0 or "sar" in m1 or parsed_metadata[0].band_count == 1 or parsed_metadata[1].band_count == 1)
 
             if not (has_optical and has_sar):
                 compatibility["modality_match"] = False
@@ -142,26 +144,53 @@ class InputValidator:
                     error_message="Optical–SAR mode requires one Optical/Multispectral image and one SAR radar image.",
                     compatibility=compatibility
                 )
+
+            # Determine optical vs SAR
+            if "sar" in m0 or parsed_metadata[0].band_count == 1:
+                sar_m, opt_m = parsed_metadata[0], parsed_metadata[1]
+            else:
+                opt_m, sar_m = parsed_metadata[0], parsed_metadata[1]
+
+            align_rep = GeospatialValidator.validate_optical_sar_coregistration(opt_m, sar_m)
             compatibility["modality_match"] = True
-            compatibility["cross_modal_coregistered"] = True
+            compatibility["alignment_report"] = align_rep.model_dump()
+            compatibility["cross_modal_coregistered"] = align_rep.coregistered
+            compatibility["bounds_overlap_pct"] = align_rep.bounds_overlap_pct
+
+            # Strict rejection if both are georeferenced GeoTIFFs but completely disjoint
+            if opt_m.is_geotiff and sar_m.is_geotiff and align_rep.bounds_overlap_pct <= 0.0:
+                return ValidationReport(
+                    valid=False,
+                    mode=requested_mode,
+                    error_message=f"Spatial alignment failure: 0.0% spatial overlap between Optical ({opt_m.filename}) and SAR ({sar_m.filename}).",
+                    compatibility=compatibility
+                )
 
         elif requested_mode == "bi_temporal":
-            # Check dimensional compatibility
-            h0, w0 = parsed_metadata[0].height, parsed_metadata[0].width
-            h1, w1 = parsed_metadata[1].height, parsed_metadata[1].width
-            aspect0 = round(w0 / h0, 2)
-            aspect1 = round(w1 / h1, 2)
-            
-            if aspect0 != aspect1 and (abs(w0 - w1) > 200 or abs(h0 - h1) > 200):
-                compatibility["spatial_coverage_aligned"] = False
+            m1, m2 = parsed_metadata[0], parsed_metadata[1]
+            align_rep = GeospatialValidator.validate_bitemporal_alignment(m1, m2)
+            compatibility["alignment_report"] = align_rep.model_dump()
+            compatibility["bitemporal_aligned"] = align_rep.coregistered or align_rep.grid_aligned
+            compatibility["bounds_overlap_pct"] = align_rep.bounds_overlap_pct
+            compatibility["resampling_needed"] = align_rep.resampling_applied or (not align_rep.grid_aligned)
+
+            # Strict rejection if both are georeferenced GeoTIFFs but completely disjoint
+            if m1.is_geotiff and m2.is_geotiff and align_rep.bounds_overlap_pct <= 0.0:
+                return ValidationReport(
+                    valid=False,
+                    mode=requested_mode,
+                    error_message=f"Spatial alignment failure: 0.0% spatial overlap between T1 ({m1.filename}) and T2 ({m2.filename}).",
+                    compatibility=compatibility
+                )
+
+            if align_rep.bounds_overlap_pct < 95.0 and align_rep.bounds_overlap_pct > 0.0:
                 return ValidationReport(
                     valid=True,
                     mode=requested_mode,
-                    warning_message="Dimensional disparity between T1 and T2 rasters; automated spatial resampling will be applied.",
+                    warning_message=f"Partial spatial overlap ({align_rep.bounds_overlap_pct}%); intersecting common grid will be extracted.",
                     images_metadata=[m.to_dict() for m in parsed_metadata],
                     compatibility=compatibility
                 )
-            compatibility["bitemporal_aligned"] = True
 
         return ValidationReport(
             valid=True,
