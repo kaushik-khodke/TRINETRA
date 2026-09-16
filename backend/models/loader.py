@@ -11,6 +11,7 @@ import torch
 import numpy as np
 from typing import Dict, Any, Optional, Tuple
 
+from config.settings import settings
 from models.architectures import (
     BigEarthNetAdaptedResNet,
     RSVqaFusionNetwork,
@@ -19,7 +20,7 @@ from models.architectures import (
     OpticalSARCrossAttentionNet
 )
 
-CHECKPOINTS_DIR = os.path.join(os.path.dirname(os.path.abspath(__file__)), "checkpoints")
+CHECKPOINTS_DIR = settings.checkpoints_dir
 
 CORINE_CLASSES = [
     "Continuous urban fabric", "Discontinuous urban fabric", "Industrial or commercial units",
@@ -174,6 +175,37 @@ class ModelManager:
         except Exception as e:
             print(f"[ModelManager] Critical error loading checkpoint {ckpt_path}: {e}")
             return None
+
+    @classmethod
+    def build_model_run_record(
+        cls,
+        model_key: str,
+        run_id: str,
+        latency_ms: float,
+        fallback_used: bool = False,
+        fallback_reason: Optional[str] = None
+    ) -> Dict[str, Any]:
+        """Constructs a ModelRun-compliant dictionary for inference tracking."""
+        ckpt_file = cls.load_weights_if_available(model_key)
+        ckpt_hash = cls.get_checkpoint_hash(ckpt_file) if ckpt_file else None
+        engine_type = (
+            f"PyTorch Neural Checkpoint ({os.path.basename(ckpt_file)})"
+            if (ckpt_file and not fallback_used)
+            else "Heuristic / Algorithmic CV Engine (Fallback)"
+        )
+        return {
+            "run_id": run_id,
+            "requested_model": model_key,
+            "loaded_model": os.path.basename(ckpt_file) if (ckpt_file and not fallback_used) else None,
+            "checkpoint_path": ckpt_file if (ckpt_file and not fallback_used) else None,
+            "checkpoint_hash": ckpt_hash if (ckpt_file and not fallback_used) else None,
+            "engine_type": engine_type,
+            "device": settings.device,
+            "latency_ms": round(latency_ms, 2),
+            "fallback_used": fallback_used,
+            "fallback_reason": fallback_reason,
+            "schema_version": "2.0.0"
+        }
 
 # Backward compatibility alias
 ModelRegistryStatus = ModelManager
