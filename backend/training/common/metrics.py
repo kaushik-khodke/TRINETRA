@@ -94,21 +94,101 @@ def multilabel_metrics(y_probs: np.ndarray, y_true: np.ndarray, threshold: float
         "evaluated_classes": len(per_class_ap)
     }
 
-def vqa_metrics(logits: np.ndarray, targets: np.ndarray) -> Dict[str, Any]:
-    """Computes Top-1 and Top-5 VQA classification accuracy."""
+def categorize_question(question: str) -> str:
+    """Classifies a remote sensing question into one of the 4 standard RSVQA benchmark categories."""
+    ql = question.lower().strip()
+    if any(p in ql for p in ["more", "less", "greater", "fewer", "equal", "compare", "comparison"]):
+        return "comparison"
+    elif any(ql.startswith(p) or f" {p} " in ql for p in ["how many", "count", "number of"]):
+        return "count"
+    elif any(p in ql for p in ["area", "size", "surface", "m2"]):
+        return "area"
+    elif any(ql.startswith(p) or f" {p} " in ql for p in ["is there", "are there", "does", "do", "has", "presence"]):
+        return "presence"
+    return "other"
+
+def vqa_metrics(
+    logits: np.ndarray,
+    targets: np.ndarray,
+    questions: Optional[List[str]] = None,
+    idx2ans: Optional[Dict[int, str]] = None,
+    compute_ci: bool = True,
+    n_bootstraps: int = 500,
+    seed: int = 42
+) -> Dict[str, Any]:
+    """
+    Computes rigorous VQA benchmark metrics:
+    - Top-1 Accuracy (%)
+    - Top-5 Accuracy (%)
+    - Exact Match (%)
+    - 95% Bootstrap Confidence Interval for Top-1 [lower, upper]
+    - Category-level breakdown (presence, count, comparison, area) if questions provided.
+    """
+    n_samples = len(targets)
+    if n_samples == 0:
+        return {
+            "top1_accuracy_pct": 0.0,
+            "top5_accuracy_pct": 0.0,
+            "exact_match_pct": 0.0,
+            "top1_ci_95": [0.0, 0.0],
+            "num_samples": 0
+        }
+
     preds_top1 = np.argmax(logits, axis=1)
-    top1_acc = float(np.mean(preds_top1 == targets)) * 100.0
+    top1_correct = (preds_top1 == targets).astype(float)
+    top1_acc = float(np.mean(top1_correct)) * 100.0
 
     k = min(5, logits.shape[1])
     top5_indices = np.argpartition(-logits, kth=k-1, axis=1)[:, :k]
-    top5_correct = [targets[i] in top5_indices[i] for i in range(len(targets))]
+    top5_correct = np.array([targets[i] in top5_indices[i] for i in range(n_samples)], dtype=float)
     top5_acc = float(np.mean(top5_correct)) * 100.0
 
-    return {
+    # Exact Match check
+    if idx2ans is not None:
+        em_correct = np.array([
+            str(idx2ans.get(int(preds_top1[i]), "")).strip().lower() == str(idx2ans.get(int(targets[i]), "")).strip().lower()
+            for i in range(n_samples)
+        ], dtype=float)
+        exact_match_pct = float(np.mean(em_correct)) * 100.0
+    else:
+        exact_match_pct = top1_acc
+
+    # 95% Bootstrap CI for Top-1 Accuracy
+    if compute_ci and n_samples >= 10:
+        rng = np.random.RandomState(seed)
+        boot_accs = []
+        for _ in range(n_bootstraps):
+            sample_idx = rng.randint(0, n_samples, size=n_samples)
+            boot_accs.append(float(np.mean(top1_correct[sample_idx])) * 100.0)
+        ci_lower = float(np.percentile(boot_accs, 2.5))
+        ci_upper = float(np.percentile(boot_accs, 97.5))
+    else:
+        ci_lower, ci_upper = top1_acc, top1_acc
+
+    result: Dict[str, Any] = {
         "top1_accuracy_pct": round(top1_acc, 2),
         "top5_accuracy_pct": round(top5_acc, 2),
-        "num_samples": len(targets)
+        "exact_match_pct": round(exact_match_pct, 2),
+        "top1_ci_95": [round(ci_lower, 2), round(ci_upper, 2)],
+        "num_samples": n_samples
     }
+
+    # Optional breakdown by question category
+    if questions is not None and len(questions) == n_samples:
+        categories = [categorize_question(q) for q in questions]
+        cat_breakdown = {}
+        for cat in ["presence", "count", "comparison", "area", "other"]:
+            cat_mask = np.array([c == cat for c in categories])
+            count = int(np.sum(cat_mask))
+            if count > 0:
+                cat_acc = float(np.mean(top1_correct[cat_mask])) * 100.0
+                cat_breakdown[cat] = {
+                    "count": count,
+                    "top1_accuracy_pct": round(cat_acc, 2)
+                }
+        result["category_breakdown"] = cat_breakdown
+
+    return result
 
 def grounding_metrics(pred_boxes: np.ndarray, gt_boxes: np.ndarray) -> Dict[str, Any]:
     """

@@ -1,6 +1,6 @@
 {
   "version": "1.0.0",
-  "last_updated": "2026-09-16T13:50:12Z",
+  "last_updated": "2026-09-16T17:52:45Z",
   "samples": [
     {
       "sample_id": "qml_smp_e5bad2ca",
@@ -392,6 +392,190 @@
       "verified": false,
       "model_version": "qml_change_levir10k",
       "timestamp": "2026-09-16T13:50:12Z"
+    },
+    {
+      "sample_id": "qml_smp_848b40d0",
+      "dataset": "LEVIR_CD_patches",
+      "task": "optical_sar_fusion",
+      "feature_vector": [
+        2.22646,
+        0.234772,
+        0.0,
+        8e-06,
+        0.003332,
+        3.141593
+      ],
+      "ground_truth": null,
+      "classical_prediction": "Increased",
+      "classical_confidence": 0.79,
+      "qml_prediction": "Increased",
+      "qml_confidence": 0.3752,
+      "agreement": true,
+      "is_disagreement": false,
+      "verified": false,
+      "model_version": "qml_change_levir10k",
+      "timestamp": "2026-09-16T17:46:04Z"
+    },
+    {
+      "sample_id": "qml_smp_2e992eeb",
+      "dataset": "LEVIR_CD_patches",
+      "task": "vqa",
+      "feature_vector": [
+        3.141464,
+        0.035307,
+        0.032194,
+        3.141389,
+        1e-06,
+        2.908322
+      ],
+      "ground_truth": null,
+      "classical_prediction": "Increased",
+      "classical_confidence": 0.4936,
+      "qml_prediction": "Unchanged",
+      "qml_confidence": 0.3746,
+      "agreement": false,
+      "is_disagreement": true,
+      "verified": false,
+      "model_version": "qml_change_levir10k",
+      "timestamp": "2026-09-16T17:46:37Z"
+    },
+    {
+      "sample_id": "qml_smp_3a476a20",
+      "dataset": "LEVIR_CD_patches",
+      "task": "optical_sar_fusion",
+      "feature_vector": [
+        2.22646,
+        0.234772,
+        0.0,
+        8e-06,
+        0.003332,
+        3.141593
+      ],
+      "ground_truth": null,
+      "classical_prediction": "Increased",
+      "classical_confidence": 0.79,
+      "qml_prediction": "Increased",
+      "qml_confidence": 0.3752,
+      "agreement": true,
+      "is_disagreement": false,
+      "verified": false,
+      "model_version": "qml_change_levir10k",
+      "timestamp": "2026-09-16T17:47:13Z"
+    },
+    {
+      "sample_id": "qml_smp_02987d85",
+      "dataset": "LEVIR_CD_patches",
+      "task": "optical_sar_fusion",
+      "feature_vector": [
+        2.22646,
+        0.234772,
+        0.0,
+        8e-06,
+        0.003332,
+        3.141593
+      ],
+      "ground_truth": null,
+      "classical_prediction": "Increased",
+      "classical_confidence": 0.79,
+      "qml_prediction": "Increased",
+      "qml_confidence": 0.3752,
+      "agreement": true,
+      "is_disagreement": false,
+      "verified": false,
+      "model_version": "qml_change_levir10k",
+      "timestamp": "2026-09-16T17:50:43Z"
+    },
+    {
+      "sample_id": "qml_smp_817cbc80",
+      "dataset": "LEVIR_CD_patches",
+      "task": "vqa",
+      "feature_vector": [
+        3.141571,
+        0.031402,
+        0.026455,
+        3.141269,
+        2e-06,
+        2.998319
+      ],
+      "ground_truth": null,
+      "classical_prediction": "Increased",
+      "classical_confidence": 0.9594,
+      "qml_prediction": "Unchanged",
+      "qml_confidence": 0.3747,
+      "agreement": false,
+      "is_disagreement": true,
+      "verified": false,
+      "model_version": "qml_change_levir10k",
+      "timestamp": "2026-09-16T17:51:05Z"
+    },
+    {
+      "sample_id": "qml_smp_6640fa45",
+      "dataset": "LEVIR_CD_patches",
+      "task": "vqa",
+      "feature_vector": [
+        3.141571,
+        0.031402,
+        0.026455,
+        3.141269,
+        2e-06,
+        2.998319
+      ],
+      "ground_truth": null,
+      "classical_prediction": "Increased",
+      "classical_confidence": 0.585,
+      "qml_prediction": "Unchanged",
+      "qml_confidence": 0.3747,
+      "agreement": false,
+      "is_disagreement": true,
+      "verified": false,
+      "model_version": "qml_change_levir10k",
+      "timestamp": "2026-09-16T17:51:11Z"
+    },
+    {
+      "sample_id": "qml_smp_6df75a0e",
+      "dataset": "LEVIR_CD_patches",
+      "task": "optical_sar_fusion",
+      "feature_vector": [
+        2.22646,
+        0.234772,
+        0.0,
+        8e-06,
+        0.003332,
+        3.141593
+      ],
+      "ground_truth": null,
+      "classical_prediction": "Increased",
+      "classical_confidence": 0.79,
+      "qml_prediction": "Increased",
+      "qml_confidence": 0.3752,
+      "agreement": true,
+      "is_disagreement": false,
+      "verified": false,
+      "model_version": "qml_change_levir10k",
+      "timestamp": "2026-09-16T17:51:25Z"
+    },
+    {
+      "sample_id": "qml_smp_02263d8f",
+      "dataset": "LEVIR_CD_patches",
+      "task": "vqa",
+      "feature_vector": [
+        3.141464,
+        0.035307,
+        0.032194,
+        3.141389,
+        1e-06,
+        2.908322
+      ],
+      "ground_truth": null,
+      "classical_prediction": "Increased",
+      "classical_confidence": 0.4936,
+      "qml_prediction": "Unchanged",
+      "qml_confidence": 0.3746,
+      "agreement": false,
+      "is_disagreement": true,
+      "verified": false,
+      "model_version": "qml_change_levir10k",
+      "timestamp": "2026-09-16T17:52:45Z"
     }
   ]
 }

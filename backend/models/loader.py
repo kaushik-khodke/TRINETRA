@@ -143,7 +143,15 @@ class ModelManager:
         if model_key == "bigearthnet_adapted":
             model = BigEarthNetAdaptedResNet(in_channels=4, num_classes=19).to(device)
         elif model_key == "rs_vqa_model":
-            model = RSVqaFusionNetwork().to(device)
+            temp_state = torch.load(ckpt_path, map_location="cpu")
+            state_dict = temp_state.get("state_dict", temp_state.get("model_state_dict", temp_state)) if isinstance(temp_state, dict) else {}
+            num_answers = 120
+            vocab_size = 5000
+            if "fusion.3.weight" in state_dict:
+                num_answers = state_dict["fusion.3.weight"].shape[0]
+            if "text_embedding.weight" in state_dict:
+                vocab_size = state_dict["text_embedding.weight"].shape[0]
+            model = RSVqaFusionNetwork(vocab_size=vocab_size, num_answers=num_answers).to(device)
         elif model_key == "rs_grounding_model":
             model = RSGroundingDetector().to(device)
         elif model_key == "change_specialist_model":

@@ -7,8 +7,9 @@ Input -> Ingest -> Metadata -> Alignment -> ModelRun -> Prediction -> Evidence -
 Enforces zero magic numbers, strict type hints, and immutable contract versioning.
 """
 
+import uuid
 from typing import List, Dict, Any, Optional, Literal, Union
-from pydantic import BaseModel, Field, field_validator
+from pydantic import BaseModel, Field, field_validator, ConfigDict
 
 
 # ==============================================================================
@@ -173,9 +174,10 @@ class MetricSet(BaseModel):
 class EvidenceItem(BaseModel):
     """Machine-readable evidence object grounding an analytical conclusion."""
     schema_version: str = Field(default="2.0.0")
-    evidence_id: str = Field(..., description="Unique evidence token (e.g. E01)")
+    evidence_id: str = Field(default="", description="Unique evidence token (e.g. E01)")
+    item_id: str = Field(default="", description="Alias for evidence_id (e.g. E01_WATER)")
     evidence_type: Literal["spectral", "spatial", "radar", "differential", "multimodal"] = Field(
-        ..., description="Domain classification of evidence"
+        default="spectral", description="Domain classification of evidence"
     )
     title: str = Field(..., description="Concise evidence heading")
     description: str = Field(..., description="Physical explanation of what was measured")
@@ -184,6 +186,254 @@ class EvidenceItem(BaseModel):
     unit: Optional[str] = Field(default=None, description="Engineering unit: % | dB | index | m^2")
     overlay_base64: Optional[str] = Field(default=None, description="Base64 encoded visual overlay or heatmap")
     geojson_geometry: Optional[Dict[str, Any]] = Field(default=None, description="GeoJSON polygon or feature collection")
+    model_config = ConfigDict(extra="allow")
+
+    def __init__(self, **data):
+        if "item_id" in data and not data.get("evidence_id"):
+            data["evidence_id"] = data["item_id"]
+        elif "evidence_id" in data and not data.get("item_id"):
+            data["item_id"] = data["evidence_id"]
+        super().__init__(**data)
+
+
+class CandidateAnswer(BaseModel):
+    """Ranked candidate answer predicted by visual question answering."""
+    schema_version: str = Field(default="2.0.0")
+    answer: str = Field(..., description="Predicted answer string or class")
+    confidence: float = Field(..., ge=0.0, le=1.0, description="Confidence score")
+    rank: int = Field(default=1, ge=1, description="Ranking position (1 = top-1)")
+    model_config = ConfigDict(extra="allow")
+
+
+class VQAAnswerVerification(BaseModel):
+    """Auditable comparison of predicted VQA answer against benchmark ground truth."""
+    schema_version: str = Field(default="2.0.0")
+    question_id: str = Field(default_factory=lambda: f"q-{uuid.uuid4().hex[:8]}", description="Unique question identifier")
+    question: str = Field(default="", description="Natural language question text")
+    query: str = Field(default="", description="Alias for question")
+    ground_truth_answer: str = Field(..., description="Verified benchmark reference answer")
+    predicted_answer: str = Field(..., description="Model top-1 predicted answer")
+    candidate_answers: List[CandidateAnswer] = Field(default_factory=list, description="Top-k ranked candidates")
+    top5_candidates: List[str] = Field(default_factory=list, description="Top-5 candidate answer strings")
+    exact_match: bool = Field(default=False, description="True if predicted_answer matches ground_truth_answer")
+    is_correct: bool = Field(default=False, description="Alias for exact_match")
+    top5_match: bool = Field(default=False, description="True if ground truth is within top-5 candidates")
+    is_top5_correct: bool = Field(default=False, description="Alias for top5_match")
+    question_category: Optional[str] = Field(default=None, description="Category: presence | count | comparison | area | other")
+    model_config = ConfigDict(extra="allow")
+
+    def __init__(self, **data):
+        if "question" in data and not data.get("query"):
+            data["query"] = data["question"]
+        elif "query" in data and not data.get("question"):
+            data["question"] = data["query"]
+        if "is_correct" in data and "exact_match" not in data:
+            data["exact_match"] = data["is_correct"]
+        elif "exact_match" in data and "is_correct" not in data:
+            data["is_correct"] = data["exact_match"]
+        if "is_top5_correct" in data and "top5_match" not in data:
+            data["top5_match"] = data["is_top5_correct"]
+        elif "top5_match" in data and "is_top5_correct" not in data:
+            data["is_top5_correct"] = data["top5_match"]
+        super().__init__(**data)
+
+
+# ------------------------------------------------------------------------------
+# Ten-Point Traceability Sub-Models
+# ------------------------------------------------------------------------------
+class SourceImageTraceability(BaseModel):
+    asset_id: str = Field(default="unknown_asset")
+    file_path: str = Field(default="memory://raster")
+    sha256: str = Field(default="")
+    sha256_hash: str = Field(default="")
+    dimensions: List[int] = Field(default_factory=list)
+    sensor: str = Field(default="Remote Sensing Platform")
+    modality: str = Field(default="optical")
+    model_config = ConfigDict(extra="allow")
+
+    def __init__(self, **data):
+        if "sha256_hash" in data and not data.get("sha256"):
+            data["sha256"] = data["sha256_hash"]
+        elif "sha256" in data and not data.get("sha256_hash"):
+            data["sha256_hash"] = data["sha256"]
+        super().__init__(**data)
+
+
+class SpatialRegionTraceability(BaseModel):
+    crs: str = Field(default="EPSG:4326")
+    bounds: List[float] = Field(default_factory=list)
+    physical_area_sq_m: Optional[float] = None
+    physical_area_m2: Optional[float] = None
+    geojson_geometry: Dict[str, Any] = Field(default_factory=dict)
+    geojson: Dict[str, Any] = Field(default_factory=dict)
+    pixel_dimensions: Optional[List[int]] = None
+    model_config = ConfigDict(extra="allow")
+
+    def __init__(self, **data):
+        if "physical_area_m2" in data and not data.get("physical_area_sq_m"):
+            data["physical_area_sq_m"] = data["physical_area_m2"]
+        elif "physical_area_sq_m" in data and not data.get("physical_area_m2"):
+            data["physical_area_m2"] = data["physical_area_sq_m"]
+        if "geojson" in data and not data.get("geojson_geometry"):
+            data["geojson_geometry"] = data["geojson"]
+        elif "geojson_geometry" in data and not data.get("geojson"):
+            data["geojson"] = data["geojson_geometry"]
+        super().__init__(**data)
+
+
+class ModelOutputTraceability(BaseModel):
+    top_answer: Optional[str] = None
+    candidate_answers: List[CandidateAnswer] = Field(default_factory=list)
+    candidates: List[Dict[str, Any]] = Field(default_factory=list)
+    probabilities: Dict[str, float] = Field(default_factory=dict)
+    neural_evaluated: bool = False
+    model_config = ConfigDict(extra="allow")
+
+
+class ConfidenceCalibrationTraceability(BaseModel):
+    confidence_score: float = 0.85
+    score: float = 0.85
+    is_calibrated: bool = False
+    confidence_calibrated: bool = False
+    entropy: float = 0.0
+    margin_to_second: Optional[float] = None
+    model_config = ConfigDict(extra="allow")
+
+    def __init__(self, **data):
+        if "score" in data and "confidence_score" not in data:
+            data["confidence_score"] = data["score"]
+        elif "confidence_score" in data and "score" not in data:
+            data["score"] = data["confidence_score"]
+        if "confidence_calibrated" in data and "is_calibrated" not in data:
+            data["is_calibrated"] = data["confidence_calibrated"]
+        elif "is_calibrated" in data and "confidence_calibrated" not in data:
+            data["confidence_calibrated"] = data["is_calibrated"]
+        super().__init__(**data)
+
+
+class DerivedMetricsTraceability(BaseModel):
+    water_pct: float = 0.0
+    vegetation_pct: float = 0.0
+    built_up_pct: float = 0.0
+    water_body_pct: float = 0.0
+    vegetation_cover_pct: float = 0.0
+    built_up_density_pct: float = 0.0
+    bare_soil_pct: float = 0.0
+    mean_ndvi: float = 0.0
+    mean_ndwi: float = 0.0
+    mean_ndbi: float = 0.0
+    is_geotiff: bool = False
+    model_config = ConfigDict(extra="allow")
+
+    def __init__(self, **data):
+        if "water_pct" in data and "water_body_pct" not in data:
+            data["water_body_pct"] = data["water_pct"]
+        elif "water_body_pct" in data and "water_pct" not in data:
+            data["water_pct"] = data["water_body_pct"]
+        if "vegetation_pct" in data and "vegetation_cover_pct" not in data:
+            data["vegetation_cover_pct"] = data["vegetation_pct"]
+        elif "vegetation_cover_pct" in data and "vegetation_pct" not in data:
+            data["vegetation_pct"] = data["vegetation_cover_pct"]
+        if "built_up_pct" in data and "built_up_density_pct" not in data:
+            data["built_up_density_pct"] = data["built_up_pct"]
+        elif "built_up_density_pct" in data and "built_up_pct" not in data:
+            data["built_up_pct"] = data["built_up_density_pct"]
+        super().__init__(**data)
+
+
+class CheckpointProvenanceTraceability(BaseModel):
+    model_name: str = "RSVqaFusionNetwork"
+    checkpoint_path: Optional[str] = None
+    path: Optional[str] = None
+    sha256: Optional[str] = None
+    sha256_hash: Optional[str] = None
+    param_count: Optional[int] = None
+    parameter_count: Optional[int] = None
+    fallback_used: bool = False
+    fallback_reason: Optional[str] = None
+    model_config = ConfigDict(extra="allow")
+
+    def __init__(self, **data):
+        if "checkpoint_path" in data and not data.get("path"):
+            data["path"] = data["checkpoint_path"]
+        elif "path" in data and not data.get("checkpoint_path"):
+            data["checkpoint_path"] = data["path"]
+        if "param_count" in data and not data.get("parameter_count"):
+            data["parameter_count"] = data["param_count"]
+        elif "parameter_count" in data and not data.get("param_count"):
+            data["param_count"] = data["parameter_count"]
+        if "sha256" in data and not data.get("sha256_hash"):
+            data["sha256_hash"] = data["sha256"]
+        elif "sha256_hash" in data and not data.get("sha256"):
+            data["sha256"] = data["sha256_hash"]
+        super().__init__(**data)
+
+
+class PreprocessingTraceability(BaseModel):
+    radiometric_scaling: str = "standard_uint8_0_to_1"
+    normalizer: str = "GeospatialNormalizer.compute_spectral_breakdown"
+    input_shape: List[int] = Field(default_factory=list)
+    target_resolution: List[int] = Field(default_factory=lambda: [224, 224])
+    interpolation: str = "bilinear"
+    channels_extracted: int = 3
+    model_config = ConfigDict(extra="allow")
+
+
+class EvidencePackage(BaseModel):
+    """
+    Comprehensive machine-readable evidence package grounding a remote-sensing answer.
+    Directly implements Stage 7 ten-point traceability contract.
+    """
+    schema_version: str = Field(default="2.0.0")
+    package_id: str = Field(..., description="Unique evidence package UUID")
+    query: str = Field(..., description="Original user domain question")
+    answer_text: str = Field(default="", description="Synthesized natural language answer")
+
+    # 1. Source Image
+    source_image: SourceImageTraceability = Field(..., description="Reference to source raster")
+    # 2. Bands / Features Used
+    bands_used: List[str] = Field(..., description="Specific spectral/radar bands utilized")
+    # 3. Spatial Region
+    spatial_region: SpatialRegionTraceability = Field(..., description="Geospatial footprint")
+    # 4. Model Output
+    model_output: ModelOutputTraceability = Field(..., description="Neural model prediction details")
+    # 5. Confidence & Calibration Information
+    confidence_and_calibration: ConfidenceCalibrationTraceability = Field(..., description="Confidence metrics")
+    confidence_info: Optional[ConfidenceCalibrationTraceability] = None
+    # 6. Derived Metrics (Genuine raster math)
+    derived_metrics: DerivedMetricsTraceability = Field(..., description="Radiometric indices")
+    # 7. Timestamp
+    timestamp_utc: str = Field(..., description="ISO 8601 UTC execution timestamp")
+    # 8. Checkpoint Provenance
+    checkpoint_provenance: CheckpointProvenanceTraceability = Field(..., description="Checkpoint provenance")
+    checkpoint_info: Optional[CheckpointProvenanceTraceability] = None
+    # 9. Preprocessing
+    preprocessing: PreprocessingTraceability = Field(..., description="Radiometric scaling and normalizer")
+    preprocessing_info: Optional[PreprocessingTraceability] = None
+    # 10. Warnings
+    warnings: List[str] = Field(default_factory=list, description="Advisory flags")
+
+    # Granular evidence items
+    evidence_items: List[EvidenceItem] = Field(default_factory=list, description="Atomic evidence components")
+    model_config = ConfigDict(extra="allow")
+
+    def __init__(self, **data):
+        # Sync aliases
+        if "confidence_info" in data and "confidence_and_calibration" not in data:
+            data["confidence_and_calibration"] = data["confidence_info"]
+        elif "confidence_and_calibration" in data and "confidence_info" not in data:
+            data["confidence_info"] = data["confidence_and_calibration"]
+
+        if "checkpoint_info" in data and "checkpoint_provenance" not in data:
+            data["checkpoint_provenance"] = data["checkpoint_info"]
+        elif "checkpoint_provenance" in data and "checkpoint_info" not in data:
+            data["checkpoint_info"] = data["checkpoint_provenance"]
+
+        if "preprocessing_info" in data and "preprocessing" not in data:
+            data["preprocessing"] = data["preprocessing_info"]
+        elif "preprocessing" in data and "preprocessing_info" not in data:
+            data["preprocessing_info"] = data["preprocessing"]
+        super().__init__(**data)
 
 
 # ==============================================================================
