@@ -15,7 +15,12 @@ training_dir = os.path.abspath(os.path.join(os.path.dirname(__file__), ".."))
 if training_dir not in sys.path:
     sys.path.insert(0, training_dir)
 
-from common.dataset_utils import verify_real_dataset, verify_split_leakage, save_manifest
+from common.dataset_utils import (
+    verify_real_dataset,
+    verify_split_leakage,
+    save_manifest,
+    RealDatasetVerificationError
+)
 from common.seed import set_seed
 
 DATASET_NAME = "RSVQA (Remote Sensing Visual Question Answering)"
