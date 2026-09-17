@@ -25,28 +25,10 @@ from contextvars import ContextVar
 
 logger = logging.getLogger("SatQuery.Observability")
 
-# Ensure environment variables are loaded from backend/.env
-_env_path = os.path.join(os.path.dirname(os.path.dirname(os.path.abspath(__file__))), ".env")
-if os.path.exists(_env_path):
-    try:
-        with open(_env_path, "r", encoding="utf-8") as _f:
-            for _line in _f:
-                _line = _line.strip()
-                if _line and not _line.startswith("#") and "=" in _line:
-                    _k, _v = _line.split("=", 1)
-                    _k = _k.strip()
-                    _v = _v.strip().strip('"').strip("'")
-                    os.environ[_k] = _v
-    except Exception:
-        pass
-
 try:
     from langfuse import Langfuse
+    from langfuse.model import ModelUsage
     HAS_LANGFUSE = True
-    try:
-        from langfuse.model import ModelUsage
-    except Exception:
-        ModelUsage = None
 except ImportError:
     HAS_LANGFUSE = False
     ModelUsage = None
@@ -378,8 +360,8 @@ class LangfuseTracer:
     _is_connected = False
 
     @staticmethod
-    def _is_server_reachable(url_str: str, timeout_sec: float = 2.0) -> bool:
-        """Fast socket probe to verify telemetry endpoint connectivity."""
+    def _is_server_reachable(url_str: str, timeout_sec: float = 0.25) -> bool:
+        """Fast non-blocking socket probe to prevent hanging when telemetry server is offline."""
         try:
             parsed = urlparse(url_str)
             host = parsed.hostname or "localhost"
@@ -403,26 +385,16 @@ class LangfuseTracer:
             logger.warning("[Observability] Langfuse SDK not installed. Tracing running in local-only mode.")
             return None
 
-        # Resolve host URL
-        base_url = os.environ.get("LANGFUSE_BASE_URL", "").strip().strip('"').strip("'")
-        host_env = os.environ.get("LANGFUSE_HOST", "").strip().strip('"').strip("'")
+        host = os.environ.get("LANGFUSE_HOST", os.environ.get("LANGFUSE_BASE_URL", "http://localhost:12000")).rstrip("/")
+        public_key = os.environ.get("LANGFUSE_PUBLIC_KEY", "pk-lf-local-satquery")
+        secret_key = os.environ.get("LANGFUSE_SECRET_KEY", "sk-lf-local-satquery")
 
-        # Prefer cloud URL over localhost:3000 if provided
-        if "3000" in host_env and "langfuse.com" in base_url:
-            host = base_url.rstrip("/")
-        else:
-            host = (host_env or base_url or "https://us.cloud.langfuse.com").rstrip("/")
-
-        public_key = os.environ.get("LANGFUSE_PUBLIC_KEY", "pk-lf-local-satquery").strip('"').strip("'")
-        secret_key = os.environ.get("LANGFUSE_SECRET_KEY", "sk-lf-local-satquery").strip('"').strip("'")
-
-        # Only probe socket for local endpoints (avoid false negatives on cloud hosts)
-        if "localhost" in host or "127.0.0.1" in host:
-            if not cls._is_server_reachable(host, timeout_sec=0.5):
-                cls._client = None
-                cls._is_connected = False
-                print(f"[*] [Observability] Local Langfuse server at {host} not listening. Using resilient local fallback.")
-                return None
+        # Fast pre-flight check: if server is unreachable, fall back immediately without blocking
+        if not cls._is_server_reachable(host):
+            cls._client = None
+            cls._is_connected = False
+            logger.info(f"[Observability] Langfuse server at {host} not listening. Continuing with zero-impact local fallback.")
+            return None
 
         try:
             client = Langfuse(
@@ -431,11 +403,13 @@ class LangfuseTracer:
                 host=host,
                 debug=False
             )
+            # Lightweight health ping
+            client.auth_check()
             cls._client = client
             cls._is_connected = True
-            print(f"[*] [Observability] Langfuse telemetry connected successfully to {host}.")
+            logger.info(f"[Observability] Langfuse telemetry connected successfully to {host}.")
         except Exception as e:
-            print(f"[*] [Observability] Langfuse connection notice: {e}. Operating in resilient local mode.")
+            logger.info(f"[Observability] Langfuse server at {host} unreachable ({e}). Operating in resilient local mode.")
             cls._client = None
             cls._is_connected = False
 

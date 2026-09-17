@@ -1,78 +1,378 @@
 """
-SatQuery AI — Visual Evidence Overlay Engine
-Generates bounding box overlays, segmentation masks, change heatmaps,
-and optical–SAR fusion composites for frontend and report presentation.
+TRINETRA — Tactical Visual Evidence Overlay Engine
+Renders high-precision aerospace bounding boxes, point markers, polygon segmentations,
+spectral plots, change heatmaps, and optical–SAR fusion composites with anti-collision labeling.
 """
 
 import io
 import base64
 import numpy as np
 from PIL import Image, ImageDraw, ImageFont
+import matplotlib
+matplotlib.use("Agg")
+import matplotlib.pyplot as plt
 import matplotlib.cm as cm
-from typing import List, Dict, Any, Optional
+from typing import List, Dict, Any, Optional, Tuple
 
 class EvidenceOverlayEngine:
 
-    @staticmethod
+    # Distinct tactical aerospace palette
+    TACTICAL_PALETTE = [
+        {"stroke": (16, 185, 129, 240),  "fill": (16, 185, 129, 35),  "hex": "#10B981"},  # R01: Emerald
+        {"stroke": (6, 182, 212, 240),   "fill": (6, 182, 212, 35),   "hex": "#06B6D4"},  # R02: Cyan
+        {"stroke": (245, 158, 11, 240),  "fill": (245, 158, 11, 35),  "hex": "#F59E0B"},  # R03: Amber
+        {"stroke": (139, 92, 246, 240),  "fill": (139, 92, 246, 35),  "hex": "#8B5CF6"},  # R04: Violet
+        {"stroke": (244, 63, 94, 240),   "fill": (244, 63, 94, 35),   "hex": "#F43F5E"},  # R05: Rose
+        {"stroke": (59, 130, 246, 240),  "fill": (59, 130, 246, 35),  "hex": "#3B82F6"}   # R06: Blue
+    ]
+
+    @classmethod
     def render_bounding_boxes(
+        cls,
         base_img: Image.Image,
         boxes: List[Dict[str, Any]],
-        color: str = "#10B981",  # Tactical Emerald
+        color: Optional[str] = None,
         label_prefix: str = "TARGET"
     ) -> Image.Image:
         """
-        Draws tactical aerospace bounding boxes with coordinates and confidence badges.
-        Box format expected: [ymin, xmin, ymax, xmax] in normalized (0..1) or pixel coordinates.
+        Draws tactical aerospace bounding boxes with coordinates, stable IDs, confidence,
+        physical area, and automatic collision-avoiding badge placement.
         """
         img = base_img.copy().convert("RGBA")
         overlay = Image.new("RGBA", img.size, (0, 0, 0, 0))
         draw = ImageDraw.Draw(overlay)
-
         w, h = img.size
+
+        # Track placed badge rectangles for collision detection [x1, y1, x2, y2]
+        occupied_badge_rects: List[Tuple[int, int, int, int]] = []
+
+        def rects_overlap(r1, r2):
+            return not (r1[2] < r2[0] or r1[0] > r2[2] or r1[3] < r2[1] or r1[1] > r2[3])
 
         for i, box_info in enumerate(boxes):
             coords = box_info.get("bbox", [0.1, 0.1, 0.4, 0.4])
             score = box_info.get("score", 0.90)
-            label = box_info.get("label", f"{label_prefix} #{i+1}")
+            reg_id = box_info.get("id") or (f"R0{i+1}" if i < 9 else f"R{i+1}")
+            raw_label = box_info.get("label", f"{label_prefix} #{i+1}")
+            # Simplify label
+            clean_label = raw_label.replace("Target: ", "").replace("Identified ", "")
+            area_m2 = box_info.get("physical_area_m2")
 
-            # Normalize if needed
-            if all(0.0 <= c <= 1.0 for c in coords):
-                ymin, xmin, ymax, xmax = coords
-                x1, y1, x2, y2 = int(xmin * w), int(ymin * h), int(xmax * w), int(ymax * h)
+            # Format area text
+            area_str = ""
+            if area_m2 and area_m2 > 10000:
+                area_str = f" | {round(area_m2 / 10000.0, 1)} ha"
+            elif area_m2:
+                area_str = f" | {int(area_m2)} m²"
+            elif box_info.get("pixel_area"):
+                area_str = f" | {box_info['pixel_area']} px"
+
+            # Color style selection
+            palette = cls.TACTICAL_PALETTE[i % len(cls.TACTICAL_PALETTE)]
+            stroke_color = palette["stroke"]
+            fill_color = (0, 0, 0, 0)  # Zero fill: preserves 100% optical radiometric clarity
+
+            # Normalized to pixel coords
+            if max(coords) <= 1.0:
+                y1, x1, y2, x2 = [
+                    int(coords[0] * h),
+                    int(coords[1] * w),
+                    int(coords[2] * h),
+                    int(coords[3] * w)
+                ]
             else:
                 x1, y1, x2, y2 = [int(c) for c in coords]
 
-            # Ensure bounds
             x1, x2 = max(0, min(x1, x2)), min(w - 1, max(x1, x2))
             y1, y2 = max(0, min(y1, y2)), min(h - 1, max(y1, y2))
 
-            # Semi-transparent fill
-            draw.rectangle([x1, y1, x2, y2], fill=(16, 185, 129, 45), outline=(16, 185, 129, 230), width=2)
+            # Crisp bounding rectangle with zero fill
+            draw.rectangle([x1, y1, x2, y2], fill=fill_color, outline=stroke_color, width=2)
 
-            # Tactical corner markers
-            corner_len = min(15, (x2 - x1) // 3, (y2 - y1) // 3)
-            # Top-left
-            draw.line([(x1, y1), (x1 + corner_len, y1)], fill=(16, 185, 129, 255), width=3)
-            draw.line([(x1, y1), (x1, y1 + corner_len)], fill=(16, 185, 129, 255), width=3)
-            # Top-right
-            draw.line([(x2, y1), (x2 - corner_len, y1)], fill=(16, 185, 129, 255), width=3)
-            draw.line([(x2, y1), (x2, y1 + corner_len)], fill=(16, 185, 129, 255), width=3)
-            # Bottom-left
-            draw.line([(x1, y2), (x1 + corner_len, y2)], fill=(16, 185, 129, 255), width=3)
-            draw.line([(x1, y2), (x1, y2 - corner_len)], fill=(16, 185, 129, 255), width=3)
-            # Bottom-right
-            draw.line([(x2, y2), (x2 - corner_len, y2)], fill=(16, 185, 129, 255), width=3)
-            draw.line([(x2, y2), (x2, y2 - corner_len)], fill=(16, 185, 129, 255), width=3)
+            # Tactical corner brackets (3px width)
+            c_len = max(8, min(18, (x2 - x1) // 4, (y2 - y1) // 4))
+            draw.line([(x1, y1), (x1 + c_len, y1)], fill=stroke_color, width=3)
+            draw.line([(x1, y1), (x1, y1 + c_len)], fill=stroke_color, width=3)
+            draw.line([(x2, y1), (x2 - c_len, y1)], fill=stroke_color, width=3)
+            draw.line([(x2, y1), (x2, y1 + c_len)], fill=stroke_color, width=3)
+            draw.line([(x1, y2), (x1 + c_len, y2)], fill=stroke_color, width=3)
+            draw.line([(x1, y2), (x1, y2 - c_len)], fill=stroke_color, width=3)
+            draw.line([(x2, y2), (x2 - c_len, y2)], fill=stroke_color, width=3)
+            draw.line([(x2, y2), (x2, y2 - c_len)], fill=stroke_color, width=3)
 
-            # Label badge
-            badge_text = f"{label.upper()} [{int(score * 100)}%]"
-            badge_y = max(0, y1 - 20)
-            badge_w = len(badge_text) * 7 + 10
-            draw.rectangle([x1, badge_y, x1 + badge_w, badge_y + 18], fill=(9, 13, 16, 230), outline=(16, 185, 129, 200))
-            draw.text((x1 + 4, badge_y + 2), badge_text, fill=(240, 246, 252, 255))
+            # Center target crosshair if box is sufficiently large
+            if (x2 - x1) > 40 and (y2 - y1) > 40:
+                cx, cy = (x1 + x2) // 2, (y1 + y2) // 2
+                draw.line([(cx - 4, cy), (cx + 4, cy)], fill=(255, 255, 255, 120), width=1)
+                draw.line([(cx, cy - 4), (cx, cy + 4)], fill=(255, 255, 255, 120), width=1)
+
+            # Tactical badge text: "R01 WATER BODY [94%] 12.8 ha"
+            badge_text = f"{reg_id} {clean_label.upper()} [{int(score * 100)}%]{area_str}"
+            badge_w = len(badge_text) * 7 + 12
+            badge_h = 20
+
+            # Candidate badge placements:
+            # 1. Above top-left (standard)
+            # 2. Inside top-left (if near top of image)
+            # 3. Below bottom-left
+            # 4. Right of box with leader line
+            candidates = [
+                (x1, y1 - badge_h - 2),          # above
+                (x1 + 4, y1 + 4),               # inside top
+                (x1, y2 + 4),                   # below
+                (x2 + 8, y1)                    # right
+            ]
+
+            chosen_x, chosen_y = candidates[0]
+            leader_needed = False
+
+            for cx, cy in candidates:
+                # Keep badge inside image bounds
+                bx1 = max(2, min(w - badge_w - 2, cx))
+                by1 = max(2, min(h - badge_h - 2, cy))
+                test_rect = (bx1, by1, bx1 + badge_w, by1 + badge_h)
+
+                # Check if it collides with previously placed badges
+                collides = any(rects_overlap(test_rect, occ) for occ in occupied_badge_rects)
+                if not collides and by1 >= 2 and by1 + badge_h <= h - 2:
+                    chosen_x, chosen_y = bx1, by1
+                    if cx == x2 + 8:
+                        leader_needed = True
+                    break
+            else:
+                # If all standard candidates collide, place with offset leader line
+                chosen_x = max(2, min(w - badge_w - 2, x1 + (i * 20)))
+                chosen_y = max(2, min(h - badge_h - 2, y1 - badge_h - 4 - (i * 22)))
+                leader_needed = True
+
+            bx1, by1 = chosen_x, chosen_y
+            bx2, by2 = bx1 + badge_w, by1 + badge_h
+            occupied_badge_rects.append((bx1, by1, bx2, by2))
+
+            # Draw leader line if displaced
+            if leader_needed:
+                draw.line([(bx1, (by1 + by2) // 2), (x1, y1)], fill=stroke_color, width=1)
+
+            # Draw badge background
+            draw.rectangle([bx1, by1, bx2, by2], fill=(9, 13, 16, 230), outline=stroke_color, width=1)
+            # Small colored ID indicator strip on the left of badge
+            draw.rectangle([bx1, by1, bx1 + 4, by2], fill=stroke_color)
+            draw.text((bx1 + 8, by1 + 3), badge_text, fill=(240, 246, 252, 255))
 
         composed = Image.alpha_composite(img, overlay)
         return composed.convert("RGB")
+
+    @classmethod
+    def render_point_markers(
+        cls,
+        base_img: Image.Image,
+        points: List[Dict[str, Any]]
+    ) -> Image.Image:
+        """Draws pinpoint target crosshairs and concentric locator rings."""
+        img = base_img.copy().convert("RGBA")
+        overlay = Image.new("RGBA", img.size, (0, 0, 0, 0))
+        draw = ImageDraw.Draw(overlay)
+        w, h = img.size
+
+        for i, pt in enumerate(points):
+            coords = pt.get("point") or pt.get("centroid_norm") or {"x": 0.5, "y": 0.5}
+            xc = int(coords["x"] * w) if coords["x"] <= 1.0 else int(coords["x"])
+            yc = int(coords["y"] * h) if coords["y"] <= 1.0 else int(coords["y"])
+            label = pt.get("label", f"PT #{i+1}")
+            reg_id = pt.get("id", f"P0{i+1}")
+            palette = cls.TACTICAL_PALETTE[i % len(cls.TACTICAL_PALETTE)]
+            stroke = palette["stroke"]
+
+            # Concentric targeting rings
+            draw.ellipse([xc - 8, yc - 8, xc + 8, yc + 8], outline=stroke, width=2)
+            draw.ellipse([xc - 16, yc - 16, xc + 16, yc + 16], outline=(stroke[0], stroke[1], stroke[2], 120), width=1)
+            # Center reticle
+            draw.line([(xc - 22, yc), (xc + 22, yc)], fill=stroke, width=1)
+            draw.line([(xc, yc - 22), (xc, yc + 22)], fill=stroke, width=1)
+
+            # Badge callout
+            badge_text = f"{reg_id} {label.upper()}"
+            bx = min(w - 120, xc + 12)
+            by = max(4, yc - 22)
+            draw.rectangle([bx, by, bx + len(badge_text) * 7 + 8, by + 18], fill=(9, 13, 16, 230), outline=stroke)
+            draw.text((bx + 4, by + 2), badge_text, fill=(240, 246, 252, 255))
+
+        composed = Image.alpha_composite(img, overlay)
+        return composed.convert("RGB")
+
+    @classmethod
+    def render_polygon_regions(
+        cls,
+        base_img: Image.Image,
+        polygons: List[Dict[str, Any]]
+    ) -> Image.Image:
+        """Renders polygon boundary outlines and semi-transparent region fills."""
+        img = base_img.copy().convert("RGBA")
+        overlay = Image.new("RGBA", img.size, (0, 0, 0, 0))
+        draw = ImageDraw.Draw(overlay)
+        w, h = img.size
+
+        for i, poly in enumerate(polygons):
+            coords = poly.get("polygon_coords") or []
+            if len(coords) < 3:
+                continue
+            pixel_pts = [(int(c[0] * w), int(c[1] * h)) for c in coords]
+            palette = cls.TACTICAL_PALETTE[i % len(cls.TACTICAL_PALETTE)]
+
+            draw.polygon(pixel_pts, fill=palette["fill"], outline=palette["stroke"])
+
+        composed = Image.alpha_composite(img, overlay)
+        return composed.convert("RGB")
+
+    @classmethod
+    def render_tactical_feature_overlay(
+        cls,
+        base_img: Image.Image,
+        features: List[Dict[str, Any]],
+        draw_contours: bool = True,
+        draw_bounding_boxes: bool = True,
+        draw_fill: bool = False,
+        max_badges_per_feature: int = 3,
+        min_contour_area: int = 400
+    ) -> Image.Image:
+        """
+        Renders crisp, defense-grade tactical visual evidence:
+        1. Precise vector contours around isolated detected features (e.g. water shoreline, industrial plant, farm cluster).
+        2. Clean, transparent background (0% opacity on un-targeted pixels - zero artificial color wash).
+        3. Zero fill tint by default (draw_fill=False) to ensure 100% natural optical clarity.
+        4. Anti-aliased 2px vector outlines filtered by minimum area to eliminate sensor noise speckles.
+        5. Tactical corner brackets, center reticles, and collision-avoiding badges for top regions.
+        """
+        import cv2
+
+        w, h = base_img.size
+        base_rgba = base_img.convert("RGBA")
+
+        # Transparent overlay canvas for fills and contours
+        fill_canvas = Image.new("RGBA", (w, h), (0, 0, 0, 0))
+
+        # Separate RGBA numpy canvas for OpenCV anti-aliased contour drawing
+        contour_canvas = np.zeros((h, w, 4), dtype=np.uint8)
+
+        candidate_boxes = []
+
+        for i, feat in enumerate(features):
+            mask = feat.get("mask")
+            if mask is None:
+                continue
+
+            # Ensure 2D binary numpy array
+            if isinstance(mask, np.ndarray):
+                mask_2d = mask.squeeze()
+                if mask_2d.dtype == bool:
+                    mask_uint8 = (mask_2d.astype(np.uint8)) * 255
+                elif np.issubdtype(mask_2d.dtype, np.floating):
+                    mask_uint8 = ((mask_2d > 0.5).astype(np.uint8)) * 255
+                else:
+                    mask_uint8 = ((mask_2d > 0).astype(np.uint8)) * 255
+            else:
+                continue
+
+            # Resize mask to base image dimensions using NEAREST to prevent fuzzy edge artifacts
+            if mask_uint8.shape != (h, w):
+                mask_img = Image.fromarray(mask_uint8).resize((w, h), Image.Resampling.NEAREST)
+                mask_uint8 = np.array(mask_img)
+
+            # Palette
+            palette = feat.get("palette") or cls.TACTICAL_PALETTE[i % len(cls.TACTICAL_PALETTE)]
+            stroke_rgba = feat.get("stroke") or palette["stroke"]
+            fill_rgba = feat.get("fill") or palette.get("fill", (0, 0, 0, 0))
+            label = feat.get("label", f"FEATURE #{i+1}")
+            score = feat.get("score", 0.90)
+
+            # 1. Apply subtle fill ONLY if explicitly enabled (default is False to keep optical pixels 100% natural)
+            if draw_fill and fill_rgba and len(fill_rgba) >= 4 and fill_rgba[3] > 0:
+                fill_img = Image.new("RGBA", (w, h), fill_rgba)
+                mask_pil = Image.fromarray(mask_uint8, mode="L")
+                fill_canvas.paste(fill_img, (0, 0), mask_pil)
+
+            # 2. Extract and draw sharp anti-aliased contours with OpenCV
+            contours, _ = cv2.findContours(mask_uint8, cv2.RETR_EXTERNAL, cv2.CHAIN_APPROX_SIMPLE)
+            if not contours:
+                continue
+
+            # Filter by area to eliminate sensor noise speckles
+            prominent_contours = [c for c in contours if cv2.contourArea(c) >= min_contour_area]
+            if not prominent_contours:
+                continue
+
+            if draw_contours:
+                # stroke_rgba: (R, G, B, A) -> OpenCV uses BGRA
+                b, g, r, a = stroke_rgba[2], stroke_rgba[1], stroke_rgba[0], stroke_rgba[3]
+                cv2.drawContours(contour_canvas, prominent_contours, -1, (int(b), int(g), int(r), int(a)), thickness=2, lineType=cv2.LINE_AA)
+
+            # 3. Extract prominent regions for tactical bounding badges
+            if draw_bounding_boxes:
+                prominent_contours.sort(key=cv2.contourArea, reverse=True)
+
+                for rank, cnt in enumerate(prominent_contours[:max_badges_per_feature]):
+                    bx, by, bw, bh = cv2.boundingRect(cnt)
+                    norm_bbox = [by / float(h), bx / float(w), (by + bh) / float(h), (bx + bw) / float(w)]
+                    area_px = int(cv2.contourArea(cnt))
+                    area_m2 = area_px * 100
+
+                    reg_id = f"R0{len(candidate_boxes) + 1}" if len(candidate_boxes) < 9 else f"R{len(candidate_boxes) + 1}"
+                    candidate_boxes.append({
+                        "bbox": norm_bbox,
+                        "score": score,
+                        "id": reg_id,
+                        "label": label,
+                        "physical_area_m2": area_m2,
+                        "pixel_area": area_px
+                    })
+
+        # Combine fill canvas and contour canvas
+        contour_img = Image.fromarray(cv2.cvtColor(contour_canvas, cv2.COLOR_BGRA2RGBA))
+        combined_overlay = Image.alpha_composite(fill_canvas, contour_img)
+        composed = Image.alpha_composite(base_rgba, combined_overlay)
+
+        # 4. Render aerospace bounding boxes with non-colliding badges on top
+        if draw_bounding_boxes and candidate_boxes:
+            result_img = cls.render_bounding_boxes(composed.convert("RGB"), candidate_boxes)
+            return result_img
+
+        return composed.convert("RGB")
+
+    @staticmethod
+    def render_spectral_plot_overlay(
+        wavelengths: List[float],
+        mean_curve: List[float],
+        std_curve: Optional[List[float]] = None,
+        title: str = "Spectral Reflectance Profile"
+    ) -> str:
+        """Generates a base64 encoded PNG of the spectral reflectance signature curve."""
+        fig, ax = plt.subplots(figsize=(6, 3.2), dpi=120, facecolor="#090D10")
+        ax.set_facecolor("#0F172A")
+
+        wl = np.array(wavelengths)
+        mean = np.array(mean_curve)
+
+        ax.plot(wl, mean, color="#10B981", linewidth=2.0, label="Mean Reflectance")
+        if std_curve and len(std_curve) == len(wl):
+            std = np.array(std_curve)
+            ax.fill_between(wl, mean - std, mean + std, color="#10B981", alpha=0.25, label="±1σ Variance")
+
+        ax.set_title(title, color="#E2E8F0", fontsize=11, fontweight="bold", pad=10)
+        ax.set_xlabel("Wavelength (nm)", color="#94A3B8", fontsize=9)
+        ax.set_ylabel("Reflectance", color="#94A3B8", fontsize=9)
+        ax.tick_params(colors="#94A3B8", labelsize=8)
+        ax.grid(True, linestyle="--", alpha=0.2, color="#64748B")
+        for spine in ax.spines.values():
+            spine.set_color("#334155")
+
+        ax.legend(facecolor="#1E293B", edgecolor="#334155", labelcolor="#F1F5F9", fontsize=8)
+        plt.tight_layout()
+
+        buf = io.BytesIO()
+        plt.savefig(buf, format="png", bbox_inches="tight", facecolor=fig.get_facecolor())
+        plt.close(fig)
+        encoded = base64.b64encode(buf.getvalue()).decode("utf-8")
+        return f"data:image/png;base64,{encoded}"
 
     @staticmethod
     def render_change_heatmap(
@@ -80,20 +380,13 @@ class EvidenceOverlayEngine:
         diff_matrix: np.ndarray,
         threshold: float = 0.25
     ) -> Image.Image:
-        """
-        Renders an Amber/Solar-Gold change overlay on top of the base image.
-        """
+        """Renders an Amber/Solar-Gold change overlay on top of the base image."""
         w, h = base_img.size
-        # Resize diff_matrix to match image
         diff_resized = Image.fromarray((diff_matrix * 255).astype(np.uint8)).resize((w, h), Image.Resampling.BILINEAR)
         diff_arr = np.array(diff_resized) / 255.0
 
-        # Mask regions above threshold
         change_mask = diff_arr > threshold
-
-        # Colormap for change (Solar Amber -> Coral)
         try:
-            import matplotlib.pyplot as plt
             cmap = plt.get_cmap("YlOrRd")
         except Exception:
             cmap = cm.get_cmap("YlOrRd")
@@ -103,7 +396,6 @@ class EvidenceOverlayEngine:
         overlay = Image.new("RGBA", (w, h), (0, 0, 0, 0))
         overlay_arr = np.array(overlay)
 
-        # Apply colored change to pixels with change
         overlay_arr[change_mask, 0] = colored_change[change_mask, 0]
         overlay_arr[change_mask, 1] = colored_change[change_mask, 1]
         overlay_arr[change_mask, 2] = colored_change[change_mask, 2]
@@ -118,15 +410,12 @@ class EvidenceOverlayEngine:
         optical_img: Image.Image,
         sar_img: Image.Image
     ) -> Image.Image:
-        """
-        Synthesizes a cross-modal composite fusing Optical spectral hues with SAR structural radar backscatter.
-        """
+        """Synthesizes a cross-modal composite fusing Optical spectral hues with SAR structural radar backscatter."""
         w, h = optical_img.size
         sar_resized = sar_img.resize((w, h), Image.Resampling.BILINEAR).convert("L")
         opt_arr = np.array(optical_img).astype(np.float32)
         sar_arr = np.array(sar_resized).astype(np.float32) / 255.0
 
-        # Structural high-frequency injection: blend SAR texture with Optical spectral channels
         fused = np.zeros_like(opt_arr)
         for c in range(3):
             fused[:, :, c] = opt_arr[:, :, c] * 0.65 + (sar_arr * 255.0) * 0.35

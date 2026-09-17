@@ -13,6 +13,7 @@ from .metrics import (
     grounding_metrics,
     calculate_iou,
     change_metrics,
-    fusion_metrics
+    fusion_metrics,
+    hyperspectral_metrics
 )
 from .dataset_utils import verify_real_dataset, verify_split_leakage

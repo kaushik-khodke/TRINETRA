@@ -235,3 +235,36 @@ class OpticalSARCrossAttentionNet(nn.Module):
         attn_out, _ = self.cross_attn(opt_feat, sar_feat, sar_feat)
         fused = torch.cat([opt_feat.squeeze(1), attn_out.squeeze(1)], dim=-1)
         return self.cross_fusion(fused)
+
+
+# ==============================================================================
+# 6. Bi-Temporal Dense Change Architectures (Stage 4)
+# ==============================================================================
+from models.change_models import (
+    SiameseUNetBaseline,
+    BitemporalInteractionTransformer,
+    create_change_model
+)
+
+
+# ==============================================================================
+# 7. Optical + SAR Multimodal Architectures (Stage 5)
+# ==============================================================================
+from models.optical_sar_models import (
+    OpticalSARConcatBaseline,
+    OpticalSARGatedFusionNet,
+    OpticalOnlyBaseline,
+    SAROnlyBaseline,
+    create_optical_sar_model
+)
+
+
+# ==============================================================================
+# 8. Hyperspectral Specialist Architectures (Stage 6)
+# ==============================================================================
+from models.hyperspectral_models import (
+    SpectralMLPBaseline,
+    HybridSNBaseline,
+    HyperFreeBAdapter,
+    create_hsi_model
+)
