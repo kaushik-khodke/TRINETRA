@@ -470,8 +470,7 @@ export const analysisAPI = {
 
         if (!res.ok) {
           const errData = await res.json().catch(() => ({}));
-          const errorMsg = errData.detail || errData.error || errData.message || `Server returned ${res.status}`;
-          throw new Error(errorMsg);
+          throw new Error(errData.detail || `Server returned ${res.status}`);
         }
 
         const data = await res.json();

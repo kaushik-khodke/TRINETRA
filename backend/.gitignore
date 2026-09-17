@@ -80,6 +80,10 @@ runs/
 # Preserve directory structure in version control
 !backend/models/checkpoints/**/.gitkeep
 
+# Preserve production checkpoints / trained lightweight QML model
+!qml/results/**/best_model.pt
+!backend/qml/results/**/best_model.pt
+
 # ------------------------------------------------------------------------------
 # 4. Geospatial Runtime Data, Uploads & Generated Reports
 # ------------------------------------------------------------------------------

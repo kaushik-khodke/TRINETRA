@@ -386,8 +386,11 @@ async def analyze_request(
             response_language=response_language or "en"
         )
 
-        JOBS_DB[result_payload["request_id"]] = result_payload
-        return result_payload
+        req_id = result_payload.get("request_id") or request_id
+        JOBS_DB[req_id] = result_payload
+
+        from fastapi.encoders import jsonable_encoder
+        return JSONResponse(content=jsonable_encoder(result_payload))
 
     except Exception as e:
         print(f"[Analyze] Server error during analysis: {e}")

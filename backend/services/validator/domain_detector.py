@@ -125,7 +125,7 @@ class DomainDetector:
                 reasons=reasons
             )
 
-        # Case C: Single/Dual-band rasters (SAR, DEM, Elevation, Grayscale EO) -> 1 or 2 bands
+        # Case C: SAR (Radar) / Single-Band Raster (Elevation/DEM, Panchromatic, SAR)
         if c in [1, 2]:
             min_val = float(np.nanmin(image_arr))
             max_val = float(np.nanmax(image_arr))
@@ -142,11 +142,13 @@ class DomainDetector:
                     dimensions=(h, w),
                     reasons=reasons
                 )
-            elif has_geospatial and std_val > 1e-4:
+            elif has_geospatial:
+                fn_lower = filename.lower()
+                is_dem = any(k in fn_lower for k in ["dem", "srtm", "elevation", "height", "dsm", "dtm"]) or (max_val > 255 and min_val >= -500)
                 modality = "sar"
-                desc = "elevation DEM" if max_val > 50.0 else "single-band geospatial"
-                reasons.append(f"Georeferenced {desc} raster verified (Range: {min_val:.1f} to {max_val:.1f}, std: {std_val:.2f})")
-                conf_scores.append(0.96)
+                label = "digital elevation model (DEM/SRTM)" if is_dem else "single-band geospatial remote-sensing"
+                reasons.append(f"Geospatial {label} raster verified ({crs or 'GeoTIFF'}) with physical range [{min_val:.1f}, {max_val:.1f}]")
+                conf_scores.append(0.98 if crs else 0.94)
                 return DomainValidationResult(
                     is_remote_sensing=True,
                     modality=modality,
@@ -159,6 +161,19 @@ class DomainDetector:
         # =====================================================================
         # 3. Tier 3 & 4: Optical (RGB) & Non-Remote-Sensing Plausibility Checks
         # =====================================================================
+        if has_geospatial and c >= 3:
+            modality = "optical"
+            reasons.append(f"Geospatial optical raster confirmed ({crs or 'GeoTIFF'}) with {c} channels")
+            conf_scores.append(0.98 if crs else 0.94)
+            return DomainValidationResult(
+                is_remote_sensing=True,
+                modality=modality,
+                confidence=round(float(np.mean(conf_scores)), 3),
+                band_count=c,
+                dimensions=(h, w),
+                reasons=reasons
+            )
+
         if c >= 3:
             r = image_arr[:, :, 0].astype(float)
             g = image_arr[:, :, 1].astype(float)
@@ -176,44 +191,55 @@ class DomainDetector:
                 rejection_message="Unsupported input: raster dimensions are invalid."
             )
 
-        g_min = float(np.nanmin(gray))
-        g_max = float(np.nanmax(gray))
-        g_std = float(np.nanstd(gray))
-
-        # Check for completely flat or degenerate zero-variance raster
-        if g_max == g_min or g_std < 1e-5:
+        # 3.1 Dynamic-Range Aware Blank / Degenerate Imagery Check
+        valid_pixels = gray[~np.isnan(gray)]
+        if valid_pixels.size == 0:
             return DomainValidationResult(
                 is_remote_sensing=False,
-                reasons=["Raster is completely flat with zero radiometric variance."],
-                rejection_message="Unsupported input: this image has zero radiometric variance and contains no detectable Earth observation features."
+                reasons=["Raster contains only NaN or empty values."],
+                rejection_message="Unsupported input: raster dimensions or pixel values are invalid."
             )
 
-        # Scale to standard 0-255 range for perceptual luminance heuristics if outside uint8 range
-        if g_max > 255.0 or g_min < 0.0:
-            norm_gray = (gray - g_min) / (g_max - g_min + 1e-6) * 255.0
+        p_min = float(np.min(valid_pixels))
+        p_max = float(np.max(valid_pixels))
+        pixel_range = p_max - p_min
+        std_val = float(np.std(valid_pixels))
+
+        if pixel_range < 1e-4 or std_val < 1e-4:
+            return DomainValidationResult(
+                is_remote_sensing=False,
+                reasons=["Raster pixel variance is zero (all pixels have identical value)."],
+                rejection_message="Unsupported input: this image is completely flat/blank and does not contain valid Earth observation features."
+            )
+
+        # Scale luminance appropriately according to its physical dynamic range
+        if p_max <= 1.05 and p_min >= 0.0:
+            norm_gray = gray * 255.0
+        elif p_max > 255.0 or p_min < 0.0:
+            norm_gray = ((gray - p_min) / (pixel_range + 1e-6)) * 255.0
         else:
             norm_gray = gray
 
-        # 3.1 Blank / Degenerate Imagery Check
         white_pct = float(np.sum(norm_gray > 245) / total_pixels * 100.0)
         black_pct = float(np.sum(norm_gray < 10) / total_pixels * 100.0)
-        if white_pct > 85.0 and (not is_geotiff or g_std < 2.0):
-            if g_std < 12.0:
+
+        # For unreferenced images without geospatial tags, check for artificial saturation
+        if not has_geospatial:
+            if white_pct > 85.0 and std_val < 15.0:
                 return DomainValidationResult(
                     is_remote_sensing=False,
-                    reasons=[f"Over {white_pct:.1f}% of pixels are pure white saturation with negligible spatial variance (std: {g_std:.2f})"],
+                    reasons=[f"Over {white_pct:.1f}% of pixels are pure white saturation with negligible texture variance"],
                     rejection_message="Unsupported input: this image is predominantly blank white and does not contain valid Earth observation features."
                 )
-        if black_pct > 92.0 and (not is_geotiff or g_std < 2.0):
-            if g_std < 12.0:
+            if black_pct > 92.0 and std_val < 8.0:
                 return DomainValidationResult(
                     is_remote_sensing=False,
-                    reasons=[f"Over {black_pct:.1f}% of pixels are completely black null values with negligible spatial variance (std: {g_std:.2f})"],
+                    reasons=[f"Over {black_pct:.1f}% of pixels are completely black null values"],
                     rejection_message="Unsupported input: this image is predominantly black and does not contain valid Earth observation features."
                 )
 
-        # 3.2 Document / Book Page / Scanned Text Check
-        if not is_geotiff:
+        # 3.2 Document / Book Page / Scanned Text Check (applies to unreferenced photos/scans)
+        if not has_geospatial:
             if c >= 3:
                 max_c = np.maximum(np.maximum(r, g), b)
                 min_c = np.minimum(np.minimum(r, g), b)
@@ -222,10 +248,11 @@ class DomainDetector:
             else:
                 mean_sat = 0.0
 
+            # Document / Book Page / Scanned Text / Certificate Photo Check
             dark_text_pct = float(np.sum(norm_gray < 45) / total_pixels * 100.0)
             paper_bg_pct = float(np.sum(norm_gray > 220) / total_pixels * 100.0)
 
-            # Ambient / Indoor lighting adaptive document check (e.g. mobile photo of printed paper/certificate)
+            # Ambient / Indoor lighting adaptive document check
             bg_candidates = norm_gray[norm_gray > 80]
             bg_median = float(np.median(bg_candidates)) if bg_candidates.size > 0 else 0.0
             adaptive_paper_pct = float(np.sum((norm_gray >= bg_median - 35) & (norm_gray <= bg_median + 35)) / total_pixels * 100.0)
@@ -233,7 +260,8 @@ class DomainDetector:
 
             is_scanned_doc = (paper_bg_pct > 48.0 and dark_text_pct > 0.75 and mean_sat < 0.10)
             is_photographed_doc = (
-                adaptive_paper_pct > 45.0
+                not is_geotiff
+                and adaptive_paper_pct > 45.0
                 and adaptive_text_pct > 1.2
                 and mean_sat < 0.22
                 and bg_median > 115.0

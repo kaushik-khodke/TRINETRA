@@ -139,6 +139,7 @@ optimizer.pt
 !backend/models/checkpoints/optical_sar_model/model.pt
 !backend/models/checkpoints/hyperfree_model/model.pt
 !backend/models/checkpoints/rs_vqa_model/rsvqa_vocab.json
+!backend/qml/results/**/best_model.pt
 
 # Explicitly re-block any backup models in checkpoints directory
 backend/models/checkpoints/**/*_backup.pt
