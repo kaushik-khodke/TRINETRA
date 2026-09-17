@@ -5,6 +5,7 @@ Zero synthetic or mock data.
 """
 
 import os
+import sys
 import json
 import glob
 from typing import Tuple, Dict, Any, Optional
@@ -12,6 +13,25 @@ from PIL import Image
 import numpy as np
 import torch
 from torch.utils.data import Dataset
+
+backend_dir = os.path.abspath(os.path.join(os.path.dirname(__file__), "..", ".."))
+if backend_dir not in sys.path:
+    sys.path.insert(0, backend_dir)
+
+try:
+    from models.tokenizer import tokenize_sequence
+except ImportError:
+    import hashlib
+    def tokenize_sequence(text: str, max_length: int = 16, vocab_size: int = 5000, offset: int = 100) -> list:
+        words = text.lower().replace("?", "").replace(",", "").replace(".", "").split()
+        token_ids = []
+        for w in words[:max_length]:
+            digest = hashlib.sha256(w.encode("utf-8")).hexdigest()
+            h = (int(digest[:8], 16) % (vocab_size - offset)) + offset
+            token_ids.append(h)
+        while len(token_ids) < max_length:
+            token_ids.append(0)
+        return token_ids
 
 class RSVqaGenuineDataset(Dataset):
     """
@@ -94,14 +114,8 @@ class RSVqaGenuineDataset(Dataset):
         return len(self.samples)
 
     def _tokenize(self, text: str) -> torch.Tensor:
-        """Deterministic ASCII character/word token hashing to 16-length tensor."""
-        words = text.lower().replace("?", "").replace(",", "").split()
-        token_ids = []
-        for w in words[:self.max_seq_len]:
-            h = abs(hash(w)) % 4900 + 100
-            token_ids.append(h)
-        while len(token_ids) < self.max_seq_len:
-            token_ids.append(0)
+        """Deterministic SHA-256 word token hashing to max_seq_len tensor."""
+        token_ids = tokenize_sequence(text, max_length=self.max_seq_len, vocab_size=5000, offset=100)
         return torch.tensor(token_ids, dtype=torch.long)
 
     def _find_image(self, img_id: Any) -> str:

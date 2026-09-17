@@ -28,17 +28,13 @@ class QMLService:
     _pipeline_cache: Optional[QMLFeaturePipeline] = None
 
     @classmethod
-    def get_checkpoint_path(cls) -> str:
+    def get_or_create_model(cls, num_qubits: Optional[int] = None, num_layers: Optional[int] = None) -> QuantumChangeClassifier:
         # Check if trained weights exist in results directory (priority: qml_change_levir10k -> qml_change_v001)
         ckpt_dir = os.path.join(qml_config.results_dir, "qml_change_levir10k")
         if not os.path.exists(os.path.join(ckpt_dir, "best_model.pt")):
             ckpt_dir = os.path.join(qml_config.results_dir, "qml_change_v001")
-        return os.path.abspath(os.path.join(ckpt_dir, "best_model.pt"))
 
-    @classmethod
-    def get_or_create_model(cls, num_qubits: Optional[int] = None, num_layers: Optional[int] = None) -> QuantumChangeClassifier:
-        ckpt_path = cls.get_checkpoint_path()
-        ckpt_dir = os.path.dirname(ckpt_path)
+        ckpt_path = os.path.join(ckpt_dir, "best_model.pt")
         cfg_path = os.path.join(ckpt_dir, "config.json")
 
         actual_qubits = 6
@@ -68,7 +64,26 @@ class QMLService:
             try:
                 state = torch.load(ckpt_path, map_location="cpu")
                 model.load_state_dict(state, strict=False)
-                print(f"[QMLService] Loaded verified QML checkpoint (Acc: 76.37%) from {ckpt_path}")
+                
+                # Retrieve empirical accuracy dynamically from saved metrics manifest
+                eval_path = os.path.join(os.path.dirname(ckpt_path), "metrics.json")
+                if not os.path.exists(eval_path):
+                    eval_path = os.path.join(os.path.dirname(ckpt_path), "evaluation_results.json")
+                
+                metric_info = ""
+                if os.path.exists(eval_path):
+                    try:
+                        import json
+                        with open(eval_path, "r", encoding="utf-8") as f:
+                            m_data = json.load(f)
+                            if "accuracy" in m_data:
+                                metric_info = f" (Reported Acc: {float(m_data['accuracy'])*100:.2f}%)"
+                            elif "val_accuracy" in m_data:
+                                metric_info = f" (Val Acc: {float(m_data['val_accuracy'])*100:.2f}%)"
+                    except Exception:
+                        pass
+
+                print(f"[QMLService] Loaded QML checkpoint{metric_info} from {ckpt_path}")
             except Exception as e:
                 print(f"[QMLService] Warning: Failed to load state dict from {ckpt_path}: {e}")
 
@@ -187,7 +202,6 @@ class QMLService:
             q_tensor = torch.tensor(q_features, dtype=torch.float32)
 
             # 3. Load QML Variational Quantum Classifier
-            ckpt_path = cls.get_checkpoint_path()
             model = cls.get_or_create_model(
                 num_qubits=qml_config.num_qubits,
                 num_layers=qml_config.num_layers
@@ -259,9 +273,7 @@ class QMLService:
                     "class_probabilities": class_probs,
                     "quantum_features": [round(float(f), 4) for f in q_features],
                     "simulation_latency_ms": round(qml_latency_ms, 2),
-                    "total_latency_ms": round(total_qml_ms, 2),
-                    "model_path": ckpt_path,
-                    "model_version": "qml_change_levir10k"
+                    "total_latency_ms": round(total_qml_ms, 2)
                 },
                 "classical_vs_qml_comparison": report.to_dict()
             }

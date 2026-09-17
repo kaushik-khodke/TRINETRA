@@ -113,53 +113,8 @@ class AgentController:
                                 })
 
                         if qml_comparison_payload:
-                            qml_branch = qml_comparison_payload.get("qml_research_branch", {})
-                            qml_comp = qml_comparison_payload.get("classical_vs_qml_comparison", {})
-                            final_response["qml_analysis"] = qml_branch
-                            final_response["classical_vs_qml_comparison"] = qml_comp
-
-                            default_qml_model_path = os.path.abspath(
-                                os.path.join(qml_config.results_dir, "qml_change_levir10k", "best_model.pt")
-                            )
-                            qml_model_path = os.path.abspath(qml_branch.get("model_path", default_qml_model_path))
-                            qml_pred = qml_branch.get("prediction", "Verified")
-                            qml_conf = qml_branch.get("confidence", 0.95)
-                            qml_conf_pct = round(qml_conf * 100, 1) if qml_conf is not None else 95.0
-                            qml_verdict = qml_comp.get("verdict", "CONSENSUS_VERIFIED")
-
-                            qml_resp_obj = {
-                                "model_path": qml_model_path,
-                                "model_version": qml_branch.get("model_version", "qml_change_levir10k"),
-                                "prediction": qml_pred,
-                                "confidence": qml_conf,
-                                "qubits": qml_branch.get("qubits", 6),
-                                "layers": qml_branch.get("layers", 3),
-                                "parameters": qml_branch.get("parameters", 63),
-                                "verdict": qml_verdict,
-                                "status_message": qml_comp.get("status_message"),
-                                "simulation_latency_ms": qml_branch.get("simulation_latency_ms")
-                            }
-                            final_response["qml_response"] = qml_resp_obj
-
-                            if isinstance(final_response.get("result"), dict):
-                                final_response["result"]["qml_response"] = qml_resp_obj
-                                final_response["result"]["qml_analysis"] = qml_branch
-                                final_response["result"]["classical_vs_qml_comparison"] = qml_comp
-
-                            # Append structured QML response portion into final textual answer
-                            qml_text_block = (
-                                f"\n\n---\n"
-                                f"⚛️ **Quantum Intelligence Validation (PennyLane VQC — `qml_change_levir10k`)**:\n"
-                                f"- **Model Checkpoint**: `{qml_model_path}`\n"
-                                f"- **Quantum Circuit**: {qml_branch.get('qubits', 6)} Qubits · {qml_branch.get('layers', 3)} Layers · {qml_branch.get('parameters', 63)} Trainable Parameters (99.997% reduction)\n"
-                                f"- **QML Prediction**: **{qml_pred}** (Confidence: {qml_conf_pct}%)\n"
-                                f"- **Cross-Paradigm Verdict**: **{qml_verdict}** — {qml_comp.get('status_message', 'Quantum state agreement verified.')}\n"
-                                f"- **Simulation Latency**: {qml_branch.get('simulation_latency_ms', 4.0)} ms"
-                            )
-                            if "answer" in final_response and isinstance(final_response["answer"], str):
-                                final_response["answer"] += qml_text_block
-                            if isinstance(final_response.get("result"), dict) and "answer" in final_response["result"] and isinstance(final_response["result"]["answer"], str):
-                                final_response["result"]["answer"] += qml_text_block
+                            final_response["qml_analysis"] = qml_comparison_payload.get("qml_research_branch")
+                            final_response["classical_vs_qml_comparison"] = qml_comparison_payload.get("classical_vs_qml_comparison")
             except Exception as qml_err:
                 print(f"[AgentController] Non-fatal QML execution notice: {qml_err}")
 
@@ -187,4 +142,29 @@ class AgentController:
                 "reports": final_response.get("reports")
             })
 
-            return final_response
+            return _make_json_safe(final_response)
+
+
+def _make_json_safe(obj: Any) -> Any:
+    """Recursively converts numpy scalars and non-serializable structures to standard Python JSON types."""
+    import numpy as np
+    if isinstance(obj, dict):
+        # Exclude large raw 2D numpy arrays if any leaked into dictionaries
+        return {
+            k: _make_json_safe(v)
+            for k, v in obj.items()
+            if not (isinstance(v, np.ndarray) and v.ndim > 1)
+        }
+    elif isinstance(obj, list):
+        return [_make_json_safe(x) for x in obj]
+    elif isinstance(obj, tuple):
+        return [_make_json_safe(x) for x in obj]
+    elif isinstance(obj, (np.integer, np.int64, np.int32, np.int16, np.int8)):
+        return int(obj)
+    elif isinstance(obj, (np.floating, np.float64, np.float32, np.float16)):
+        return float(obj)
+    elif isinstance(obj, (np.bool_, bool)):
+        return bool(obj)
+    elif isinstance(obj, np.ndarray):
+        return obj.tolist()
+    return obj

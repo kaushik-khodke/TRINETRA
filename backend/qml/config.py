@@ -20,10 +20,7 @@ class QMLConfig:
     ))
     timeout_seconds: float = field(default_factory=lambda: float(os.getenv("QML_TIMEOUT_SECONDS", "3.0")))
     supported_tasks: List[str] = field(default_factory=lambda: [
-        t.strip() for t in os.getenv(
-            "QML_TASKS",
-            "change_analysis,change_detection,optical_sar_fusion,vqa,hyperspectral_analysis,land_cover,grounding,single,bi_temporal"
-        ).split(",")
+        t.strip() for t in os.getenv("QML_TASKS", "change_analysis,optical_sar_fusion,vqa").split(",")
     ])
     results_dir: str = field(default_factory=lambda: os.path.join(
         os.path.dirname(os.path.abspath(__file__)), "results"
@@ -32,8 +29,7 @@ class QMLConfig:
     def is_task_supported(self, task: str) -> bool:
         if not self.enabled:
             return False
-        # When QML is enabled, support all analytical workflows (or any explicit match)
-        return True
+        return task in self.supported_tasks
 
 # Singleton instance
 qml_config = QMLConfig()
