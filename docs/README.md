@@ -17,6 +17,7 @@ This directory centralizes all architectural, functional, technical, and domain 
 | [`TRINETRA_INTEGRATION.md`](file:///d:/DEKSTOP_/PROJECT/SIH_2026/TRINETRA/docs/TRINETRA_INTEGRATION.md) | **TRINETRA 3D Globe Integration** | Deep linking and coordinate sharing between SatQuery AI analysis workspace and TRINETRA 3D geospatial visualization globe. |
 | [`TRINETRA_Local_Agentic_AI_Migration_Task.md`](file:///d:/DEKSTOP_/PROJECT/SIH_2026/TRINETRA/docs/TRINETRA_Local_Agentic_AI_Migration_Task.md) | **100% Air-Gapped Local Architecture** | Zero cloud dependency, local Ollama runtime, LangGraph explicit StateGraph workflow, allow-listed tool registry, Langfuse tracing. |
 | [`TRINETRA_All_Model_Training_MASTER_TASK.md`](file:///d:/DEKSTOP_/PROJECT/SIH_2026/TRINETRA/docs/TRINETRA_All_Model_Training_MASTER_TASK.md) | **Local GPU Model Training Suite** | Real-dataset training pipelines (BigEarthNet-S2, RSVQA, DIOR-RSVG, OSCD, SEN1-2), zero synthetic data rules, AMP FP16, hardware profiles. |
+| [`TRINETRA_Dataset_Plan_and_Training_Protocol.md`](file:///d:/DEKSTOP_/PROJECT/SIH_2026/TRINETRA/docs/TRINETRA_Dataset_Plan_and_Training_Protocol.md) | **Dataset Acquisition & Training Protocol** | Zero automatic download rule, Tier 1–3 benchmark registry, 10-step manual developer training lifecycle, spatial split leakage rules, VRAM targets. |
 
 ---
 

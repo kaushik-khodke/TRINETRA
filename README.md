@@ -131,7 +131,27 @@ python -m unittest backend/tests/test_hyperspectral_langgraph.py
 
 ---
 
-## 6. Project Documentation
+## 6. Dataset Plan & Manual Training Protocol (Zero-Download Policy)
+
+In accordance with TRINETRA's non-negotiable scientific principles, **the system strictly prohibits automatic or silent dataset downloads**. The developer manually acquires real datasets from official repositories, verifies licensing, and executes pre-flight checks before training or benchmarking.
+
+### Core Protocol Highlights:
+- **Zero Synthetic Training Data**: All models train strictly on genuine remote-sensing rasters (GeoTIFF/ENVI); zero artificial tensors (`torch.randn`).
+- **Spatial Independence (Zero Leakage)**: Splits are generated at the scene or regional boundary level ($\text{Train} \cap \text{Val} = \emptyset, \text{Train} \cap \text{Test} = \emptyset$).
+- **Benchmark Priority Tiers**:
+  - **Tier 1 (Core)**: LEVIR-CD (Change), WHU-CD (Building Validation), Indian Pines / Salinas / Pavia (Hyperspectral), SEN12MS (Optical–SAR).
+  - **Tier 2 (Extensions)**: SECOND (Semantic Change), BigEarthNet-S2 v2.0 (reBEN Land Cover), RSVQA (Remote-Sensing VQA), DIOR-RSVG (Grounding).
+  - **Tier 3 (Subcontinent)**: ISRO Bhuvan / NRSC reference products for India-specific validation.
+- **Validation-Only Selection**: Model checkpoints are selected strictly on validation loss and metrics. Test data is never used for tuning.
+- **Hardware Profile System**: All 6 training suites support `--profile fast|balanced|quality` with Automatic Mixed Precision (AMP FP16), targeting ~12 GB VRAM GPUs.
+
+For the complete protocol, pre-flight commands, and training guides, consult:
+- [`backend/training/README.md`](file:///d:/DEKSTOP_/PROJECT/SIH_2026/TRINETRA/backend/training/README.md) — Step-by-step training commands and hardware profiles.
+- [`docs/TRINETRA_Dataset_Plan_and_Training_Protocol.md`](file:///d:/DEKSTOP_/PROJECT/SIH_2026/TRINETRA/docs/TRINETRA_Dataset_Plan_and_Training_Protocol.md) — Formal dataset plan, registry schema, and 10-step lifecycle.
+
+---
+
+## 7. Project Documentation
 
 Comprehensive documentation for all architectural specifications, training suites, and integration guidelines is organized in the [`docs/`](file:///d:/DEKSTOP_/PROJECT/SIH_2026/TRINETRA/docs) directory:
 - [`docs/ps.md`](file:///d:/DEKSTOP_/PROJECT/SIH_2026/TRINETRA/docs/ps.md) — Official ISRO Problem Statement 26167
@@ -142,3 +162,4 @@ Comprehensive documentation for all architectural specifications, training suite
 - [`docs/TRINETRA_INTEGRATION.md`](file:///d:/DEKSTOP_/PROJECT/SIH_2026/TRINETRA/docs/TRINETRA_INTEGRATION.md) — TRINETRA 3D Globe Deep-Linking
 - [`docs/TRINETRA_Local_Agentic_AI_Migration_Task.md`](file:///d:/DEKSTOP_/PROJECT/SIH_2026/TRINETRA/docs/TRINETRA_Local_Agentic_AI_Migration_Task.md) — Local Agentic AI Architecture
 - [`docs/TRINETRA_All_Model_Training_MASTER_TASK.md`](file:///d:/DEKSTOP_/PROJECT/SIH_2026/TRINETRA/docs/TRINETRA_All_Model_Training_MASTER_TASK.md) — Real-Data Local GPU Training Suite
+- [`docs/TRINETRA_Dataset_Plan_and_Training_Protocol.md`](file:///d:/DEKSTOP_/PROJECT/SIH_2026/TRINETRA/docs/TRINETRA_Dataset_Plan_and_Training_Protocol.md) — Dataset Acquisition & Manual Training Protocol

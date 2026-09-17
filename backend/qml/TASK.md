@@ -129,7 +129,7 @@ Directly retrieved and verified from official PennyLane docs (`https://pennylane
 | **Frontend UI Widget** | **VERIFIED** | Tactical cyber-quantum card displaying classical vs QML verdict, parameter savings, and qubit metrics. |
 | **Genuine Satellite Dataset** | **ACQUIRED & VERIFIED** | 100% genuine Sentinel-2 OSCD imagery live downloaded. 14 train pairs, 10 val pairs verified in `D:\datasets\OSCD` and `data/real_change_dataset`. Strict zero synthetic data compliance. |
 | **Dense Multi-Scale Tiler** | **VERIFIED & OPERATIONAL** | `dense_tiler.py` extracts 3,500+ genuine Sentinel-2 pairs from existing full scenes with multi-scale windows (256, 192, 128) and fine strides. |
-| **LEVIR-CD 10.1K Stream** | **VERIFIED & OPERATIONAL** | `download_dataset.py --dataset levir_cd` streams 10,192 genuine high-resolution satellite change pairs (7,120 train, 1,024 val, 2,048 test) from `ericyu/LEVIRCD_Cropped256`. |
+| **LEVIR-CD 10.1K Stream** | **VERIFIED & OPERATIONAL** | 10,192 genuine high-resolution satellite change pairs (7,120 train, 1,024 val, 2,048 test) verified via `prepare.py` under Zero Automatic Download policy. |
 | **Fast Feature Caching** | **VERIFIED & OPERATIONAL** | `train_vqc.py` caches 16-D spectral features to `.npz` files for instant 0.05s data loading on large datasets. |
 | **Circuit Capacity Scaling** | **VERIFIED & OPERATIONAL** | Scalable VQC supporting 6–8 qubits and 3 entangling layers (75–115 parameters, Hilbert space $2^6=64$ or $2^8=256$) with Cosine Annealing learning rate schedule. |
 | **32-D Spatial-Spectral Features** | **VERIFIED & OPERATIONAL** | `qml_service.py` extracts 32 high-resolution descriptors (SSIM, Sobel edges, Laplacian textures, NDBI, Otsu, PPMCC) for 90%–95% discriminative accuracy. |
@@ -146,8 +146,8 @@ To scale the QML Variational Quantum Classifier to high generalization and discr
 - **Stream A: OSCD Multi-Scale Dense Tiling (`dense_tiler.py`)**:
   - Extracts multi-scale sliding patches ($256\times 256$, $192\times 192$, $128\times 128$) with fine strides (48/32) across the 24 full-scene Sentinel-2 multispectral images in `D:\datasets\OSCD`.
   - Output: **3,500+ genuine Sentinel-2 patch pairs** with zero network download required.
-- **Stream B: LEVIR-CD Cropped-256 Benchmark (`download_dataset.py --dataset levir_cd`)**:
-  - Live Parquet acquisition from `ericyu/LEVIRCD_Cropped256` on Hugging Face (345 MB total).
+- **Stream B: LEVIR-CD Cropped-256 Benchmark (Prepared via `prepare.py`)**:
+  - Genuine LEVIR-CD benchmark dataset placed locally in accordance with `DATASET_PLAN.md`.
   - Train split: 7,120 genuine pairs
   - Val split: 1,024 genuine pairs
   - Test split: 2,048 genuine pairs
