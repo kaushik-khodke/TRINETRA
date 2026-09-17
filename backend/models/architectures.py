@@ -104,6 +104,43 @@ class RSVqaFusionNetwork(nn.Module):
         return logits
 
 
+class RSVqaResNetFusionNetwork(nn.Module):
+    """
+    Candidate VQA architecture utilizing a pretrained ResNet backbone with
+    multimodal cross-feature fusion and question conditioning.
+    """
+    def __init__(self, vocab_size: int = 5000, num_answers: int = 147, text_dim: int = 128, pretrained: bool = False):
+        super().__init__()
+        import torchvision.models as models
+        try:
+            weights = models.ResNet18_Weights.DEFAULT if pretrained else None
+            base_resnet = models.resnet18(weights=weights)
+        except Exception:
+            base_resnet = models.resnet18(weights=None)
+
+        self.visual_encoder = nn.Sequential(*list(base_resnet.children())[:-1])
+        self.text_embedding = nn.Embedding(vocab_size, text_dim)
+        self.text_encoder = nn.GRU(text_dim, text_dim, batch_first=True, bidirectional=True)
+
+        self.fusion = nn.Sequential(
+            nn.Linear(512 + text_dim * 2, 256),
+            nn.BatchNorm1d(256),
+            nn.ReLU(),
+            nn.Dropout(0.3),
+            nn.Linear(256, num_answers)
+        )
+
+    def forward(self, img: torch.Tensor, token_ids: torch.Tensor) -> torch.Tensor:
+        v_feat = self.visual_encoder(img).flatten(1)
+        embed = self.text_embedding(token_ids)
+        _, t_hidden = self.text_encoder(embed)
+        t_feat = torch.cat([t_hidden[-2], t_hidden[-1]], dim=-1)
+
+        fused = torch.cat([v_feat, t_feat], dim=-1)
+        logits = self.fusion(fused)
+        return logits
+
+
 # ==============================================================================
 # 3. Text-Guided Region Grounding Network
 # ==============================================================================
