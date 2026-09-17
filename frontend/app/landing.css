@@ -288,8 +288,8 @@
 .trinetra-landing-root .hero-section {
   min-height: 78vh;
   padding-top: 14vw;
-  background: var(--dark-surface) !important;
-  background-color: var(--dark-surface) !important;
+  background: #000000 !important;
+  background-color: #000000 !important;
 }
 
 .trinetra-landing-root .hero-section .hero-intro p,

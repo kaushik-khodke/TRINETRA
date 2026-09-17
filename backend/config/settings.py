@@ -11,7 +11,11 @@ import json
 import hashlib
 from typing import List, Optional
 from pydantic import Field
-from pydantic_settings import BaseSettings, SettingsConfigDict
+try:
+    from pydantic_settings import BaseSettings, SettingsConfigDict
+except ImportError:
+    from pydantic import BaseModel as BaseSettings  # type: ignore
+    SettingsConfigDict = dict  # type: ignore
 
 BACKEND_DIR = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
 PROJECT_ROOT = os.path.dirname(BACKEND_DIR)

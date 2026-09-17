@@ -1,7 +1,6 @@
 'use client'
 
 import { useEffect, useRef, useState } from 'react'
-import { Radar, Layers, Cpu, ShieldCheck, Sparkles, Check } from 'lucide-react'
 
 const dummyImage = 'https://images.unsplash.com/photo-1446776811953-b23d57bd21aa?auto=format&fit=crop&w=1200&q=80'
 
@@ -11,35 +10,30 @@ const capabilities = [
     title: 'Sense',
     text: 'Capture information from available Earth-observation data.',
     tag: 'Raw Telemetry',
-    icon: 'Radar',
   },
   {
     number: '02',
     title: 'Understand',
     text: 'Extract visual, spectral, spatial, temporal, and radiometric information.',
     tag: 'Feature Extraction',
-    icon: 'Layers',
   },
   {
     number: '03',
     title: 'Analyze',
     text: 'Apply the specialized intelligence models required for the task.',
     tag: 'Neural Routing',
-    icon: 'Cpu',
   },
   {
     number: '04',
     title: 'Validate',
     text: 'Compare model evidence and confidence, including quantum validation.',
     tag: 'Evidence & QML',
-    icon: 'ShieldCheck',
   },
   {
     number: '05',
     title: 'Explain',
     text: 'Turn the technical result into an understandable answer.',
     tag: 'Actionable Insights',
-    icon: 'Sparkles',
   },
 ]
 
@@ -605,16 +599,6 @@ export default function TrinetraLanding({ navigate }: { navigate: (path: string)
           {capabilities.map((item, index) => {
             const isActive = activeCapability === index
             const isCompleted = index < activeCapability
-            const IconComponent =
-              item.icon === 'Radar'
-                ? Radar
-                : item.icon === 'Layers'
-                ? Layers
-                : item.icon === 'Cpu'
-                ? Cpu
-                : item.icon === 'ShieldCheck'
-                ? ShieldCheck
-                : Sparkles
 
             return (
               <article
@@ -634,29 +618,14 @@ export default function TrinetraLanding({ navigate }: { navigate: (path: string)
                   }
                 }}
               >
-                {/* Step Top Header: Number and Icon Badge */}
+                {/* Step Top Header: Number */}
                 <div className="step-header">
                   <span className="step-number">{item.number}</span>
-                  <div className="step-icon-badge" aria-hidden="true">
-                    <IconComponent size={17} strokeWidth={2.2} />
-                  </div>
                 </div>
 
-                {/* Step Stage Tag & Live Status Pill */}
+                {/* Step Stage Tag */}
                 <div className="step-meta">
                   <span className="step-tag">{item.tag}</span>
-                  {isActive && (
-                    <span className="step-status-pill is-live">
-                      <span className="live-pulse" />
-                      ACTIVE
-                    </span>
-                  )}
-                  {isCompleted && (
-                    <span className="step-status-pill is-done">
-                      <Check size={10} strokeWidth={3} />
-                      DONE
-                    </span>
-                  )}
                 </div>
 
                 {/* Main Content */}
