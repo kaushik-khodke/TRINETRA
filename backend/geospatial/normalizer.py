@@ -187,8 +187,53 @@ class GeospatialNormalizer:
         """
         arr = raster.astype(np.float32)
 
-        # 4+ bands (Multispectral e.g. Sentinel-2: B2=Blue, B3=Green, B4=Red, B8=NIR)
+        # 4+ bands (Multispectral e.g. Sentinel-2: B2=Blue, B3=Green, B4=Red, B8=NIR, or RGBA)
         if arr.ndim == 3 and arr.shape[2] >= 4:
+            # Check if 4th channel is an Alpha/Footprint mask (e.g. RGBA GeoTIFF)
+            b3 = arr[:, :, 3]
+            sample_b3 = b3[::max(1, b3.shape[0] // 50), ::max(1, b3.shape[1] // 50)]
+            uniq = np.unique(sample_b3)
+            is_alpha = (
+                (band_mapping and "alpha" in str(band_mapping).lower()) or
+                (len(uniq) <= 4 and (255 in uniq or 1 in uniq or 0 in uniq)) or
+                (float(np.mean((sample_b3 == 0) | (sample_b3 == 255) | (sample_b3 == 1))) > 0.96)
+            )
+
+            if is_alpha and not (band_mapping and "nir" in band_mapping):
+                # Image is RGBA (Red=0, Green=1, Blue=2, Alpha=3)
+                red = arr[:, :, 0]
+                green = arr[:, :, 1]
+                blue = arr[:, :, 2]
+                alpha_mask = b3 > 0
+
+                # VARI (Visible Atmospherically Resistant Index) for vegetation
+                denom_vari = green + red - blue
+                denom_vari[np.abs(denom_vari) < 1e-4] = 1e-4
+                vari = np.clip((green - red) / denom_vari, -1.0, 1.0)
+                vari[~alpha_mask] = 0.0
+
+                # RGB Water Ratio
+                denom_w = blue + red
+                denom_w[denom_w == 0] = 1e-6
+                water_ratio = (blue - red) / denom_w
+                brightness = (red + green + blue) / (3.0 * max(1.0, float(np.max(arr[:, :, :3]))))
+                ndwi_rgb = np.clip(water_ratio * (1.0 - brightness), -1.0, 1.0)
+                ndwi_rgb[~alpha_mask] = 0.0
+
+                valid_vari = vari[alpha_mask]
+                valid_ndwi = ndwi_rgb[alpha_mask]
+
+                return {
+                    "index_mode": "RGBA_visual_proxy",
+                    "ndvi": vari,
+                    "ndwi": ndwi_rgb,
+                    "alpha_mask": alpha_mask,
+                    "mean_ndvi": round(float(np.mean(valid_vari)), 3) if valid_vari.size > 0 else 0.0,
+                    "mean_ndwi": round(float(np.mean(valid_ndwi)), 3) if valid_ndwi.size > 0 else 0.0,
+                    "bands_used": {"red": 0, "green": 1, "blue": 2, "alpha": 3},
+                    "disclaimer": "Approximated from visible RGB spectrum with Alpha validity mask; true NIR channel not present."
+                }
+
             if band_mapping:
                 red_idx = band_mapping.get("red", 2 if arr.shape[2] >= 4 else 0)
                 nir_idx = band_mapping.get("nir", 3)
@@ -321,11 +366,20 @@ class GeospatialNormalizer:
         edge_mag = np.sqrt(grad_x**2 + grad_y**2)
         is_urban = edge_mag > 22.0
 
-        # Feature masks
-        is_water = ndwi > 0.12
-        is_veg = (ndvi > 0.15) & (~is_water)
+        # Feature masks (aware of Alpha validity footprint)
+        alpha_mask = idx_results.get("alpha_mask")
+        valid_mask = alpha_mask if alpha_mask is not None else np.ones_like(gray, dtype=bool)
 
-        total_pixels = float(gray.size)
+        if idx_results.get("index_mode") == "RGBA_visual_proxy" or idx_results.get("index_mode") == "RGB_visual_proxy":
+            is_water = ((ndwi > 0.04) | ((gray < 55) & (arr[:, :, 2] >= arr[:, :, 0] - 10))) & valid_mask
+            is_veg = (ndvi > 0.10) & (~is_water) & valid_mask
+            is_urban = (edge_mag > 24.0) & (~is_veg) & (~is_water) & valid_mask
+        else:
+            is_water = (ndwi > 0.12) & valid_mask
+            is_veg = (ndvi > 0.15) & (~is_water) & valid_mask
+            is_urban = (edge_mag > 22.0) & (~is_veg) & (~is_water) & valid_mask
+
+        total_pixels = float(np.sum(valid_mask)) if np.sum(valid_mask) > 0 else float(gray.size)
         veg_pct = round(float(np.sum(is_veg)) / total_pixels * 100.0, 1)
         water_pct = round(float(np.sum(is_water)) / total_pixels * 100.0, 1)
         urban_pct = round(float(np.sum(is_urban & (~is_veg) & (~is_water))) / total_pixels * 100.0, 1)
