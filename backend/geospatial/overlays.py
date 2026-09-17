@@ -70,19 +70,23 @@ class EvidenceOverlayEngine:
             # Color style selection
             palette = cls.TACTICAL_PALETTE[i % len(cls.TACTICAL_PALETTE)]
             stroke_color = palette["stroke"]
-            fill_color = palette["fill"]
+            fill_color = (0, 0, 0, 0)  # Zero fill: preserves 100% optical radiometric clarity
 
-            # Normalize coordinates
-            if all(0.0 <= c <= 1.0 for c in coords):
-                ymin, xmin, ymax, xmax = coords
-                x1, y1, x2, y2 = int(xmin * w), int(ymin * h), int(xmax * w), int(ymax * h)
+            # Normalized to pixel coords
+            if max(coords) <= 1.0:
+                y1, x1, y2, x2 = [
+                    int(coords[0] * h),
+                    int(coords[1] * w),
+                    int(coords[2] * h),
+                    int(coords[3] * w)
+                ]
             else:
                 x1, y1, x2, y2 = [int(c) for c in coords]
 
             x1, x2 = max(0, min(x1, x2)), min(w - 1, max(x1, x2))
             y1, y2 = max(0, min(y1, y2)), min(h - 1, max(y1, y2))
 
-            # Semi-transparent fill and bounding rectangle
+            # Crisp bounding rectangle with zero fill
             draw.rectangle([x1, y1, x2, y2], fill=fill_color, outline=stroke_color, width=2)
 
             # Tactical corner brackets (3px width)
@@ -218,6 +222,120 @@ class EvidenceOverlayEngine:
             draw.polygon(pixel_pts, fill=palette["fill"], outline=palette["stroke"])
 
         composed = Image.alpha_composite(img, overlay)
+        return composed.convert("RGB")
+
+    @classmethod
+    def render_tactical_feature_overlay(
+        cls,
+        base_img: Image.Image,
+        features: List[Dict[str, Any]],
+        draw_contours: bool = True,
+        draw_bounding_boxes: bool = True,
+        draw_fill: bool = False,
+        max_badges_per_feature: int = 3,
+        min_contour_area: int = 400
+    ) -> Image.Image:
+        """
+        Renders crisp, defense-grade tactical visual evidence:
+        1. Precise vector contours around isolated detected features (e.g. water shoreline, industrial plant, farm cluster).
+        2. Clean, transparent background (0% opacity on un-targeted pixels - zero artificial color wash).
+        3. Zero fill tint by default (draw_fill=False) to ensure 100% natural optical clarity.
+        4. Anti-aliased 2px vector outlines filtered by minimum area to eliminate sensor noise speckles.
+        5. Tactical corner brackets, center reticles, and collision-avoiding badges for top regions.
+        """
+        import cv2
+
+        w, h = base_img.size
+        base_rgba = base_img.convert("RGBA")
+
+        # Transparent overlay canvas for fills and contours
+        fill_canvas = Image.new("RGBA", (w, h), (0, 0, 0, 0))
+
+        # Separate RGBA numpy canvas for OpenCV anti-aliased contour drawing
+        contour_canvas = np.zeros((h, w, 4), dtype=np.uint8)
+
+        candidate_boxes = []
+
+        for i, feat in enumerate(features):
+            mask = feat.get("mask")
+            if mask is None:
+                continue
+
+            # Ensure 2D binary numpy array
+            if isinstance(mask, np.ndarray):
+                mask_2d = mask.squeeze()
+                if mask_2d.dtype == bool:
+                    mask_uint8 = (mask_2d.astype(np.uint8)) * 255
+                elif np.issubdtype(mask_2d.dtype, np.floating):
+                    mask_uint8 = ((mask_2d > 0.5).astype(np.uint8)) * 255
+                else:
+                    mask_uint8 = ((mask_2d > 0).astype(np.uint8)) * 255
+            else:
+                continue
+
+            # Resize mask to base image dimensions using NEAREST to prevent fuzzy edge artifacts
+            if mask_uint8.shape != (h, w):
+                mask_img = Image.fromarray(mask_uint8).resize((w, h), Image.Resampling.NEAREST)
+                mask_uint8 = np.array(mask_img)
+
+            # Palette
+            palette = feat.get("palette") or cls.TACTICAL_PALETTE[i % len(cls.TACTICAL_PALETTE)]
+            stroke_rgba = feat.get("stroke") or palette["stroke"]
+            fill_rgba = feat.get("fill") or palette.get("fill", (0, 0, 0, 0))
+            label = feat.get("label", f"FEATURE #{i+1}")
+            score = feat.get("score", 0.90)
+
+            # 1. Apply subtle fill ONLY if explicitly enabled (default is False to keep optical pixels 100% natural)
+            if draw_fill and fill_rgba and len(fill_rgba) >= 4 and fill_rgba[3] > 0:
+                fill_img = Image.new("RGBA", (w, h), fill_rgba)
+                mask_pil = Image.fromarray(mask_uint8, mode="L")
+                fill_canvas.paste(fill_img, (0, 0), mask_pil)
+
+            # 2. Extract and draw sharp anti-aliased contours with OpenCV
+            contours, _ = cv2.findContours(mask_uint8, cv2.RETR_EXTERNAL, cv2.CHAIN_APPROX_SIMPLE)
+            if not contours:
+                continue
+
+            # Filter by area to eliminate sensor noise speckles
+            prominent_contours = [c for c in contours if cv2.contourArea(c) >= min_contour_area]
+            if not prominent_contours:
+                continue
+
+            if draw_contours:
+                # stroke_rgba: (R, G, B, A) -> OpenCV uses BGRA
+                b, g, r, a = stroke_rgba[2], stroke_rgba[1], stroke_rgba[0], stroke_rgba[3]
+                cv2.drawContours(contour_canvas, prominent_contours, -1, (int(b), int(g), int(r), int(a)), thickness=2, lineType=cv2.LINE_AA)
+
+            # 3. Extract prominent regions for tactical bounding badges
+            if draw_bounding_boxes:
+                prominent_contours.sort(key=cv2.contourArea, reverse=True)
+
+                for rank, cnt in enumerate(prominent_contours[:max_badges_per_feature]):
+                    bx, by, bw, bh = cv2.boundingRect(cnt)
+                    norm_bbox = [by / float(h), bx / float(w), (by + bh) / float(h), (bx + bw) / float(w)]
+                    area_px = int(cv2.contourArea(cnt))
+                    area_m2 = area_px * 100
+
+                    reg_id = f"R0{len(candidate_boxes) + 1}" if len(candidate_boxes) < 9 else f"R{len(candidate_boxes) + 1}"
+                    candidate_boxes.append({
+                        "bbox": norm_bbox,
+                        "score": score,
+                        "id": reg_id,
+                        "label": label,
+                        "physical_area_m2": area_m2,
+                        "pixel_area": area_px
+                    })
+
+        # Combine fill canvas and contour canvas
+        contour_img = Image.fromarray(cv2.cvtColor(contour_canvas, cv2.COLOR_BGRA2RGBA))
+        combined_overlay = Image.alpha_composite(fill_canvas, contour_img)
+        composed = Image.alpha_composite(base_rgba, combined_overlay)
+
+        # 4. Render aerospace bounding boxes with non-colliding badges on top
+        if draw_bounding_boxes and candidate_boxes:
+            result_img = cls.render_bounding_boxes(composed.convert("RGB"), candidate_boxes)
+            return result_img
+
         return composed.convert("RGB")
 
     @staticmethod

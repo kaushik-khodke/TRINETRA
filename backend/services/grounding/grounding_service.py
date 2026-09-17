@@ -179,8 +179,23 @@ class RSGroundingSpecialist:
                 "raw_preview": raw_b64
             }
 
-        # Render tactical visual bounding overlay on the user's actual image
-        overlay_img = EvidenceOverlayEngine.render_bounding_boxes(rgb_preview, regions)
+        # Render tactical visual bounding overlay and precise perimeter contours on the user's actual image
+        if mask is not None and np.any(mask):
+            is_water = any(w in feature_label.lower() for w in ["water", "lake", "river", "hydrology", "pond"])
+            overlay_img = EvidenceOverlayEngine.render_tactical_feature_overlay(
+                rgb_preview,
+                features=[{
+                    "mask": mask,
+                    "label": feature_label,
+                    "stroke": (6, 182, 212, 255) if is_water else (16, 185, 129, 255),
+                    "fill": (6, 182, 212, 50) if is_water else (16, 185, 129, 45),
+                    "score": regions[0].get("score", 0.90) if regions else 0.90
+                }],
+                draw_contours=True,
+                draw_bounding_boxes=True
+            )
+        else:
+            overlay_img = EvidenceOverlayEngine.render_bounding_boxes(rgb_preview, regions)
         evidence_b64 = EvidenceOverlayEngine.to_base64(overlay_img)
 
         # Synthesize domain-grounded response via LLM reasoning engine

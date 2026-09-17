@@ -90,6 +90,9 @@ class VQAEvidenceEngine:
         now_utc = datetime.now(timezone.utc).isoformat().replace("+00:00", "Z")
         package_id = f"evpkg-{uuid.uuid4().hex[:12]}"
 
+        # Normalize meta to dict
+        meta = meta.model_dump() if hasattr(meta, "model_dump") else (meta.to_dict() if hasattr(meta, "to_dict") else (meta if isinstance(meta, dict) else {}))
+
         # 1. Source Image Metadata
         h, w = image_arr.shape[:2]
         bands = image_arr.shape[2] if image_arr.ndim == 3 else 1
