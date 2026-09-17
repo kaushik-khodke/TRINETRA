@@ -8,6 +8,7 @@ Supports English ('en'), Hindi ('hi'), and Marathi ('mr') with scientific token 
 """
 
 import os
+import numpy as np
 from typing import Dict, Any, Optional, List
 from llm.ollama_provider import OllamaProvider
 from llm.model_registry import LocalModelRegistry
@@ -87,7 +88,10 @@ class LLMReasoningEngine:
         modality: str,
         spectral_metrics: Dict[str, Any],
         detected_features: Dict[str, Any],
-        response_language: str = "en"
+        response_language: str = "en",
+        evidence_package: Optional[Dict[str, Any]] = None,
+        model_top_answer: Optional[str] = None,
+        model_confidence: Optional[float] = None,
     ) -> Dict[str, Any]:
         """
         Answers a user question grounded in physical radiometric measurements and spatial layout.
@@ -99,15 +103,28 @@ class LLMReasoningEngine:
 
         spatial_dist = spectral_metrics.get("quadrant_distribution", "Balanced across quadrants")
 
+        # Extract evidence metrics if available
+        derived_metrics = (evidence_package or {}).get("derived_metrics", {})
+        veg_pct = derived_metrics.get("vegetation_pct", spectral_metrics.get("vegetation_cover_pct", 0))
+        water_pct = derived_metrics.get("water_pct", spectral_metrics.get("water_body_pct", 0))
+        urban_pct = derived_metrics.get("built_up_pct", spectral_metrics.get("built_up_density_pct", 0))
+        mean_ndvi = derived_metrics.get("mean_ndvi", spectral_metrics.get("mean_ndvi", 0))
+        mean_ndwi = derived_metrics.get("mean_ndwi", spectral_metrics.get("mean_ndwi", 0))
+
+        neural_spec_line = ""
+        if model_top_answer:
+            neural_conf_pct = int((model_confidence or 0.85) * 100)
+            neural_spec_line = f"- Neural Specialist Model Prediction: {model_top_answer} ({neural_conf_pct}% confidence)\n"
+
         # 1. Attempt Local Ollama inference
         if LocalModelRegistry.is_ollama_online():
             terrain_desc = detected_features.get("terrain_summary") if isinstance(detected_features, dict) else str(detected_features)
             prompt = f"""You are SatQuery AI, an ISRO remote-sensing earth observation analyst.
 Answer the user's question directly, concisely, and naturally based on these real satellite sensor measurements:
 - Sensor Modality: {modality.upper()}
-- Vegetation Cover (NDVI/VARI): {spectral_metrics.get('vegetation_cover_pct', 0)}% (Mean: {spectral_metrics.get('mean_ndvi', 0)})
-- Hydrological Surface Water (NDWI): {spectral_metrics.get('water_body_pct', 0)}% (Mean: {spectral_metrics.get('mean_ndwi', 0)})
-- Urban / Built-Up Density: {spectral_metrics.get('built_up_density_pct', 0)}%
+{neural_spec_line}- Vegetation Cover (NDVI/VARI): {veg_pct}% (Mean NDVI: {mean_ndvi})
+- Hydrological Surface Water (NDWI): {water_pct}% (Mean NDWI: {mean_ndwi})
+- Urban / Built-Up Density: {urban_pct}%
 - Bare Soil / Substrate: {spectral_metrics.get('bare_soil_pct', 0)}%
 - Spatial Quadrant Distribution: {spatial_dist}
 - Terrain Observations: {terrain_desc}
@@ -116,13 +133,14 @@ User Question: "{query}"
 
 Instructions:
 - Speak in a natural, authoritative earth-observation analyst tone.
-- CRITICAL GUARDRAIL: NEVER mention programming variables, internal code flags, or boolean literals (such as 'has_water', 'has_urban', 'True', 'False', or 'feature is reported as'). Explain what is physically observed in the image naturally (e.g. "From the satellite image, no significant surface water was detected").
+- CRITICAL GUARDRAIL: The LLM is the language synthesis layer, not the source of physical measurements. Never invent ungrounded metrics.
+- NEVER mention programming variables, internal code flags, or boolean literals (such as 'has_water', 'has_urban', 'True', 'False', or 'feature is reported as'). Explain what is physically observed in the image naturally.
 - Provide a direct, user-friendly answer (1 to 2 sentences max).{lang_directive}"""
 
             resp = OllamaProvider.generate(prompt, role="planner", max_tokens=240)
             if resp.success and resp.text:
                 sanitized_text = cls._sanitize_analyst_answer(resp.text)
-                conf = 0.94 if spectral_metrics.get("is_geotiff") else 0.88
+                conf = model_confidence if model_confidence is not None else (0.94 if spectral_metrics.get("is_geotiff") else 0.88)
                 return {
                     "answer": sanitized_text or resp.text,
                     "engine": f"Local Ollama ({resp.model}) Grounded VQA",
@@ -132,7 +150,12 @@ Instructions:
                 }
 
         # 2. Deterministic Grounded Remote-Sensing Physics Engine (Zero-Hallucination Fallback)
-        return cls._domain_grounded_synthesis(query, modality, spectral_metrics, detected_features, response_language)
+        fb = cls._domain_grounded_synthesis(query, modality, spectral_metrics, detected_features, response_language)
+        if model_top_answer and not fb.get("answer"):
+            fb["answer"] = f"The remote-sensing specialist model classified the query as '{model_top_answer}' with verified biophysical grounding."
+        if model_confidence is not None:
+            fb["confidence"] = model_confidence
+        return fb
 
     # ==========================================
     # 2. Bi-Temporal Change Reasoning
@@ -179,10 +202,12 @@ Instructions:
 
             resp = OllamaProvider.generate(prompt, role="planner", max_tokens=240)
             if resp.success and resp.text:
+                conf = round(float(np.clip(0.50 + mean_diff * 1.5, 0.50, 0.88)), 2)
                 return {
                     "answer": resp.text,
                     "engine": f"Local Ollama ({resp.model}) Grounded Change Reasoning",
-                    "confidence": 0.95,
+                    "confidence": conf,
+                    "confidence_calibrated": False,
                     "model_role": resp.role,
                     "latency_ms": resp.latency_ms
                 }
@@ -276,10 +301,12 @@ Instructions:
                     f"with primary activity {sectors_text} reflecting new infrastructure development."
                 )
 
+        conf = round(float(np.clip(0.50 + mean_diff * 1.5, 0.50, 0.85)), 2)
         return {
             "answer": answer,
             "engine": "Bi-Temporal Differential Feature Engine (Local Physics)",
-            "confidence": 0.91,
+            "confidence": conf,
+            "confidence_calibrated": False,
             "model_role": "local_physics",
             "latency_ms": 12.5
         }
@@ -322,10 +349,13 @@ Instructions:
 
             resp = OllamaProvider.generate(prompt, role="planner", max_tokens=240)
             if resp.success and resp.text:
+                water_diff = abs(opt_metrics.get("water_pct", 0) - sar_metrics.get("water_pct", 0))
+                conf = round(float(np.clip(0.85 - (water_diff * 0.005), 0.55, 0.88)), 2)
                 return {
                     "answer": resp.text,
                     "engine": f"Local Ollama ({resp.model}) Cross-Modal Fusion",
-                    "confidence": 0.95,
+                    "confidence": conf,
+                    "confidence_calibrated": False,
                     "model_role": resp.role,
                     "latency_ms": resp.latency_ms
                 }
@@ -426,10 +456,13 @@ Instructions:
                     f"and low-backscatter hydrological zones ({fused_water}%)."
                 )
 
+        water_diff = abs(opt_metrics.get("water_pct", 0) - sar_metrics.get("water_pct", 0))
+        conf = round(float(np.clip(0.82 - (water_diff * 0.005), 0.50, 0.84)), 2)
         return {
             "answer": answer,
             "engine": "Cross-Modal Dual-Encoder Fusion Engine (Local Physics)",
-            "confidence": 0.93,
+            "confidence": conf,
+            "confidence_calibrated": False,
             "model_role": "local_physics",
             "latency_ms": 14.0
         }
@@ -470,78 +503,6 @@ Describe the landscape composition and prominent land-cover features accurately.
 
         # Deterministic fallback caption
         veg = metrics.get('vegetation_cover_pct', 0)
-
-    # ==========================================
-    # 5. Text-Guided Region Grounding Reasoning
-    # ==========================================
-
-    @classmethod
-    def synthesize_grounding_answer(
-        cls,
-        query: str,
-        modality: str,
-        boxes: List[Dict[str, Any]],
-        spectral_metrics: Dict[str, Any],
-        image_shape: Any,
-        response_language: str = "en"
-    ) -> Dict[str, Any]:
-        """
-        Synthesizes a text-guided grounding answer referencing predicted bounding boxes,
-        spatial regions, and radiometric verification.
-        """
-        num_boxes = len(boxes)
-        box_coords = [b.get("bbox") for b in boxes] if boxes else []
-        labels = [b.get("label", "Target Feature") for b in boxes] if boxes else []
-        labels_str = ", ".join(labels) if labels else "Referred visual feature"
-
-        lang_directive = cls._get_lang_directive(response_language)
-
-        if LocalModelRegistry.is_ollama_online():
-            prompt = f"""You are SatQuery AI, an ISRO remote-sensing specialist for text-guided region grounding.
-Answer the user's query directly based on the detected target regions:
-- Sensor Modality: {modality.upper()}
-- Target Query: "{query}"
-- Detected Target Regions: {num_boxes} region(s) found ({labels_str})
-- Normalized Coordinates: {box_coords}
-- Spectral Metrics: Vegetation={spectral_metrics.get('vegetation_cover_pct', 0)}%, Water={spectral_metrics.get('water_body_pct', 0)}%, Urban={spectral_metrics.get('built_up_density_pct', 0)}%
-
-Provide a direct, concise (1-2 sentence) confirmation describing where the feature was located and bounded.{lang_directive}"""
-
-            resp = OllamaProvider.generate(prompt, role="planner", max_tokens=180)
-            if resp.success and resp.text:
-                return {
-                    "answer": resp.text,
-                    "engine": f"Local Ollama ({resp.model}) Grounded Localization",
-                    "confidence": 0.94,
-                    "model_role": resp.role,
-                    "latency_ms": resp.latency_ms
-                }
-
-        # Deterministic Grounding Fallback
-        if num_boxes > 0:
-            b = boxes[0].get("bbox", [0.1, 0.1, 0.9, 0.9])
-            if response_language == "hi":
-                answer = f"संदर्भित लक्ष्य विशेषता ({labels[0]}) को सफलतापूर्वक स्थानीयकृत किया गया है। सीमा बॉक्स: [{b[0]}, {b[1]}, {b[2]}, {b[3]}]।"
-            elif response_language == "mr":
-                answer = f"संदर्भित लक्ष्य घटक ({labels[0]}) यशस्वीरित्या शोधला गेला आहे. बाउंडिंग बॉक्स: [{b[0]}, {b[1]}, {b[2]}, {b[3]}]."
-            else:
-                answer = f"Successfully localized {num_boxes} spatial target region(s) matching '{query}'. Primary bounding box established at [{b[0]}, {b[1]}, {b[2]}, {b[3]}] with verified {labels[0]} contour."
-        else:
-            if response_language == "hi":
-                answer = f"छवि के दृश्य में '{query}' से संबंधित कोई अलग सीमा क्षेत्र नहीं मिला।"
-            elif response_language == "mr":
-                answer = f"प्रतिमेमध्ये '{query}' शी संबंधित कोणताही वेगळा भाग आढळला नाही."
-            else:
-                answer = f"No prominent isolated spatial boundary matching '{query}' could be distinguished above the detection threshold."
-
-        return {
-            "answer": answer,
-            "engine": "Text-Guided Region Grounding Engine (Local Physics)",
-            "confidence": 0.92,
-            "model_role": "local_physics",
-            "latency_ms": 11.0
-        }
-
         water = metrics.get('water_body_pct', 0)
         urban = metrics.get('built_up_density_pct', 0)
         bare = metrics.get('bare_soil_pct', 0)
@@ -584,7 +545,7 @@ Provide a direct, concise (1-2 sentence) confirmation describing where the featu
             )
 
     # ==========================================
-    # 4.5. Visual Grounding Reasoning
+    # 5. Visual Grounding Reasoning
     # ==========================================
 
     @classmethod
@@ -623,10 +584,12 @@ Provide a concise 2-sentence confirmation explaining the spatial location of the
 
             resp = OllamaProvider.generate(prompt, role="planner", max_tokens=180)
             if resp.success and resp.text:
+                conf = round(float(boxes[0].get("score", 0.75)), 2) if boxes else 0.45
                 return {
                     "answer": resp.text,
                     "engine": f"Local Ollama ({resp.model}) Grounding Synthesis",
-                    "confidence": 0.94,
+                    "confidence": conf,
+                    "confidence_calibrated": False,
                     "model_role": resp.role,
                     "latency_ms": resp.latency_ms
                 }
@@ -636,18 +599,22 @@ Provide a concise 2-sentence confirmation explaining the spatial location of the
             b0 = boxes[0]
             bbox = b0.get("bbox", [0.2, 0.2, 0.8, 0.8])
             label = b0.get("label", query)
+            score_val = float(b0.get("score", 0.75))
             answer = (
                 f"Successfully localized '{query}' within the scene at normalized coordinates "
                 f"[Y: {bbox[0]}–{bbox[2]}, X: {bbox[1]}–{bbox[3]}]. "
-                f"Classified as '{label}' with {int(b0.get('score', 0.9) * 100)}% spatial alignment confidence."
+                f"Classified as '{label}' with {int(score_val * 100)}% spatial alignment score."
             )
+            conf = round(score_val, 2)
         else:
             answer = f"No localized region matching '{query}' met the required confidence threshold across the scene."
+            conf = 0.40
 
         return {
             "answer": answer,
             "engine": "Remote-Sensing Visual Grounding Engine",
-            "confidence": 0.92,
+            "confidence": conf,
+            "confidence_calibrated": False,
             "model_role": "local_grounding",
             "latency_ms": 15.0
         }

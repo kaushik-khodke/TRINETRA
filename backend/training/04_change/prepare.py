@@ -50,20 +50,32 @@ def prepare_change(data_dir: str, manifest_dir: str, verify_only: bool = False):
 
     print(f"[+] Found {len(sample_ids):,} verified bi-temporal pairs.")
 
-    # Deterministic 70/15/15 Split
-    import random
-    rng = random.Random(42)
-    shuffled = list(sample_ids)
-    rng.shuffle(shuffled)
+    # Check if samples already have official split prefixes (e.g. train_*, val_*, test_*)
+    train_prefixed = [sid for sid in sample_ids if sid.lower().startswith("train_") or sid.lower().startswith("train/")]
+    val_prefixed = [sid for sid in sample_ids if sid.lower().startswith("val_") or sid.lower().startswith("val/")]
+    test_prefixed = [sid for sid in sample_ids if sid.lower().startswith("test_") or sid.lower().startswith("test/")]
 
-    n = len(shuffled)
-    n_train = int(0.70 * n)
-    n_val = int(0.15 * n)
+    if train_prefixed and val_prefixed and test_prefixed:
+        print("[+] Detected official LEVIR-CD benchmark splits from file prefixes.")
+        train_ids = sorted(train_prefixed)
+        val_ids = sorted(val_prefixed)
+        test_ids = sorted(test_prefixed)
+    else:
+        # Deterministic 70/15/15 Split
+        import random
+        rng = random.Random(42)
+        shuffled = list(sample_ids)
+        rng.shuffle(shuffled)
 
-    train_ids = shuffled[:n_train]
-    val_ids = shuffled[n_train:n_train + n_val]
-    test_ids = shuffled[n_train + n_val:]
+        n = len(shuffled)
+        n_train = int(0.70 * n)
+        n_val = int(0.15 * n)
 
+        train_ids = shuffled[:n_train]
+        val_ids = shuffled[n_train:n_train + n_val]
+        test_ids = shuffled[n_train + n_val:]
+
+    # Mathematically verify split leakage
     verify_split_leakage(train_ids, val_ids, test_ids)
 
     out_dir = manifest_dir or os.path.join(os.path.dirname(__file__), "manifests")
@@ -71,11 +83,12 @@ def prepare_change(data_dir: str, manifest_dir: str, verify_only: bool = False):
     save_manifest(out_dir, "change_val", val_ids)
     save_manifest(out_dir, "change_test", test_ids)
 
-    print(f"\n[SUMMARY]")
+    print(f"\n[SUMMARY OF VERIFIED SPLITS]")
     print(f"  Training pairs:   {len(train_ids):,}")
     print(f"  Validation pairs: {len(val_ids):,}")
-    print(f"  Test pairs:       {len(test_ids):,}")
+    print(f"  Held-out Test:    {len(test_ids):,}")
     print("=================================================================\n")
+
 
 if __name__ == "__main__":
     parser = argparse.ArgumentParser(description="Prepare bi-temporal change dataset.")

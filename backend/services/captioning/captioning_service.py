@@ -1,8 +1,4 @@
-"""
-SatQuery AI — Remote-Sensing Scene Captioning Specialist Service
-Generates structured scene descriptions and land-cover summaries from real image pixels.
-"""
-
+import os
 import numpy as np
 from typing import Dict, Any
 from geospatial.normalizer import GeospatialNormalizer
@@ -18,7 +14,10 @@ class RSCaptionSpecialist:
 
     def execute(self, image_arr: np.ndarray, meta: Dict[str, Any], query: str, parameters: Dict[str, Any]) -> Dict[str, Any]:
         ckpt = ModelManager.load_weights_if_available("bigearthnet_adapted")
-        engine_type = f"PyTorch Checkpoint ({ckpt})" if ckpt else "Multi-Spectral Scene Understanding Engine"
+        fallback_used = ckpt is None
+        fallback_reason = "No bigearthnet_adapted checkpoint on disk" if fallback_used else None
+        engine_type = f"PyTorch Checkpoint ({os.path.basename(ckpt)})" if ckpt else "Multi-Spectral Scene Understanding Engine (Fallback)"
+        ckpt_hash = ModelManager.get_checkpoint_hash(ckpt) if ckpt else None
 
         metrics = GeospatialNormalizer.compute_spectral_breakdown(image_arr)
         veg_pct = metrics["vegetation_cover_pct"]
@@ -38,13 +37,23 @@ class RSCaptionSpecialist:
         evidence_b64 = EvidenceOverlayEngine.to_base64(overlay_img)
         raw_b64 = EvidenceOverlayEngine.to_base64(rgb_preview)
 
+        # Dynamic confidence based on radiometric classification coverage
+        total_accounted = min(100.0, veg_pct + water_pct + urban_pct + bare_pct)
+        conf = round(float(np.clip(total_accounted / 120.0 + 0.1, 0.55, 0.85)), 2)
+
         return {
             "task": "captioning",
             "tool": self.tool_id,
             "version": self.version,
             "engine": engine_type,
+            "requested_model": "bigearthnet_adapted",
+            "loaded_model": os.path.basename(ckpt) if ckpt else None,
+            "checkpoint_hash": ckpt_hash,
+            "fallback_used": fallback_used,
+            "fallback_reason": fallback_reason,
             "caption": caption,
-            "confidence": 0.92,
+            "confidence": conf,
+            "confidence_calibrated": False,
             "evidence_image": evidence_b64,
             "raw_preview": raw_b64,
             "land_cover_breakdown": {

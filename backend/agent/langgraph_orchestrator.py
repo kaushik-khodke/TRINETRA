@@ -15,13 +15,7 @@ BACKEND_DIR = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
 if BACKEND_DIR not in sys.path:
     sys.path.insert(0, BACKEND_DIR)
 
-try:
-    from langgraph.graph import StateGraph, END
-    HAS_LANGGRAPH = True
-except ImportError:
-    StateGraph = None
-    END = "__end__"
-    HAS_LANGGRAPH = False
+from langgraph.graph import StateGraph, END
 
 from agent.registry import TOOL_REGISTRY, get_tool
 from agent.classifier import TaskClassifier
@@ -33,6 +27,7 @@ from services.grounding.grounding_service import RSGroundingSpecialist
 from services.change.change_service import BiTemporalChangeSpecialist
 from services.optical_sar.optical_sar_service import OpticalSarFusionSpecialist
 from services.hyperspectral.hsi_service import HyperFreeHSISpecialist
+from services.intelligence_builder import StructuredIntelligenceBuilder
 from geospatial.reader import GeospatialReader
 
 class AgentWorkflowState(TypedDict):
@@ -66,14 +61,7 @@ class LangGraphOrchestrator:
         self.optical_sar_specialist = OpticalSarFusionSpecialist()
         self.hsi_specialist = HyperFreeHSISpecialist()
 
-        if HAS_LANGGRAPH:
-            try:
-                self.graph = self._build_graph()
-            except Exception as e:
-                print(f"[LangGraphOrchestrator] Notice: LangGraph compilation fallback: {e}")
-                self.graph = None
-        else:
-            self.graph = None
+        self.graph = self._build_graph()
 
     def _build_graph(self):
         workflow = StateGraph(AgentWorkflowState)
@@ -498,6 +486,23 @@ class LangGraphOrchestrator:
 
         out["geographic_location"] = geo_location
 
+        # Synthesize Structured Multimodal Intelligence Response
+        struct_intel = StructuredIntelligenceBuilder.build(
+            task=out.get("task") or state["detected_task"],
+            modality=state["detected_modality"],
+            query=state["query"],
+            specialist_output=out,
+            geo_location=geo_location,
+            validation_report=state.get("validation_report"),
+            raw_b64=out.get("raw_preview")
+        )
+
+        out["structured_intelligence"] = struct_intel
+        if struct_intel.get("regions"):
+            out["regions"] = struct_intel["regions"]
+        if struct_intel.get("structured_answer"):
+            out["structured_answer"] = struct_intel["structured_answer"]
+
         final_resp = {
             "request_id": state["request_id"],
             "trace_id": state["trace_id"],
@@ -508,9 +513,14 @@ class LangGraphOrchestrator:
             "detected_task": state["detected_task"],
             "detected_modality": state["detected_modality"],
             "selected_tools": state["selected_tools"],
-            "confidence": out.get("confidence", 0.90),
+            "confidence": struct_intel.get("composite_confidence", out.get("confidence", 0.90)),
             "result": out,
             "answer": out.get("answer", "Analysis completed."),
+            "structured_answer": struct_intel.get("structured_answer"),
+            "structured_intelligence": struct_intel,
+            "regions": struct_intel.get("regions", out.get("regions", [])),
+            "bounding_box": out.get("bounding_box"),
+            "evidence_image": out.get("evidence_image") or out.get("evidence"),
             "engine": out.get("engine", "TRINETRA Agent"),
             "agent_framework": "langchain",
             "cloud_llm": False,
@@ -522,11 +532,12 @@ class LangGraphOrchestrator:
                 "spectral_signature": out.get("spectral_signature"),
                 "cube_metadata": out.get("cube_metadata"),
                 "bounding_box": out.get("bounding_box"),
-                "regions": out.get("regions"),
+                "regions": struct_intel.get("regions", out.get("regions")),
                 "geojson": out.get("geojson"),
                 "change_stats": out.get("change_stats"),
                 "fused_stats": out.get("fused_stats"),
-                "top_classes": out.get("top_classes")
+                "top_classes": out.get("top_classes"),
+                "measurements": struct_intel.get("measurements")
             },
             "execution_trace": trace_dict
         }
@@ -596,32 +607,6 @@ class LangGraphOrchestrator:
             "execution_trace": {}
         }
 
-        # Run compiled LangGraph workflow or fallback pipeline
-        if self.graph is not None:
-            final_state = self.graph.invoke(initial_state)
-            return final_state["final_response"]
-        return self._run_fallback_pipeline(initial_state)
-
-    def _run_fallback_pipeline(self, initial_state: AgentWorkflowState) -> Dict[str, Any]:
-        """Direct sequential state transition pipeline when LangGraph is uncompiled or missing."""
-        state = dict(initial_state)
-        val_res = self._node_validate_input(state)
-        state.update(val_res)
-        if self._check_validation_condition(state) == "invalid":
-            rej = self._node_rejection_handler(state)
-            state.update(rej)
-            return state["final_response"]
-
-        for node_fn in [
-            self._node_classify_modality,
-            self._node_route_task,
-            self._node_select_tools,
-            self._node_execute_specialist,
-            self._node_geospatial_processing,
-            self._node_build_evidence,
-            self._node_generate_response,
-        ]:
-            node_res = node_fn(state)
-            state.update(node_res)
-
-        return state["final_response"]
+        # Run compiled LangGraph workflow
+        final_state = self.graph.invoke(initial_state)
+        return final_state["final_response"]
