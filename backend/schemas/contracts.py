@@ -297,6 +297,15 @@ class ConfidenceCalibrationTraceability(BaseModel):
     confidence_calibrated: bool = False
     entropy: float = 0.0
     margin_to_second: Optional[float] = None
+    brier_score: Optional[float] = None
+    expected_calibration_error: Optional[float] = None
+    max_calibration_error: Optional[float] = None
+    temperature_applied: Optional[float] = None
+    confidence_semantics: Optional[str] = "probability_class_correctness"
+    aleatoric_uncertainty: Optional[float] = None
+    epistemic_uncertainty: Optional[float] = None
+    data_quality_uncertainty: Optional[float] = None
+    registration_uncertainty: Optional[float] = None
     model_config = ConfigDict(extra="allow")
 
     def __init__(self, **data):
@@ -309,6 +318,49 @@ class ConfidenceCalibrationTraceability(BaseModel):
         elif "is_calibrated" in data and "confidence_calibrated" not in data:
             data["confidence_calibrated"] = data["is_calibrated"]
         super().__init__(**data)
+
+
+class ReliabilityDiagramData(BaseModel):
+    """Binned reliability diagram statistics for confidence calibration curves."""
+    bin_edges: List[float] = Field(..., description="Edges of confidence intervals [0, 1]")
+    bin_accuracies: List[float] = Field(..., description="Observed empirical accuracy per bin")
+    bin_confidences: List[float] = Field(..., description="Mean predicted confidence per bin")
+    bin_counts: List[int] = Field(..., description="Sample count per bin")
+    ece: float = Field(..., description="Expected Calibration Error")
+    mce: float = Field(..., description="Maximum Calibration Error")
+    brier_score: float = Field(..., description="Brier calibration score")
+    model_config = ConfigDict(extra="allow")
+
+
+class UncertaintyReport(BaseModel):
+    """Decomposed multi-source uncertainty quantification report."""
+    confidence_semantics: str = Field(..., description="Quantified semantic: e.g. probability_class_correctness")
+    overall_confidence: float = Field(..., ge=0.0, le=1.0, description="Calibrated top prediction confidence")
+    aleatoric_uncertainty: float = Field(..., ge=0.0, le=1.0, description="Data ambiguity / normalized Shannon entropy")
+    epistemic_uncertainty: float = Field(..., ge=0.0, le=1.0, description="Model uncertainty / OOD distance")
+    data_quality_uncertainty: float = Field(..., ge=0.0, le=1.0, description="Sensor noise, cloud, shadow, or saturation")
+    registration_uncertainty: float = Field(..., ge=0.0, le=1.0, description="Coregistration offset or spatial disparity")
+    quality_flags: List[str] = Field(default_factory=list, description="Explicit data quality warning tags")
+    model_config = ConfigDict(extra="allow")
+
+
+class CalibrationAuditReport(BaseModel):
+    """Safety-critical calibration and failure case autopsy report."""
+    schema_version: str = Field(default="2.0.0")
+    dataset_name: str = Field(..., description="Evaluated benchmark dataset title")
+    split: str = Field(..., description="Dataset split evaluated (fit on val only, scored on test)")
+    sample_count: int = Field(..., gt=0, description="Total evaluated samples")
+    uncalibrated_ece: float = Field(..., description="Expected Calibration Error before calibration")
+    calibrated_ece: float = Field(..., description="Expected Calibration Error after calibration")
+    uncalibrated_brier: float = Field(..., description="Brier score before calibration")
+    calibrated_brier: float = Field(..., description="Brier score after calibration")
+    temperature: Optional[float] = Field(default=None, description="Optimal validation temperature T")
+    worst_cases: List[Dict[str, Any]] = Field(default_factory=list, description="Top cases with highest loss/error")
+    high_confidence_wrong_cases: List[Dict[str, Any]] = Field(default_factory=list, description="Critical silent failures (conf >= 0.75 and wrong)")
+    low_confidence_correct_cases: List[Dict[str, Any]] = Field(default_factory=list, description="Underconfident correct cases (conf < 0.50 and correct)")
+    common_failure_categories: Dict[str, int] = Field(default_factory=dict, description="Frequency counts by root cause")
+    classwise_ece: Optional[Dict[str, float]] = Field(default=None, description="Class-wise calibration error")
+    model_config = ConfigDict(extra="allow")
 
 
 class DerivedMetricsTraceability(BaseModel):
@@ -469,6 +521,40 @@ class ValidationResult(BaseModel):
 # ==============================================================================
 # 7. Benchmarking & Debugging Boundary
 # ==============================================================================
+class BenchmarkMetadata(BaseModel):
+    """Metadata specification for an official remote sensing benchmark dataset."""
+    schema_version: str = Field(default="2.0.0")
+    benchmark_id: str = Field(..., description="Canonical benchmark identifier: e.g. levir_cd, sen12ms, indian_pines")
+    dataset_name: str = Field(..., description="Official dataset title")
+    official_source: str = Field(..., description="Primary publication, institution, or repository URL")
+    citation: str = Field(..., description="Standard academic BibTeX/text citation")
+    license_terms: str = Field(..., description="Open data license: e.g. CC-BY-4.0, ODC-BY, MIT, Academic Only")
+    task: Literal[
+        "change_detection",
+        "multimodal_fusion",
+        "hyperspectral_classification",
+        "vqa",
+        "visual_grounding",
+        "multilabel_landcover"
+    ] = Field(..., description="Target machine learning task category")
+    modality: Literal[
+        "optical_bitemporal",
+        "optical_sar",
+        "hyperspectral",
+        "optical_multispectral",
+        "sar",
+        "optical",
+        "rgb"
+    ] = Field(..., description="Sensor data modality")
+    sensors: List[str] = Field(default_factory=list, description="Sensor platforms: e.g. ['Sentinel-2', 'Sentinel-1']")
+    spatial_resolution_meters: Optional[float] = Field(default=None, description="Ground sampling distance (GSD) in meters")
+    split_definitions: Dict[str, Any] = Field(default_factory=dict, description="Specifications for train, val, and test partitions")
+    label_schema: Dict[Any, Any] = Field(default_factory=dict, description="Class labels and index mappings")
+    expected_metrics: List[str] = Field(default_factory=list, description="Standard metrics published on this benchmark")
+    anti_leakage_policy: str = Field(default="Strict split isolation; test evaluated strictly once", description="Applicable split isolation policy")
+    model_config = ConfigDict(extra="allow")
+
+
 class BenchmarkRun(BaseModel):
     """Standardized result manifest from an official dataset evaluation run."""
     schema_version: str = Field(default="2.0.0")
@@ -483,6 +569,18 @@ class BenchmarkRun(BaseModel):
     )
     hardware_profile: Dict[str, Any] = Field(default_factory=dict, description="CPU/GPU hardware specs")
     execution_time_seconds: float = Field(..., ge=0.0, description="Total benchmark evaluation duration")
+    model_name: Optional[str] = Field(default=None, description="Evaluated specialist model architecture name")
+    checkpoint_path: Optional[str] = Field(default=None, description="Path to evaluated frozen checkpoint")
+    checkpoint_hash: Optional[str] = Field(default=None, description="Cryptographic SHA-256 digest of checkpoint")
+    preprocessing_summary: Optional[Dict[str, Any]] = Field(default=None, description="Radiometric scaling and normalizer summary")
+    per_class_metrics: Optional[Dict[str, Dict[str, float]]] = Field(default=None, description="Per-class metric breakdown")
+    failures_count: int = Field(default=0, ge=0, description="Number of failure cases diagnosed during evaluation")
+    failure_cases: List[Any] = Field(default_factory=list, description="Sample FailureCase objects recorded")
+    calibration_metrics: Optional[Dict[str, float]] = Field(default=None, description="ECE or confidence calibration stats if available")
+    limitations: List[str] = Field(default_factory=list, description="Known model/benchmark domain limitations")
+    comparison_baseline: Optional[Dict[str, Any]] = Field(default=None, description="Compatible reference baseline stats if compared")
+    provenance_fingerprint: Optional[str] = Field(default=None, description="16-char deterministic execution fingerprint")
+    model_config = ConfigDict(extra="allow")
 
 
 class FailureCase(BaseModel):
@@ -513,4 +611,6 @@ class FailureCase(BaseModel):
     severity: Literal["low", "medium", "high", "critical"] = Field(default="medium")
     explanation: str = Field(..., description="Technical autopsy explaining why failure occurred")
     mitigation: Optional[str] = Field(default=None, description="Proposed algorithmic or data fix")
+    confidence_score: Optional[float] = Field(default=None, description="Confidence score if applicable")
+    model_config = ConfigDict(extra="allow")
 

@@ -12,6 +12,7 @@ import numpy as np
 from typing import Dict, Any, Optional, Tuple
 
 from config.settings import settings
+from core.safe_loader import SafeModelLoader
 from models.architectures import (
     BigEarthNetAdaptedResNet,
     RSVqaFusionNetwork,
@@ -140,17 +141,24 @@ class ModelManager:
 
         device = torch.device("cuda" if torch.cuda.is_available() else "cpu")
 
+        try:
+            state = SafeModelLoader.load_state_dict(ckpt_path, map_location="cpu", enforce_weights_only=True)
+        except Exception as e:
+            print(f"[ModelManager] SafeModelLoader rejected checkpoint {ckpt_path}: {e}")
+            return None
+
+        keys = list(state.keys()) if isinstance(state, dict) else []
+        all_keys_str = " ".join(keys)
+
         if model_key == "bigearthnet_adapted":
             model = BigEarthNetAdaptedResNet(in_channels=4, num_classes=19).to(device)
         elif model_key == "rs_vqa_model":
-            temp_state = torch.load(ckpt_path, map_location="cpu")
-            state_dict = temp_state.get("state_dict", temp_state.get("model_state_dict", temp_state)) if isinstance(temp_state, dict) else {}
             num_answers = 120
             vocab_size = 5000
-            if "fusion.3.weight" in state_dict:
-                num_answers = state_dict["fusion.3.weight"].shape[0]
-            if "text_embedding.weight" in state_dict:
-                vocab_size = state_dict["text_embedding.weight"].shape[0]
+            if "fusion.3.weight" in state:
+                num_answers = state["fusion.3.weight"].shape[0]
+            if "text_embedding.weight" in state:
+                vocab_size = state["text_embedding.weight"].shape[0]
             model = RSVqaFusionNetwork(vocab_size=vocab_size, num_answers=num_answers).to(device)
         elif model_key == "rs_grounding_model":
             model = RSGroundingDetector().to(device)
@@ -166,16 +174,6 @@ class ModelManager:
                         arch = cfg.get("model_architecture")
                 except Exception:
                     pass
-
-            temp_state = torch.load(ckpt_path, map_location="cpu")
-            if isinstance(temp_state, dict) and "state_dict" in temp_state:
-                keys = list(temp_state["state_dict"].keys())
-            elif isinstance(temp_state, dict) and "model_state_dict" in temp_state:
-                keys = list(temp_state["model_state_dict"].keys())
-            elif isinstance(temp_state, dict):
-                keys = list(temp_state.keys())
-            else:
-                keys = []
 
             if arch == "bit" or any("transformer" in k for k in keys):
                 from models.change_models import BitemporalInteractionTransformer
@@ -198,17 +196,6 @@ class ModelManager:
                 except Exception:
                     pass
 
-            temp_state = torch.load(ckpt_path, map_location="cpu")
-            if isinstance(temp_state, dict) and "state_dict" in temp_state:
-                keys = list(temp_state["state_dict"].keys())
-            elif isinstance(temp_state, dict) and "model_state_dict" in temp_state:
-                keys = list(temp_state["model_state_dict"].keys())
-            elif isinstance(temp_state, dict):
-                keys = list(temp_state.keys())
-            else:
-                keys = []
-
-            all_keys_str = " ".join(keys)
             if arch in ["concat", "concat_baseline"] or ("gate_layer" not in all_keys_str and "cross_attn" not in all_keys_str and "classifier" in all_keys_str):
                 from models.optical_sar_models import OpticalSARConcatBaseline
                 model = OpticalSARConcatBaseline().to(device)
@@ -236,17 +223,6 @@ class ModelManager:
                 except Exception:
                     pass
 
-            temp_state = torch.load(ckpt_path, map_location="cpu")
-            if isinstance(temp_state, dict) and "state_dict" in temp_state:
-                keys = list(temp_state["state_dict"].keys())
-            elif isinstance(temp_state, dict) and "model_state_dict" in temp_state:
-                keys = list(temp_state["model_state_dict"].keys())
-            elif isinstance(temp_state, dict):
-                keys = list(temp_state.keys())
-            else:
-                keys = []
-
-            all_keys_str = " ".join(keys)
             if arch == "spectral_mlp" or ("mlp.0.weight" in keys and "blocks." not in all_keys_str):
                 from models.hyperspectral_models import SpectralMLPBaseline
                 model = SpectralMLPBaseline(in_channels=in_c, num_classes=n_cls).to(device)
@@ -256,8 +232,8 @@ class ModelManager:
             elif "blocks." in all_keys_str or "spectral_patch_embed" in all_keys_str:
                 from models.hyperfree.model import HyperFreeB
                 max_p = 1024
-                if "pos_embed" in temp_state and hasattr(temp_state["pos_embed"], "shape"):
-                    max_p = int(temp_state["pos_embed"].shape[1]) - 1
+                if "pos_embed" in state and hasattr(state["pos_embed"], "shape"):
+                    max_p = int(state["pos_embed"].shape[1]) - 1
                 model = HyperFreeB(num_classes=n_cls, max_patches=max_p).to(device)
             else:
                 try:
@@ -269,27 +245,20 @@ class ModelManager:
         else:
             return None
 
-
         try:
-            state = torch.load(ckpt_path, map_location=device)
-            if isinstance(state, dict) and "state_dict" in state:
-                state = state["state_dict"]
-            elif isinstance(state, dict) and "model_state_dict" in state:
-                state = state["model_state_dict"]
-            
-            # Verify keys
+            # Verify keys and load into device model
             missing, unexpected = model.load_state_dict(state, strict=False)
             if missing:
                 print(f"[ModelManager] Checkpoint key mismatch: {len(missing)} missing keys in {ckpt_path}.")
             if unexpected:
                 print(f"[ModelManager] Checkpoint key mismatch: {len(unexpected)} unexpected keys in {ckpt_path}.")
-            
+
             model.eval()
             cls._models[model_key] = model
-            print(f"[ModelManager] Loaded checkpoint {ckpt_path} successfully onto {device} (SHA256: {cls.get_checkpoint_hash(ckpt_path)[:12]}...).")
+            print(f"[ModelManager] Loaded checkpoint {ckpt_path} safely onto {device} (SHA256: {cls.get_checkpoint_hash(ckpt_path)[:12]}...).")
             return model
         except Exception as e:
-            print(f"[ModelManager] Critical error loading checkpoint {ckpt_path}: {e}")
+            print(f"[ModelManager] Critical error applying state dict to model {model_key}: {e}")
             return None
 
     @classmethod

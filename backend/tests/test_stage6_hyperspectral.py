@@ -267,8 +267,9 @@ def test_dataset_extraction_modes():
 # 5. Dataset Validator & Manifest Tests
 # ==============================================================================
 def test_hyperspectral_dataset_validator():
-    cube_path = "sample_data/sample_hsi.mat"
-    gt_path = "sample_data/sample_hsi_gt.mat"
+    sample_dir = os.path.join(backend_root, "sample_data")
+    cube_path = os.path.join(sample_dir, "sample_hsi.mat")
+    gt_path = os.path.join(sample_dir, "sample_hsi_gt.mat")
 
     validator = HyperspectralDatasetValidator(grid_rows=4, grid_cols=4, patch_size=7)
     manifest = validator.validate(cube_path, gt_path)
@@ -374,8 +375,9 @@ def test_model_manager_hyperfree_loading():
 
 def test_hsi_specialist_service_inference():
     service = HyperFreeHSISpecialist()
+    sample_cube = os.path.join(backend_root, "sample_data", "sample_hsi.mat")
     res = service.execute(
-        image_path="sample_data/sample_hsi.mat",
+        image_path=sample_cube,
         image_arr=np.zeros((64, 64, 3)),
         meta={},
         query="what is the dominant land-cover in this hyperspectral cube?"

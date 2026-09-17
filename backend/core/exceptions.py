@@ -143,3 +143,34 @@ class DatasetLeakageError(TRINETRABaseException):
             mitigation="Ensure train, val, and test splits are strictly disjoint sets with zero shared asset IDs."
         )
 
+
+class SecurityViolationError(TRINETRABaseException):
+    """Raised when an operation violates security policy (path traversal, zip bomb, unsafe upload)."""
+    def __init__(self, message: str, context: Optional[Dict[str, Any]] = None):
+        super().__init__(
+            message=message,
+            error_code="ERR_SECURITY_VIOLATION",
+            context=context,
+            severity="critical",
+            mitigation="Validate file name, paths, file magic bytes, and compression limits."
+        )
+
+
+class UnsafeDeserializationError(TRINETRABaseException):
+    """Raised when an untrusted or unsafe serialized object/weight is encountered."""
+    def __init__(self, message: str, context: Optional[Dict[str, Any]] = None):
+        super().__init__(
+            message=message,
+            error_code="ERR_UNSAFE_DESERIALIZATION",
+            context=context,
+            severity="critical",
+            mitigation="Load weights using weights_only=True or safe tensor serialization formats."
+        )
+
+
+# Aliases for benchmark framework compatibility
+DataLeakageError = DatasetLeakageError
+ModelIntegrityError = ModelCheckpointError
+InferenceError = InferenceTimeoutError
+SecurityError = SecurityViolationError
+

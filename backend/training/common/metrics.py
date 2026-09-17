@@ -531,3 +531,32 @@ def hyperspectral_metrics(
         "confusion_matrix": conf_mat.tolist()
     }
 
+
+def compute_bootstrap_ci_95(
+    values: Any,
+    n_bootstraps: int = 500,
+    seed: int = 42
+) -> Tuple[float, float]:
+    """
+    Computes 95% empirical bootstrap confidence interval [lower, upper]
+    for an array or list of per-sample metric values.
+    """
+    arr = np.asarray(values, dtype=np.float64)
+    arr = arr[~np.isnan(arr)]
+    n = len(arr)
+    if n == 0:
+        return 0.0, 0.0
+    if n < 5:
+        m = float(np.mean(arr))
+        return round(m, 4), round(m, 4)
+
+    rng = np.random.RandomState(seed)
+    boot_means = []
+    for _ in range(n_bootstraps):
+        resample_indices = rng.randint(0, n, size=n)
+        boot_means.append(float(np.mean(arr[resample_indices])))
+
+    ci_lower = float(np.percentile(boot_means, 2.5))
+    ci_upper = float(np.percentile(boot_means, 97.5))
+    return round(ci_lower, 4), round(ci_upper, 4)
+

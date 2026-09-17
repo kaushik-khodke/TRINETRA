@@ -32,6 +32,11 @@ from schemas.contracts import EvidencePackage, EvidenceItem, CandidateAnswer
 from geospatial.normalizer import GeospatialNormalizer
 from geospatial.overlays import EvidenceOverlayEngine
 from geospatial.reader import GeospatialReader
+try:
+    from backend.calibration.uncertainty import UncertaintyDecompositionEngine, ConfidenceSemantics
+except ImportError:
+    from calibration.uncertainty import UncertaintyDecompositionEngine, ConfidenceSemantics
+
 
 
 class VQAEvidenceEngine:
@@ -195,9 +200,18 @@ class VQAEvidenceEngine:
         # 5. Confidence & Calibration Info
         probs = [c.confidence for c in candidate_objs]
         entropy = 0.0
+        aleatoric = 0.0
         if probs and sum(probs) > 0:
             norm_p = np.array(probs) / sum(probs)
             entropy = float(-np.sum(norm_p * np.log(norm_p + 1e-12)))
+            aleatoric = UncertaintyDecompositionEngine.compute_aleatoric_uncertainty(norm_p)
+
+        second_conf = float(candidate_objs[1].confidence) if len(candidate_objs) > 1 else 0.0
+        epistemic = UncertaintyDecompositionEngine.compute_epistemic_uncertainty(
+            top_prob=float(raw_conf),
+            second_prob=second_conf
+        )
+        data_qual, qual_flags = UncertaintyDecompositionEngine.compute_data_quality_uncertainty(image_arr)
 
         confidence_info = {
             "confidence_score": round(float(raw_conf), 4),
@@ -205,7 +219,12 @@ class VQAEvidenceEngine:
             "is_calibrated": is_calibrated,
             "confidence_calibrated": is_calibrated,
             "entropy": round(entropy, 4),
-            "margin_to_second": round(float(candidate_objs[0].confidence - candidate_objs[1].confidence), 4) if len(candidate_objs) > 1 else None
+            "margin_to_second": round(float(candidate_objs[0].confidence - second_conf), 4) if len(candidate_objs) > 1 else None,
+            "confidence_semantics": ConfidenceSemantics.PROBABILITY_CLASS_CORRECTNESS.value,
+            "aleatoric_uncertainty": aleatoric,
+            "epistemic_uncertainty": epistemic,
+            "data_quality_uncertainty": data_qual,
+            "registration_uncertainty": 0.0
         }
 
         # 6. Derived Physical Metrics (Genuine Raster Math)

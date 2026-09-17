@@ -131,3 +131,18 @@ def create_provenance_record(
         "fallback_active": fallback_active,
         "schema_version": "2.0.0"
     }
+
+
+def compute_provenance_fingerprint(data: Any) -> str:
+    """Computes a deterministic 16-character fingerprint for an arbitrary dictionary or object."""
+    if isinstance(data, dict):
+        raw = str(sorted([(k, str(v)) for k, v in data.items()]))
+    else:
+        raw = str(data)
+    return hashlib.sha256(raw.encode("utf-8")).hexdigest()[:16]
+
+
+def generate_deterministic_run_id(prefix: str = "run") -> str:
+    """Generates a structured run identifier string."""
+    import uuid
+    return f"{prefix}_{uuid.uuid4().hex[:12]}"
