@@ -78,7 +78,30 @@ lightning_logs/
 runs/
 
 # Preserve directory structure in version control
+!models/checkpoints/
+!models/checkpoints/**/
+!models/checkpoints/**/.gitkeep
+!backend/models/checkpoints/
+!backend/models/checkpoints/**/
 !backend/models/checkpoints/**/.gitkeep
+
+# EXPLICIT WHITELIST: Production models
+!models/checkpoints/bigearthnet_adapted/model.pt
+!models/checkpoints/rs_vqa_model/model.pt
+!models/checkpoints/rs_grounding_model/model.pt
+!models/checkpoints/change_specialist_model/model.pt
+!models/checkpoints/optical_sar_model/model.pt
+!models/checkpoints/hyperfree_model/model.pt
+!models/checkpoints/rs_vqa_model/rsvqa_vocab.json
+!qml/results/**/best_model.pt
+!backend/models/checkpoints/bigearthnet_adapted/model.pt
+!backend/models/checkpoints/rs_vqa_model/model.pt
+!backend/models/checkpoints/rs_grounding_model/model.pt
+!backend/models/checkpoints/change_specialist_model/model.pt
+!backend/models/checkpoints/optical_sar_model/model.pt
+!backend/models/checkpoints/hyperfree_model/model.pt
+!backend/models/checkpoints/rs_vqa_model/rsvqa_vocab.json
+!backend/qml/results/**/best_model.pt
 
 # ------------------------------------------------------------------------------
 # 4. Geospatial Runtime Data, Uploads & Generated Reports
