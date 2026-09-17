@@ -1,16 +1,46 @@
 'use client'
 
 import { useEffect, useRef, useState } from 'react'
-import { Radar } from 'lucide-react'
+import { Radar, Layers, Cpu, ShieldCheck, Sparkles, Check } from 'lucide-react'
 
 const dummyImage = 'https://images.unsplash.com/photo-1446776811953-b23d57bd21aa?auto=format&fit=crop&w=1200&q=80'
 
 const capabilities = [
-  ['01', 'Sense', 'Capture information from available Earth-observation data.'],
-  ['02', 'Understand', 'Extract visual, spectral, spatial, temporal, and radiometric information.'],
-  ['03', 'Analyze', 'Apply the specialized intelligence models required for the task.'],
-  ['04', 'Validate', 'Compare model evidence and confidence, including quantum validation.'],
-  ['05', 'Explain', 'Turn the technical result into an understandable answer.'],
+  {
+    number: '01',
+    title: 'Sense',
+    text: 'Capture information from available Earth-observation data.',
+    tag: 'Raw Telemetry',
+    icon: 'Radar',
+  },
+  {
+    number: '02',
+    title: 'Understand',
+    text: 'Extract visual, spectral, spatial, temporal, and radiometric information.',
+    tag: 'Feature Extraction',
+    icon: 'Layers',
+  },
+  {
+    number: '03',
+    title: 'Analyze',
+    text: 'Apply the specialized intelligence models required for the task.',
+    tag: 'Neural Routing',
+    icon: 'Cpu',
+  },
+  {
+    number: '04',
+    title: 'Validate',
+    text: 'Compare model evidence and confidence, including quantum validation.',
+    tag: 'Evidence & QML',
+    icon: 'ShieldCheck',
+  },
+  {
+    number: '05',
+    title: 'Explain',
+    text: 'Turn the technical result into an understandable answer.',
+    tag: 'Actionable Insights',
+    icon: 'Sparkles',
+  },
 ]
 
 const models = [
@@ -236,7 +266,32 @@ function Nav({ navigate }: { navigate: (path: string) => void }) {
 
 export default function TrinetraLanding({ navigate }: { navigate: (path: string) => void }) {
   const [activeCapability, setActiveCapability] = useState(0)
-  const [capabilityProgress, setCapabilityProgress] = useState(0)
+  const activeRef = useRef(0)
+  const startedAtRef = useRef(performance.now())
+
+  useEffect(() => {
+    activeRef.current = activeCapability
+  }, [activeCapability])
+
+  const handleSelectCapability = (index: number) => {
+    setActiveCapability(index)
+    activeRef.current = index
+    startedAtRef.current = performance.now()
+    const section = document.querySelector<HTMLElement>('.idea-section')
+    if (section) {
+      const bars = section.querySelectorAll<HTMLElement>('.step-progress-bar')
+      bars.forEach((bar, i) => {
+        bar.style.transition = 'none'
+        if (i < index) {
+          bar.style.width = '100%'
+        } else {
+          bar.style.width = '0%'
+        }
+        void bar.offsetWidth
+        bar.style.transition = ''
+      })
+    }
+  }
 
   useEffect(() => {
     const prefersReducedMotion = window.matchMedia('(prefers-reduced-motion: reduce)').matches
@@ -244,41 +299,69 @@ export default function TrinetraLanding({ navigate }: { navigate: (path: string)
     if (prefersReducedMotion || !section) return
 
     let frame = 0
-    let startedAt = performance.now()
+    startedAtRef.current = performance.now()
     let visible = true
     const duration = 4200
+
     const tick = (now: number) => {
-      if (visible && !document.hidden) {
-        const elapsed = now - startedAt
+      if (visible && !document.hidden && !window.matchMedia('(prefers-reduced-motion: reduce)').matches) {
+        const elapsed = now - startedAtRef.current
         const progress = Math.min(1, elapsed / duration)
-        setCapabilityProgress(progress)
+        const currentActive = activeRef.current
+        const bars = Array.from(section.querySelectorAll<HTMLElement>('.step-progress-bar'))
+
+        bars.forEach((bar, i) => {
+          if (i < currentActive) {
+            if (bar.style.width !== '100%') bar.style.width = '100%'
+          } else if (i === currentActive) {
+            bar.style.width = `${progress * 100}%`
+          } else {
+            if (bar.style.width !== '0%') bar.style.width = '0%'
+          }
+        })
+
         if (progress >= 1) {
-          setActiveCapability((current) => (current + 1) % capabilities.length)
-          setCapabilityProgress(0)
-          startedAt = now
+          const next = (currentActive + 1) % capabilities.length
+          if (next === 0) {
+            bars.forEach((bar) => {
+              bar.style.transition = 'none'
+              bar.style.width = '0%'
+              void bar.offsetWidth
+              bar.style.transition = ''
+            })
+          }
+          activeRef.current = next
+          setActiveCapability(next)
+          startedAtRef.current = now
         }
       }
       frame = requestAnimationFrame(tick)
     }
+
     const observer = new IntersectionObserver(
       ([entry]) => {
         visible = entry.isIntersecting
-        if (visible) startedAt = performance.now()
+        if (visible) startedAtRef.current = performance.now()
       },
-      { threshold: 0.2 }
+      { threshold: 0.15 }
     )
+
     const onVisibilityChange = () => {
-      if (!document.hidden) startedAt = performance.now() - capabilityProgress * duration
+      if (!document.hidden && visible) {
+        startedAtRef.current = performance.now()
+      }
     }
+
     observer.observe(section)
     document.addEventListener('visibilitychange', onVisibilityChange)
     frame = requestAnimationFrame(tick)
+
     return () => {
       cancelAnimationFrame(frame)
       observer.disconnect()
       document.removeEventListener('visibilitychange', onVisibilityChange)
     }
-  }, [capabilityProgress])
+  }, [])
 
   useEffect(() => {
     const sensorSection = document.querySelector<HTMLElement>('.sensor-section')
@@ -518,35 +601,77 @@ export default function TrinetraLanding({ navigate }: { navigate: (path: string)
           TRINETRA determines what you are asking, identifies the available data, selects the right analytical pathway,
           and combines the resulting evidence.
         </p>
-        <div className="steps">
-          {capabilities.map(([number, title, text], index) => (
-            <article
-              className={`step ${activeCapability === index ? 'is-active' : ''}`}
-              key={number}
-              tabIndex={0}
-              aria-current={activeCapability === index ? 'step' : undefined}
-              onMouseEnter={() => setActiveCapability(index)}
-              onFocus={() => setActiveCapability(index)}
-              onClick={() => setActiveCapability(index)}
-              onKeyDown={(event) => {
-                if (event.key === 'Enter' || event.key === ' ') {
-                  event.preventDefault()
-                  setActiveCapability(index)
-                }
-              }}
-            >
-              <span>{number}</span>
-              <h3>{title}</h3>
-              <p>{text}</p>
-              <span className="step-progress" aria-hidden="true">
-                <span
-                  style={{
-                    width: activeCapability === index ? `${capabilityProgress * 100}%` : '0%',
-                  }}
-                />
-              </span>
-            </article>
-          ))}
+        <div className="steps" role="tablist" aria-label="TRINETRA Analytical Pipeline Stages">
+          {capabilities.map((item, index) => {
+            const isActive = activeCapability === index
+            const isCompleted = index < activeCapability
+            const IconComponent =
+              item.icon === 'Radar'
+                ? Radar
+                : item.icon === 'Layers'
+                ? Layers
+                : item.icon === 'Cpu'
+                ? Cpu
+                : item.icon === 'ShieldCheck'
+                ? ShieldCheck
+                : Sparkles
+
+            return (
+              <article
+                className={`step ${isActive ? 'is-active' : ''} ${isCompleted ? 'is-completed' : ''}`}
+                key={item.number}
+                tabIndex={0}
+                role="tab"
+                aria-selected={isActive}
+                aria-current={isActive ? 'step' : undefined}
+                onMouseEnter={() => handleSelectCapability(index)}
+                onFocus={() => handleSelectCapability(index)}
+                onClick={() => handleSelectCapability(index)}
+                onKeyDown={(event) => {
+                  if (event.key === 'Enter' || event.key === ' ') {
+                    event.preventDefault()
+                    handleSelectCapability(index)
+                  }
+                }}
+              >
+                {/* Step Top Header: Number and Icon Badge */}
+                <div className="step-header">
+                  <span className="step-number">{item.number}</span>
+                  <div className="step-icon-badge" aria-hidden="true">
+                    <IconComponent size={17} strokeWidth={2.2} />
+                  </div>
+                </div>
+
+                {/* Step Stage Tag & Live Status Pill */}
+                <div className="step-meta">
+                  <span className="step-tag">{item.tag}</span>
+                  {isActive && (
+                    <span className="step-status-pill is-live">
+                      <span className="live-pulse" />
+                      ACTIVE
+                    </span>
+                  )}
+                  {isCompleted && (
+                    <span className="step-status-pill is-done">
+                      <Check size={10} strokeWidth={3} />
+                      DONE
+                    </span>
+                  )}
+                </div>
+
+                {/* Main Content */}
+                <h3 className="step-title">{item.title}</h3>
+                <p className="step-description">{item.text}</p>
+
+                {/* State-of-the-Art Dynamic Progress Track */}
+                <div className="step-progress-wrapper" aria-hidden="true">
+                  <div className="step-progress-track">
+                    <span className="step-progress-bar" />
+                  </div>
+                </div>
+              </article>
+            )
+          })}
         </div>
         <p className="closing-line">
           From pixels to perception.

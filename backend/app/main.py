@@ -390,6 +390,9 @@ async def analyze_request(
         return result_payload
 
     except Exception as e:
+        print(f"[Analyze] Server error during analysis: {e}")
+        import traceback
+        traceback.print_exc()
         raise HTTPException(status_code=500, detail=str(e))
 
 @app.post("/api/v1/analyze-preset")

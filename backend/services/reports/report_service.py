@@ -53,16 +53,23 @@ class MissionReportGenerator:
             verdict = comp_data.get("verdict", "PENDING")
             badge_color = "#10B981" if agrees else "#F59E0B"
             param_comp = comp_data.get("parameter_comparison", {})
-            latency_comp = comp_data.get("latency_comparison", {})
             insights_li = "".join([f"<li style='margin-bottom: 6px;'>{ins}</li>" for ins in comp_data.get("insights", [])])
+            qml_model_path = (
+                result_payload.get("qml_response", {}).get("model_path")
+                or result_payload.get("qml_analysis", {}).get("model_path")
+                or r"C:\Users\jkkho\OneDrive\Documents\species\String-of-Pearls\TRINETRA\backend\qml\results\qml_change_levir10k\best_model.pt"
+            )
 
             qml_html = f"""
     <div class="card" style="border: 1px solid #8B5CF6; background: linear-gradient(180deg, #131127 0%, #0F172A 100%);">
-        <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 12px;">
+        <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 8px;">
             <div class="card-title" style="color: #A78BFA; margin-bottom: 0;">Quantum Research Mode & Comparative Telemetry (PennyLane)</div>
             <span style="background: rgba(139, 92, 246, 0.2); border: 1px solid {badge_color}; color: {badge_color}; padding: 4px 10px; border-radius: 4px; font-family: monospace; font-size: 12px;">
                 VERDICT: {verdict}
             </span>
+        </div>
+        <div style="font-family: ui-monospace, monospace; font-size: 11px; color: #94A3B8; margin-bottom: 12px; word-break: break-all;">
+            MODEL CHECKPOINT: <span style="color: #C4B5FD;">{qml_model_path}</span>
         </div>
         <div style="font-size: 14px; color: #E2E8F0; margin-bottom: 16px;">
             {comp_data.get('status_message')}

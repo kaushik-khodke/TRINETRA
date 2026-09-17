@@ -28,13 +28,17 @@ class QMLService:
     _pipeline_cache: Optional[QMLFeaturePipeline] = None
 
     @classmethod
-    def get_or_create_model(cls, num_qubits: Optional[int] = None, num_layers: Optional[int] = None) -> QuantumChangeClassifier:
+    def get_checkpoint_path(cls) -> str:
         # Check if trained weights exist in results directory (priority: qml_change_levir10k -> qml_change_v001)
         ckpt_dir = os.path.join(qml_config.results_dir, "qml_change_levir10k")
         if not os.path.exists(os.path.join(ckpt_dir, "best_model.pt")):
             ckpt_dir = os.path.join(qml_config.results_dir, "qml_change_v001")
+        return os.path.abspath(os.path.join(ckpt_dir, "best_model.pt"))
 
-        ckpt_path = os.path.join(ckpt_dir, "best_model.pt")
+    @classmethod
+    def get_or_create_model(cls, num_qubits: Optional[int] = None, num_layers: Optional[int] = None) -> QuantumChangeClassifier:
+        ckpt_path = cls.get_checkpoint_path()
+        ckpt_dir = os.path.dirname(ckpt_path)
         cfg_path = os.path.join(ckpt_dir, "config.json")
 
         actual_qubits = 6
@@ -183,6 +187,7 @@ class QMLService:
             q_tensor = torch.tensor(q_features, dtype=torch.float32)
 
             # 3. Load QML Variational Quantum Classifier
+            ckpt_path = cls.get_checkpoint_path()
             model = cls.get_or_create_model(
                 num_qubits=qml_config.num_qubits,
                 num_layers=qml_config.num_layers
@@ -254,7 +259,9 @@ class QMLService:
                     "class_probabilities": class_probs,
                     "quantum_features": [round(float(f), 4) for f in q_features],
                     "simulation_latency_ms": round(qml_latency_ms, 2),
-                    "total_latency_ms": round(total_qml_ms, 2)
+                    "total_latency_ms": round(total_qml_ms, 2),
+                    "model_path": ckpt_path,
+                    "model_version": "qml_change_levir10k"
                 },
                 "classical_vs_qml_comparison": report.to_dict()
             }

@@ -32,18 +32,22 @@ export interface GeographicLocation {
 
 export interface QMLAnalysisResult {
   enabled: boolean;
-  device: string;
-  task: string;
-  qubits: number;
-  layers: number;
-  circuit_depth: number;
-  parameters: number;
-  prediction: string;
-  confidence: number;
+  device?: string;
+  task?: string;
+  qubits?: number;
+  layers?: number;
+  circuit_depth?: number;
+  parameters?: number;
+  prediction?: string;
+  confidence?: number;
   class_probabilities?: Record<string, number>;
   quantum_features?: number[];
-  simulation_latency_ms: number;
-  total_latency_ms: number;
+  simulation_latency_ms?: number;
+  total_latency_ms?: number;
+  model_path?: string;
+  model_version?: string;
+  status?: string;
+  reason?: string;
 }
 
 export interface ClassicalVsQMLComparison {
@@ -120,6 +124,18 @@ export interface AnalysisResponse {
   };
   qml_analysis?: QMLAnalysisResult;
   classical_vs_qml_comparison?: ClassicalVsQMLComparison;
+  qml_response?: {
+    model_path?: string;
+    model_version?: string;
+    prediction?: string;
+    confidence?: number;
+    qubits?: number;
+    layers?: number;
+    parameters?: number;
+    verdict?: string;
+    status_message?: string;
+    simulation_latency_ms?: number;
+  };
 }
 
 export const modes: { id: AnalysisMode; label: string; description: string; icon: string }[] = [
@@ -241,41 +257,55 @@ export const getDemoResult = (request: AnalysisRequest): AnalysisResponse => {
       enabled: true,
       device: "PennyLane default.qubit",
       task: request.mode === "temporal" ? "change_analysis" : "vqa",
-      qubits: 4,
-      layers: 2,
-      circuit_depth: 5,
-      parameters: 35,
+      qubits: 6,
+      layers: 3,
+      circuit_depth: 7,
+      parameters: 63,
       prediction: request.mode === "temporal" ? "Increased" : "Detected",
-      confidence: 0.81,
-      simulation_latency_ms: 18.4,
-      total_latency_ms: 22.1
+      confidence: 0.95,
+      simulation_latency_ms: 4.0,
+      total_latency_ms: 6.2,
+      model_path: "C:\\Users\\jkkho\\OneDrive\\Documents\\species\\String-of-Pearls\\TRINETRA\\backend\\qml\\results\\qml_change_levir10k\\best_model.pt",
+      model_version: "qml_change_levir10k"
+    },
+    qml_response: {
+      model_path: "C:\\Users\\jkkho\\OneDrive\\Documents\\species\\String-of-Pearls\\TRINETRA\\backend\\qml\\results\\qml_change_levir10k\\best_model.pt",
+      model_version: "qml_change_levir10k",
+      prediction: request.mode === "temporal" ? "Increased" : "Detected",
+      confidence: 0.95,
+      qubits: 6,
+      layers: 3,
+      parameters: 63,
+      verdict: "CONSENSUS_VERIFIED",
+      status_message: "Quantum state agreement verified via PennyLane VQC variational circuit.",
+      simulation_latency_ms: 4.0
     },
     classical_vs_qml_comparison: {
       agrees: true,
-      verdict: "FULL_AGREEMENT",
+      verdict: "CONSENSUS_VERIFIED",
       classical_prediction: request.mode === "temporal" ? "Increased" : "Detected",
       qml_prediction: request.mode === "temporal" ? "Increased" : "Detected",
-      classical_confidence: 0.91,
-      qml_confidence: 0.81,
-      confidence_delta: 0.10,
-      calibrated_agreement_score: 0.95,
+      classical_confidence: 0.92,
+      qml_confidence: 0.95,
+      confidence_delta: 0.03,
+      calibrated_agreement_score: 0.97,
       status_message: "✓ Quantum circuit corroborates the operational classical model prediction.",
       parameter_comparison: {
         classical_model_parameters: 1245000,
-        quantum_circuit_parameters: 35,
+        quantum_circuit_parameters: 63,
         quantum_parameter_reduction: "99.997%",
-        "quantum_bits (qubits)": 4,
-        quantum_circuit_depth: 5
+        "quantum_bits (qubits)": 6,
+        quantum_circuit_depth: 7
       },
       latency_comparison: {
         classical_inference_ms: 450.0,
-        quantum_simulation_ms: 18.4,
-        simulation_delta_ms: -431.6
+        quantum_simulation_ms: 4.0,
+        simulation_delta_ms: -446.0
       },
       insights: [
         "Operational Baseline: Classical specialist (1.2M params) remains the validated operational truth.",
-        "Parameter Efficiency: The QML circuit achieves classification using only 35 trainable angles (99.997% fewer parameters).",
-        "Hilbert Space Expressivity: 4 qubits span a 16-dimensional complex state space capable of modeling non-linear feature entanglements.",
+        "Parameter Efficiency: The QML circuit achieves classification using only 63 trainable angles (99.997% fewer parameters).",
+        "Hilbert Space Expressivity: 6 qubits span a 64-dimensional complex state space capable of modeling non-linear feature entanglements.",
         "Hardware Scalability: On future fault-tolerant QPUs (FTQC), execution time scales with circuit depth rather than input image resolution."
       ]
     }
@@ -313,7 +343,13 @@ export interface BackendHealth {
 }
 
 export const getApiBaseUrl = (): string => {
-  return process.env.NEXT_PUBLIC_API_URL || ""
+  if (process.env.NEXT_PUBLIC_API_URL) {
+    return process.env.NEXT_PUBLIC_API_URL.replace(/\/$/, "");
+  }
+  if (typeof window !== "undefined") {
+    return "http://127.0.0.1:8000";
+  }
+  return "http://127.0.0.1:8000";
 };
 
 export interface QMLComparisonRow {
@@ -415,14 +451,27 @@ export const analysisAPI = {
         formData.append("input_mode", backendMode);
         formData.append("response_language", request.response_language || "en");
 
-        const res = await fetch("/api/v1/analyze", {
-          method: "POST",
-          body: formData,
-        });
+        const apiBase = getApiBaseUrl();
+        const analyzeUrl = apiBase ? `${apiBase}/api/v1/analyze` : "/api/v1/analyze";
+
+        let res: Response;
+        try {
+          res = await fetch(analyzeUrl, {
+            method: "POST",
+            body: formData,
+          });
+        } catch (fetchErr: any) {
+          console.warn("[analysisAPI] Direct analyze fetch failed, trying relative proxy fallback:", fetchErr);
+          res = await fetch("/api/v1/analyze", {
+            method: "POST",
+            body: formData,
+          });
+        }
 
         if (!res.ok) {
           const errData = await res.json().catch(() => ({}));
-          throw new Error(errData.detail || `Server returned ${res.status}`);
+          const errorMsg = errData.detail || errData.error || errData.message || `Server returned ${res.status}`;
+          throw new Error(errorMsg);
         }
 
         const data = await res.json();
@@ -586,7 +635,7 @@ export const analysisAPI = {
           id: data.request_id || `analysis-${Date.now()}`,
           mode: request.mode,
           query: request.query,
-          answer: resData.answer || resData.caption || "Analysis completed successfully.",
+          answer: data.answer || resData.answer || resData.caption || "Analysis completed successfully.",
           confidence: confLevel,
           confidenceScore: confVal,
           evidence: evidenceList,
@@ -598,14 +647,15 @@ export const analysisAPI = {
           imageType: isHsi ? `HYPERSPECTRAL (${resData.cube_metadata?.bands || 224} BANDS)` : (data.inputs_metadata?.[0]?.modality?.toUpperCase() || (request.mode === "fusion" ? "OPTICAL + SAR" : "SENTINEL-2 MSI")),
           createdAt: new Date().toISOString(),
           images: updatedImages,
-          reportUrl: data.request_id ? `/api/v1/reports/${data.request_id}/html` : undefined,
+          reportUrl: data.request_id ? `${apiBase}/api/v1/reports/${data.request_id}/html` : undefined,
           rawImageUrl: rawUrl,
           overlayImageUrl: overlayUrl,
           geographicLocation: geo,
           globeUrl: globeUrl || undefined,
           hsiData: hsiData,
-          qml_analysis: data.qml_analysis || undefined,
-          classical_vs_qml_comparison: data.classical_vs_qml_comparison || undefined,
+          qml_analysis: data.qml_analysis || resData.qml_analysis || undefined,
+          classical_vs_qml_comparison: data.classical_vs_qml_comparison || resData.classical_vs_qml_comparison || undefined,
+          qml_response: data.qml_response || resData.qml_response || undefined,
         };
       } catch (err: any) {
         console.error("[analysisAPI] Real satellite analysis failed:", err);
@@ -622,10 +672,20 @@ export const analysisAPI = {
     try {
       const formData = new FormData();
       formData.append("file", file);
-      const res = await fetch("/api/v1/inspect-image", {
-        method: "POST",
-        body: formData,
-      });
+      const apiBase = getApiBaseUrl();
+      const inspectUrl = apiBase ? `${apiBase}/api/v1/inspect-image` : "/api/v1/inspect-image";
+      let res: Response;
+      try {
+        res = await fetch(inspectUrl, {
+          method: "POST",
+          body: formData,
+        });
+      } catch {
+        res = await fetch("/api/v1/inspect-image", {
+          method: "POST",
+          body: formData,
+        });
+      }
       if (res.ok) {
         const data = await res.json();
         return {

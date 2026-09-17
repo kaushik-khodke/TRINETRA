@@ -190,10 +190,22 @@ class InputValidator:
             gray = image_arr.astype(float)
 
         total_pixels = gray.size
+        g_min = float(np.nanmin(gray))
+        g_max = float(np.nanmax(gray))
+        g_std = float(np.nanstd(gray))
+
+        if g_max == g_min or g_std < 1e-5:
+            return False, "The uploaded image has zero radiometric variance and contains no detectable Earth observation features."
+
+        # Scale to standard 0-255 range for perceptual checks if outside uint8 range
+        if g_max > 255.0 or g_min < 0.0:
+            norm_gray = (gray - g_min) / (g_max - g_min + 1e-6) * 255.0
+        else:
+            norm_gray = gray
 
         # 1. Text Document / Book Page Detection
-        white_bg_pct = float(np.sum(gray > 220) / total_pixels * 100.0)
-        dark_text_pct = float(np.sum(gray < 45) / total_pixels * 100.0)
+        white_bg_pct = float(np.sum(norm_gray > 220) / total_pixels * 100.0)
+        dark_text_pct = float(np.sum(norm_gray < 45) / total_pixels * 100.0)
 
         if image_arr.ndim == 3 and image_arr.shape[2] >= 3:
             r = image_arr[:, :, 0].astype(float)
@@ -215,10 +227,10 @@ class InputValidator:
                 "SatQuery AI requires satellite or aerial Earth observation imagery (GeoTIFF, Sentinel, Landsat, or optical/SAR rasters)."
             )
 
-        # 2. Predominantly blank image
-        if white_bg_pct > 85.0:
+        # 2. Predominantly blank image (requires low variance)
+        if white_bg_pct > 85.0 and g_std < 12.0:
             return False, "The uploaded image is predominantly blank white (>85% white pixels), not an Earth observation scene."
-        if float(np.sum(gray < 15) / total_pixels * 100.0) > 92.0:
+        if float(np.sum(norm_gray < 15) / total_pixels * 100.0) > 92.0 and g_std < 12.0:
             return False, "The uploaded image is predominantly black (>92% dark pixels), not an Earth observation scene."
 
         # 3. Screen Capture / UI Diagram heuristic
