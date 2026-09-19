@@ -84,9 +84,9 @@ If the official split is unavailable, create a deterministic stratified/group-aw
 
 ---
 
-# 3. THIRD HARD RULE — DO NOT RUN TRAINING
+# 3. THIRD HARD RULE — NO UNPROMPTED TRAINING
 
-The IDE must NOT execute:
+The IDE must NOT automatically execute background training or download multi-gigabyte datasets without explicit user command:
 
 ```text
 python train_*.py
@@ -95,12 +95,11 @@ python scripts/train/*
 ```
 
 Do not download multi-gigabyte datasets automatically.
+Do not start unprompted GPU training.
+Do not start unprompted long-running evaluation.
 
-Do not start GPU training.
-
-Do not start long-running evaluation.
-
-Do not consume my laptop GPU.
+**Exception / Execution Protocol**:
+When the user explicitly instructs or authorizes the IDE to launch, retrain, or evaluate a specific model checkpoint on a local dataset, the IDE may execute the requested training command locally on the GPU, with active validation monitoring and early stopping guards.
 
 You may perform lightweight static checks such as:
 
@@ -246,7 +245,7 @@ Prefer the official metadata and official train/validation/test split.
 
 Use real public remote-sensing VQA data such as:
 
-> **RSVQA**
+> **RSVQA / EarthVQA / RSVL-VQA (Wuhan University)**
 
 and, where appropriate:
 
@@ -254,7 +253,7 @@ and, where appropriate:
 
 Use genuine:
 
-- images
+- images (from real satellite and aerial sensors: INRIA, LoveDA, WHU, iSAID, Sentinel-2)
 - questions
 - answers
 

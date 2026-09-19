@@ -1,0 +1,106 @@
+{
+  "metrics": {
+    "precision": 0.1014,
+    "recall": 0.4715,
+    "f1": 0.1669,
+    "iou": 0.0911,
+    "accuracy": 0.8083,
+    "confusion_matrix": {
+      "tp": 7009492,
+      "fp": 62099994,
+      "tn": 287937042,
+      "fn": 7857920
+    },
+    "false_positive_rate": 0.1774,
+    "false_negative_rate": 0.5285,
+    "total_pixels": 364904448,
+    "changed_pixels_gt": 14867412,
+    "changed_pixels_pred": 69109486,
+    "change_fraction_gt": 0.0407,
+    "change_fraction_pred": 0.1894,
+    "threshold": 0.5,
+    "object_metrics": {
+      "gt_object_count": 14031,
+      "pred_object_count": 311587,
+      "detected_objects": 13116,
+      "missed_objects": 915,
+      "false_alarm_objects": 287389,
+      "object_precision": 0.0777,
+      "object_recall": 0.9348,
+      "object_f1": 0.1434
+    }
+  },
+  "previous_baseline": {
+    "f1": 0.3152,
+    "iou": 0.1871,
+    "accuracy": 0.8976,
+    "precision": 0.2391,
+    "recall": 0.4625,
+    "object_f1": 0.4254
+  },
+  "benchmark_run": {
+    "schema_version": "2.0.0",
+    "benchmark_id": "bench-change-1f017b58",
+    "dataset_name": "LEVIR_CDPlus",
+    "dataset_manifest_hash": "verified_held_out_test",
+    "split": "test",
+    "sample_count": 5568,
+    "metrics": {
+      "f1": 0.1669,
+      "iou": 0.0911,
+      "precision": 0.1014,
+      "recall": 0.4715,
+      "accuracy": 0.8083
+    },
+    "confidence_interval_95": null,
+    "hardware_profile": {
+      "device": "cuda",
+      "device_name": "NVIDIA GeForce RTX 5070"
+    },
+    "execution_time_seconds": 64.75,
+    "model_name": null,
+    "checkpoint_path": null,
+    "checkpoint_hash": null,
+    "preprocessing_summary": null,
+    "per_class_metrics": null,
+    "failures_count": 0,
+    "failure_cases": [],
+    "calibration_metrics": null,
+    "limitations": [],
+    "comparison_baseline": null,
+    "provenance_fingerprint": null
+  },
+  "failure_report": {
+    "total_failures": 5526,
+    "breakdown": {
+      "seasonal_change": 3539,
+      "misregistration": 1402,
+      "false_positive": 522,
+      "small_object_miss": 55,
+      "false_negative": 6,
+      "cloud_shadow": 2
+    },
+    "category_percentages": {
+      "seasonal_change": 64.0,
+      "misregistration": 25.4,
+      "false_positive": 9.4,
+      "small_object_miss": 1.0,
+      "false_negative": 0.1,
+      "cloud_shadow": 0.0
+    },
+    "severity_distribution": {
+      "high": 5220,
+      "medium": 295,
+      "low": 11
+    },
+    "primary_failure_mode": "seasonal_change",
+    "recommended_mitigations": [
+      "Apply photometric shadow augmentation or HSV saturation/value invariant normalization.",
+      "Incorporate multi-scale high-resolution feature pyramids or adjust Dice loss weighting.",
+      "Increase threshold or incorporate hard negative mining during training.",
+      "Increase weight of change class or increase Dice loss penalty.",
+      "Train with cross-season pair augmentations and NDRE/NDVI differential suppression.",
+      "Utilize phase-correlation subpixel coregistration prior to change inference."
+    ]
+  }
+}

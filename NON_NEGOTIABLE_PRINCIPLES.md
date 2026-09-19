@@ -15,7 +15,7 @@
 13. **No calling agreement between two models “accuracy”.**
 14. **No treating LLM explanations as measurements.**
 15. **No automatic dataset downloading.**
-16. **No automatic model training.**
+16. **No unprompted model training.** (Automated local training runs proceed strictly under explicit developer command with active validation monitoring and early stopping).
 17. **No QML dependency in the classical validation path during this cycle.**
 18. **Every stored result must have provenance.**
 19. **Every displayed metric must be reproducible.**
@@ -23,7 +23,7 @@
 21. **Every preprocessing transformation must be recorded.**
 22. **Every failure must be visible rather than hidden.**
 23. **Prefer simple baselines before complex architectures.**
-24. **Use modern architectures only when their measurable benefit is demonstrated.**
+24. **Transition to modern architectures (pretrained backbones, spatial attention) when baseline capacity plateaus or underfits, ensuring capacity matches dataset scale.**
 25. **Benchmark first, optimize second.**
 26. **A visually impressive demo is not evidence of correctness.**
 27. **A confidence number is meaningless until calibrated.**

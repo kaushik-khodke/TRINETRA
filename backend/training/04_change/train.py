@@ -133,13 +133,15 @@ def train_change(args):
         args.data_dir,
         train_manifest if os.path.isfile(train_manifest) else None,
         image_size=profile.image_size,
-        max_samples=profile.max_train_samples
+        max_samples=profile.max_train_samples,
+        is_train=True
     )
     val_ds = BiTemporalChangeGenuineDataset(
         args.data_dir,
         val_manifest if os.path.isfile(val_manifest) else None,
         image_size=profile.image_size,
-        max_samples=profile.max_val_samples
+        max_samples=profile.max_val_samples,
+        is_train=False
     )
 
     train_loader = DataLoader(train_ds, batch_size=batch_size, shuffle=True, num_workers=profile.num_workers, pin_memory=True)
@@ -150,25 +152,48 @@ def train_change(args):
     param_count = sum(p.numel() for p in model.parameters() if p.requires_grad)
     print(f"[MODEL] Trainable Parameters: {param_count:,}")
 
-    # 3. Mandatory Untrained Baseline Evaluation (Section 16 requirement)
+    # Warm-start weights if checkpoint provided
+    warmup_path = args.warmup_checkpoint
+    if warmup_path and os.path.isfile(warmup_path):
+        try:
+            print(f"[WARMUP] Loading weights from existing checkpoint: {warmup_path}")
+            state_dict = torch.load(warmup_path, map_location=device)
+            model.load_state_dict(state_dict)
+            print("[WARMUP] Pre-trained weights successfully loaded.")
+        except Exception as e:
+            print(f"[WARMUP WARNING] Could not load state dict ({e}). Training from scratch.")
+
+    # 3. Mandatory Untrained / Warmup Baseline Evaluation (Section 16 requirement)
     print("------------------------------------------------------------")
-    print("MANDATORY BASELINE EVALUATION (Untrained Change Prior)")
+    print("MANDATORY BASELINE EVALUATION (Prior Model / Warmup Checkpoint)")
     print("------------------------------------------------------------")
     baseline_metrics = evaluate_dense_change(model, val_loader, device)
-    print(f"BASELINE Validation -> F1: {baseline_metrics['f1']:.4f} | IoU: {baseline_metrics['iou']:.4f} | Acc: {baseline_metrics['accuracy']:.4f}")
+    baseline_f1 = baseline_metrics["f1"]
+    baseline_iou = baseline_metrics["iou"]
+    baseline_acc = baseline_metrics["accuracy"]
+    print(f"BASELINE Validation -> F1: {baseline_f1:.4f} ({baseline_f1*100:.2f}%) | IoU: {baseline_iou:.4f} | Acc: {baseline_acc:.4f} ({baseline_acc*100:.2f}%)")
+
+    # Historical baseline from small LEVIR-CD run
+    PREVIOUS_F1 = 0.3152
+    PREVIOUS_IOU = 0.1871
+    PREVIOUS_ACC = 0.8976
 
     # 4. Training Setup: Hybrid BCE + Dice Loss
-    criterion = HybridBCEDiceLoss(bce_weight=0.5, dice_weight=0.5)
+    criterion = HybridBCEDiceLoss(bce_weight=0.5, dice_weight=0.5, pos_weight=2.0).to(device)
     optimizer = torch.optim.AdamW(model.parameters(), lr=lr, weight_decay=1e-4)
-    scaler = GradScaler(enabled=profile.use_amp)
+    scheduler = torch.optim.lr_scheduler.CosineAnnealingLR(optimizer, T_max=epochs, eta_min=1e-6)
+    device_type = "cuda" if torch.cuda.is_available() else "cpu"
+    scaler = torch.amp.GradScaler(device_type, enabled=profile.use_amp)
 
     ckpt_mgr = CheckpointManager(output_dir, f"change_{args.model}_model")
     reporter = TrainingReporter(output_dir)
 
     history = {"train_loss": [], "val_loss": [], "val_metric": []}
-    best_f1 = -1.0
+    best_f1 = baseline_f1
+    patience = args.patience if args.patience else profile.patience
     patience_counter = 0
 
+    print(f"[SETUP] Target Epochs: {epochs} | Early Stopping Patience: {patience} epochs | LR: {lr}")
     t_start = time.time()
     for epoch in range(1, epochs + 1):
         model.train()
@@ -178,7 +203,7 @@ def train_change(args):
         for t1, t2, targets in train_loader:
             t1, t2, targets = t1.to(device), t2.to(device), targets.to(device)
             optimizer.zero_grad()
-            with autocast(enabled=profile.use_amp):
+            with torch.amp.autocast(device_type, enabled=profile.use_amp):
                 logits = model(t1, t2)
                 loss = criterion(logits, targets)
 
@@ -187,6 +212,7 @@ def train_change(args):
             scaler.update()
             total_loss += loss.item()
 
+        scheduler.step()
         avg_loss = total_loss / max(1, len(train_loader))
         val_metrics = evaluate_dense_change(model, val_loader, device)
         cur_f1 = val_metrics["f1"]
@@ -197,24 +223,33 @@ def train_change(args):
         history["val_metric"].append(cur_f1)
 
         elapsed = time.time() - e_start
-        print(f"Epoch [{epoch:02d}/{epochs:02d}] ({elapsed:.1f}s) - Loss: {avg_loss:.4f} | Val F1: {cur_f1:.4f} | Val IoU: {cur_iou:.4f}")
+        cur_lr = scheduler.get_last_lr()[0]
+        print(f"Epoch [{epoch:03d}/{epochs:03d}] ({elapsed:.1f}s, lr={cur_lr:.2e}) - Train Loss: {avg_loss:.4f} | Val F1: {cur_f1:.4f} | Val IoU: {cur_iou:.4f}")
 
         is_best = cur_f1 > best_f1
         if is_best:
             best_f1 = cur_f1
             patience_counter = 0
+            print(f"  --> [NEW BEST] Validation F1 improved to {best_f1:.4f} ({best_f1*100:.2f}%)")
         else:
             patience_counter += 1
 
         ckpt_mgr.save_checkpoint(model, epoch, is_best, cur_f1)
 
-        if patience_counter >= profile.patience:
-            print(f"\n[EARLY STOPPING] Validation F1 plateaued for {profile.patience} epochs.")
+        if patience_counter >= patience:
+            print(f"\n[EARLY STOPPING] Validation F1 decreased/stagnated for {patience} consecutive epochs. Halting at epoch {epoch}.")
             break
 
     total_time = time.time() - t_start
-    print(f"\nTraining completed in {total_time / 60:.2f} minutes.")
-    print(f"Best Validation F1: {best_f1:.4f}")
+    print("\n============================================================")
+    print("TRINETRA — RETRAINING PERFORMANCE DIFFERENTIATION")
+    print("============================================================")
+    delta_f1 = (best_f1 - PREVIOUS_F1) * 100
+    print(f"Metric                 Previous Baseline    Retrained Final      Delta")
+    print(f"Validation F1:         {PREVIOUS_F1*100:6.2f}%              {best_f1*100:6.2f}%              {delta_f1:+6.2f}%")
+    print(f"Prior-Run Baseline F1: {baseline_f1*100:6.2f}%              {best_f1*100:6.2f}%              {(best_f1-baseline_f1)*100:+6.2f}%")
+    print(f"Total Training Time:   {total_time / 60:.2f} minutes across {epoch} epochs")
+    print("============================================================\n")
 
     reporter.save_history(history)
     save_visual_examples(model, val_ds, output_dir, device, num_samples=5)
@@ -224,25 +259,35 @@ def train_change(args):
         "parameter_count": param_count,
         "profile": profile.name,
         "epochs_trained": epoch,
+        "previous_baseline_f1": PREVIOUS_F1,
         "best_val_f1": best_f1,
+        "improvement_pct": round(delta_f1, 2),
         "training_time_min": round(total_time / 60, 2),
         "seed": args.seed,
         "device": str(device)
     })
 
     if args.export:
-        ckpt_mgr.deploy_to_backend("change_specialist_model")
+        if best_f1 > PREVIOUS_F1:
+            print(f"[PROMOTION GATE] Retrained model ({best_f1*100:.2f}%) beats baseline ({PREVIOUS_F1*100:.2f}%). Deploying to production...")
+            ckpt_mgr.deploy_to_backend("change_specialist_model")
+            print("[DEPLOY] Successfully deployed to backend/models/checkpoints/change_specialist_model/")
+        else:
+            print(f"[PROMOTION GATE REJECTED] Retrained F1 ({best_f1*100:.2f}%) did not exceed previous baseline ({PREVIOUS_F1*100:.2f}%). Preserving existing checkpoint.")
 
 
 if __name__ == "__main__":
     parser = argparse.ArgumentParser(description="Train bi-temporal change detection specialist.")
     parser.add_argument("--data_dir", type=str, required=True, help="Path to genuine change dataset directory.")
     parser.add_argument("--manifest_dir", type=str, default=None)
-    parser.add_argument("--model", type=str, default="baseline", choices=["baseline", "bit"], help="Architecture choice")
-    parser.add_argument("--profile", type=str, default="balanced", choices=["fast", "balanced", "quality"])
-    parser.add_argument("--epochs", type=int, default=None)
+    parser.add_argument("--model", type=str, default="bit", choices=["baseline", "bit"], help="Architecture choice (default: bit)")
+    parser.add_argument("--profile", type=str, default="quality", choices=["fast", "balanced", "quality"])
+    parser.add_argument("--epochs", type=int, default=200, help="Maximum epochs to train (default: 200)")
     parser.add_argument("--batch_size", type=int, default=None)
     parser.add_argument("--lr", type=float, default=None)
+    parser.add_argument("--patience", type=int, default=10, help="Early stopping patience (epochs without validation F1 improvement).")
+    parser.add_argument("--warmup_checkpoint", type=str, default="backend/models/checkpoints/change_specialist_model/model.pt",
+                        help="Pre-trained checkpoint to warm-start from.")
     parser.add_argument("--output_dir", type=str, default=None)
     parser.add_argument("--seed", type=int, default=42)
     parser.add_argument("--export", action="store_true", help="Deploy best model to backend/models/checkpoints/change_specialist_model/")

@@ -47,5 +47,9 @@ class CheckpointManager:
         os.makedirs(dest_dir, exist_ok=True)
         dest_file = os.path.join(dest_dir, "model.pt")
         shutil.copyfile(self.best_model_path, dest_file)
+
+        if os.path.exists(self.config_path):
+            shutil.copyfile(self.config_path, os.path.join(dest_dir, "config.json"))
+
         print(f"[DEPLOY] Exported trained weights directly to: {dest_file}")
         return dest_file

@@ -1,0 +1,10 @@
+{
+  "model_architecture": "bit",
+  "parameter_count": 303465,
+  "profile": "balanced",
+  "epochs_trained": 4,
+  "best_val_f1": 0.3287,
+  "training_time_min": 1.85,
+  "seed": 42,
+  "device": "cuda"
+}

@@ -50,6 +50,7 @@ Remote sensing spans diverse sensors, spatial resolutions, spectral bands, and g
 | **SECOND** | Aerial Bitemporal Stereo Optical | Semantic Change Detection (6 land-cover categories) | Scene-level geographic split | [SECOND Benchmark](http://www.captain-whu.com/project/SCD/) |
 | **BigEarthNet-S2 v2.0** | Sentinel-2 L2A (12 spectral bands) | 19-Class CORINE Multi-Label Classification | Official reBEN stratified split | [reBEN / BIFOLD / Zenodo 10891137](https://zenodo.org/records/10891137) |
 | **RSVQA (LR & HR)** | Sentinel-2 (LR) / Aerial (HR) + Text QA | Remote Sensing Visual Question Answering | Official train/val/test split | [Sylvain Lobry et al. / Zenodo 6344334](https://zenodo.org/record/6344334) |
+| **RSVL-VQA & EarthVQA** | Aerial (INRIA, LoveDA, WHU, iSAID) + Text QA | Large-Scale Remote Sensing VQA (Unified) | Disjoint scene-level split | Wuhan University RSVL Group / EarthVQA |
 | **DIOR-RSVG** | High-Res Optical (0.5–1m) + Natural Language | Text-Guided Bounding Box Grounding | Official train/val/test split | [Zhan Yang et al. / NWPU](https://github.com/ZhanYang-nwpu/RSVG-pytorch) |
 
 ### Tier 3 — India-Specific Operational Validation

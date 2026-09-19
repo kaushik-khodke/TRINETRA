@@ -277,21 +277,27 @@ Where possible, evaluate both:
 - official benchmark performance;
 - image/scene-disjoint generalization.
 
-## Architecture
+## Architecture & Feature Representation
 
 Separate:
 
 ```text
-Vision Encoder
+Vision Encoder (Pretrained ResNet/ConvNeXt or Spatial CNN)
       ↓
-Visual Features
+Spatial Visual Feature Grid (7x7 / Multi-scale)
       ↓
-Question Encoder
+Question Encoder (Bidirectional GRU / Transformer)
       ↓
-Fusion
+Multimodal Fusion (Spatial Cross-Attention / FiLM / Bilinear)
       ↓
-Answer Head
+Answer Classification Head
 ```
+
+### High-Accuracy Protocols for RS-VQA:
+1. **Preserve Spatial Structure**: Avoid reducing high-resolution satellite imagery directly to a 1x1 vector before question conditioning. Spatial grid features allow the model to localize objects and count distinct instances, resolving the Top-1 vs Top-5 accuracy gap.
+2. **Pretrained Transfer Learning**: When a simple scratch baseline plateaus (e.g. at ~70%), upgrade to ImageNet-pretrained vision backbones (e.g. ResNet-18/50).
+3. **Resolution Preservation**: For high-resolution satellite scenes (INRIA, LoveDA, WHU, iSAID), avoid aggressive downsampling to 224x224 where small target objects become sub-pixel noise. Use 384x384 or patch-based crops when GPU memory permits.
+4. **Early Stopping Protocol**: Monitor validation Top-1 accuracy after each epoch. If validation accuracy declines or plateaus for `patience` consecutive epochs, immediately halt training and preserve the best validated checkpoint.
 
 The LLM should not be used as a replacement for the ground-truth VQA evaluation.
 

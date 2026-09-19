@@ -137,37 +137,43 @@ python backend/training/01_bigearthnet/predict.py `
 
 ## Model 2: RS-VQA (Remote Sensing Visual Question Answering)
 
-- **Dataset**: RSVQA Low Resolution (LR) or High Resolution (HR)
-- **Official Source**: [Sylvain Lobry et al. / Zenodo Record 6344334](https://zenodo.org/record/6344334)
-- **Required Files**: `Questions_train.json`, `Answers_train.json`, `Questions_val.json`, `Answers_val.json`, `Questions_test.json`, `Answers_test.json`, and the `Images_LR/` or `Images_HR/` directory.
+- **Dataset**: RSVQA, EarthVQA, and RSVL-VQA (INRIA, LoveDA, WHU, iSAID)
+- **Official Source**: Sylvain Lobry et al. (Zenodo 6344334) & Wuhan University RSVL Group
+- **Architectures**:
+  - `--model baseline`: 2-layer convolutional baseline (`RSVqaFusionNetwork`).
+  - `--model resnet`: Pretrained ResNet-18 visual backbone + Bidirectional GRU (`RSVqaResNetFusionNetwork`), recommended for breaking baseline plateau.
 
-### Step 1: Verify & Build Vocabulary
+### Step 1: Verify & Build Vocabulary / Manifests
 ```powershell
-python backend/training/02_rsvqa/prepare.py `
-  --data_dir "D:\datasets\RSVQA_LR"
+python backend/training/02_rsvqa/prepare_rsvl.py
 ```
 
-### Step 2: Train Model
+### Step 2: Train / Retrain Model (with Warm-Starting & Early Stopping)
 ```powershell
 python backend/training/02_rsvqa/train.py `
-  --data_dir "D:\datasets\RSVQA_LR" `
-  --profile balanced `
+  --model resnet `
+  --epochs 100 `
+  --patience 5 `
+  --batch_size 128 `
+  --lr 0.00015 `
+  --warm_start `
   --export
 ```
+*(Automatically evaluates previous checkpoint, transfers learned vocabulary & text representations, monitors validation accuracy, and early stops if accuracy decreases or plateaus for `patience` consecutive epochs).*
 
 ### Step 3: Evaluate on Test Split
 ```powershell
 python backend/training/02_rsvqa/evaluate.py `
-  --checkpoint "backend/training/02_rsvqa/runs/run_balanced/best_model.pt" `
-  --data_dir "D:\datasets\RSVQA_LR"
+  --checkpoint "backend/models/checkpoints/rs_vqa_model/model.pt" `
+  --manifest "backend/training/02_rsvqa/manifests/vqa_unified_test.jsonl"
 ```
 
 ### Step 4: Query Prediction Test
 ```powershell
 python backend/training/02_rsvqa/predict.py `
-  --checkpoint "backend/training/02_rsvqa/runs/run_balanced/best_model.pt" `
-  --image "D:\datasets\RSVQA_LR\Images_LR\1024.png" `
-  --question "Is there a river in this image?"
+  --checkpoint "backend/models/checkpoints/rs_vqa_model/model.pt" `
+  --image "C:\Users\student\Downloads\datasets\RSVL-VQA\LoveDA\train\Train\Rural\images_png\422.png" `
+  --question "How many forests are there in the image?"
 ```
 
 ---
@@ -209,39 +215,59 @@ python backend/training/03_grounding/predict.py `
 
 ---
 
-## Model 4: Bi-Temporal Change Detection (LEVIR-CD / OSCD)
+## Model 4: Bi-Temporal Change Detection (LEVIR-CD+ / blanchon/LEVIR_CDPlus)
 
-- **Dataset**: LEVIR-CD or OSCD (Onera Satellite Change Detection)
-- **Official Source**: [OSCD Dataset](https://rcdaudt.github.io/oscd/) or [LEVIR-CD](https://justchenyang.github.io/LEVIR-CD/)
-- **Required Files**: `A/` (pre-change date), `B/` (post-change date), and `label/` (pixel-level change mask).
+- **Dataset**: `blanchon/LEVIR_CDPlus` (985 1024x1024 bitemporal satellite scenes, tiled into 15,760 native 256x256 patch pairs)
+- **Official Source**: [Hugging Face blanchon/LEVIR_CDPlus](https://huggingface.co/datasets/blanchon/LEVIR_CDPlus)
+- **Architectures**:
+  - `--model bit`: Bitemporal Interaction Transformer (BIT with token cross-attention, 303k parameters, recommended).
+  - `--model baseline`: Siamese U-Net difference baseline.
+- **Accuracy Enhancements**: Native resolution tiling (zero downsampling blur), 1:1.2 hard negative mining, Hybrid BCE + Dice Loss (`pos_weight=2.0`), and warm-start transfer learning.
 
-### Step 1: Verify Temporal Pairs
+### Step 1: Ingest & Tile Dataset from Hugging Face
 ```powershell
-python backend/training/04_change/prepare.py `
-  --data_dir "D:\datasets\LEVIR-CD"
+python backend/training/04_change/download_hf_levir.py `
+  --output_dir "C:\Users\student\Downloads\datasets\LEVIR_CDPlus" `
+  --negative_ratio 1.2
 ```
 
-### Step 2: Train Siamese Differential Model
+### Step 2: Validate Dataset Integrity & Disjointness
+```powershell
+python backend/training/04_change/validate_dataset.py `
+  --data_dir "C:\Users\student\Downloads\datasets\LEVIR_CDPlus"
+```
+
+### Step 3: Retrain Model (Warm-Start, 200 Epochs, Early Stopping)
 ```powershell
 python backend/training/04_change/train.py `
-  --data_dir "D:\datasets\LEVIR-CD" `
-  --profile balanced `
+  --data_dir "C:\Users\student\Downloads\datasets\LEVIR_CDPlus" `
+  --model bit `
+  --profile quality `
+  --epochs 200 `
+  --batch_size 16 `
+  --lr 0.0001 `
+  --patience 10 `
+  --warmup_checkpoint "backend/models/checkpoints/change_specialist_model/model.pt" `
   --export
 ```
+*(Monitors validation F1 after each epoch. If accuracy drops or plateaus for 10 epochs, halts immediately and preserves peak checkpoint. Deploys to `change_specialist_model/` only if retrained F1 > 31.52%).*
 
-### Step 3: Evaluate on Test Split
+### Step 4: Evaluate on Strictly Held-Out Test Split
 ```powershell
 python backend/training/04_change/evaluate.py `
-  --checkpoint "backend/training/04_change/runs/run_balanced/best_model.pt" `
-  --data_dir "D:\datasets\LEVIR-CD"
+  --checkpoint "backend/models/checkpoints/change_specialist_model/model.pt" `
+  --data_dir "C:\Users\student\Downloads\datasets\LEVIR_CDPlus" `
+  --model bit `
+  --batch_size 16
 ```
 
-### Step 4: Bi-Temporal Inference Test
+### Step 5: Bi-Temporal Inference Test
 ```powershell
 python backend/training/04_change/predict.py `
-  --checkpoint "backend/training/04_change/runs/run_balanced/best_model.pt" `
-  --image_t1 "D:\datasets\LEVIR-CD\A\test_001.png" `
-  --image_t2 "D:\datasets\LEVIR-CD\B\test_001.png"
+  --checkpoint "backend/models/checkpoints/change_specialist_model/model.pt" `
+  --t1 "C:\Users\student\Downloads\datasets\LEVIR_CDPlus\A\test_0000_p00.png" `
+  --t2 "C:\Users\student\Downloads\datasets\LEVIR_CDPlus\B\test_0000_p00.png" `
+  --model bit
 ```
 
 ---

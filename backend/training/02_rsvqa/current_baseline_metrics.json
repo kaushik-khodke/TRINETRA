@@ -1,0 +1,10 @@
+{
+  "top1_accuracy_pct": 70.77,
+  "top5_accuracy_pct": 97.16,
+  "exact_match_pct": 70.77,
+  "top1_ci_95": [
+    70.28,
+    71.28
+  ],
+  "num_samples": 28543
+}

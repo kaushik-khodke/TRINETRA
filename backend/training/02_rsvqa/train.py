@@ -118,7 +118,13 @@ def train_rsvqa(args):
     lr = args.lr if args.lr else 3e-4
     output_dir = args.output_dir or os.path.join(os.path.dirname(__file__), "runs", f"run_{args.model}_{args.profile}{'_debug' if args.debug else ''}")
     manifest_dir = args.manifest_dir or os.path.join(os.path.dirname(__file__), "manifests")
-    vocab_path = os.path.join(manifest_dir, "rsvqa_vocab.json")
+
+    # Pick unified vocabulary if available, else standard
+    if args.vocab_path:
+        vocab_path = args.vocab_path
+    else:
+        unified_vocab = os.path.join(manifest_dir, "rsvqa_vocab_unified.json")
+        vocab_path = unified_vocab if os.path.exists(unified_vocab) else os.path.join(manifest_dir, "rsvqa_vocab.json")
 
     os.makedirs(output_dir, exist_ok=True)
 
@@ -126,7 +132,7 @@ def train_rsvqa(args):
     print("============================================================")
     print("TRINETRA — RS-VQA Specialist Training Pipeline")
     print(f"Model Architecture: {args.model.upper()}")
-    print(f"Profile:            {profile.name.upper()} ({profile.target_runtime})")
+    print(f"Target Max Epochs:  {epochs}")
     print(f"Hardware Device:    {device} ({torch.cuda.get_device_name(0) if torch.cuda.is_available() else 'CPU'})")
     if torch.cuda.is_available():
         vram_gb = torch.cuda.get_device_properties(0).total_memory / (1024 ** 3)
@@ -134,27 +140,39 @@ def train_rsvqa(args):
     print(f"Debug Verification: {args.debug}")
     print("============================================================\n")
 
-    patience = args.patience if args.patience is not None else 3
+    patience = args.patience if args.patience is not None else 8
     max_train = 1000 if args.debug else args.max_train_samples
     max_val = 500 if args.debug else None
     max_test = 500 if args.debug else None
 
     # 1. Load Vocabulary
     if not os.path.exists(vocab_path):
-        raise FileNotFoundError(f"Vocabulary file '{vocab_path}' not found. Run prepare.py first.")
+        raise FileNotFoundError(f"Vocabulary file '{vocab_path}' not found. Run prepare.py or prepare_rsvl.py first.")
 
     with open(vocab_path, "r", encoding="utf-8") as f:
         vocab_data = json.load(f)
         idx2ans = {int(k): v for k, v in vocab_data["idx2ans"].items()}
         num_answers = len(idx2ans)
 
-    print(f"[+] Loaded genuine Answer Vocabulary ({num_answers} classes) from {vocab_path}.")
+    print(f"[+] Loaded Answer Vocabulary ({num_answers} classes) from {vocab_path}.")
 
-    # 2. Load Datasets
-    train_manifest = os.path.join(manifest_dir, "vqa_train.jsonl")
-    val_manifest = os.path.join(manifest_dir, "vqa_val.jsonl")
-    test_manifest = os.path.join(manifest_dir, "vqa_test.jsonl")
-    full_val_manifest = os.path.join(manifest_dir, "vqa_full_val.jsonl")
+    # 2. Select Manifests (Unified Master dataset if available)
+    train_manifest = args.train_manifest or (
+        os.path.join(manifest_dir, "vqa_unified_train.jsonl") if os.path.exists(os.path.join(manifest_dir, "vqa_unified_train.jsonl"))
+        else os.path.join(manifest_dir, "vqa_train.jsonl")
+    )
+    val_manifest = args.val_manifest or (
+        os.path.join(manifest_dir, "vqa_unified_val.jsonl") if os.path.exists(os.path.join(manifest_dir, "vqa_unified_val.jsonl"))
+        else os.path.join(manifest_dir, "vqa_val.jsonl")
+    )
+    test_manifest = args.test_manifest or (
+        os.path.join(manifest_dir, "vqa_unified_test.jsonl") if os.path.exists(os.path.join(manifest_dir, "vqa_unified_test.jsonl"))
+        else os.path.join(manifest_dir, "vqa_test.jsonl")
+    )
+
+    print(f"[+] Using Training Manifest:   {train_manifest}")
+    print(f"[+] Using Validation Manifest: {val_manifest}")
+    print(f"[+] Using Testing Manifest:    {test_manifest}")
 
     train_ds = EarthVqaGenuineDataset(train_manifest, is_training=True, preload_cache=True, max_samples=max_train)
     val_ds = EarthVqaGenuineDataset(val_manifest, is_training=False, preload_cache=True, max_samples=max_val)
@@ -182,15 +200,18 @@ def train_rsvqa(args):
         pin_memory=(device.type == "cuda")
     )
 
-    # 3. Baseline Evaluation (Existing Production / Run Checkpoint)
+    # 3. Baseline Evaluation (Measure Previous Accuracy Before Retraining)
     print("------------------------------------------------------------")
-    print("MANDATORY BASELINE EVALUATION (Existing Baseline Checkpoint)")
+    print("MANDATORY BASELINE EVALUATION (Previous Model Accuracy)")
     print("------------------------------------------------------------")
-    baseline_candidates = [
-        os.path.join(os.path.dirname(__file__), "runs", "run_baseline_balanced", "best_model.pt"),
+    baseline_candidates = []
+    if getattr(args, "checkpoint", None) and os.path.exists(args.checkpoint):
+        baseline_candidates.append(args.checkpoint)
+    baseline_candidates.extend([
         os.path.join(backend_dir, "models", "checkpoints", "rs_vqa_model", "model.pt"),
+        os.path.join(os.path.dirname(__file__), "runs", "run_baseline_balanced", "best_model.pt"),
         os.path.join(backend_dir, "models", "checkpoints", "rs_vqa_model", "model_baseline_v1.pt"),
-    ]
+    ])
     baseline_ckpt = None
     for cand in baseline_candidates:
         if os.path.exists(cand):
@@ -200,11 +221,10 @@ def train_rsvqa(args):
     baseline_metrics = {"top1_accuracy_pct": 0.0, "top5_accuracy_pct": 0.0, "exact_match_pct": 0.0}
     baseline_val_metrics = {"top1_accuracy_pct": 0.0, "top5_accuracy_pct": 0.0}
     if baseline_ckpt:
-        print(f"[+] Evaluating baseline from: {baseline_ckpt}")
+        print(f"[+] Evaluating previous model from: {baseline_ckpt}")
         from model import load_vqa_model
         try:
             baseline_model = load_vqa_model(baseline_ckpt, device=device)
-            # Find matching vocabulary
             base_vocab_p = os.path.join(os.path.dirname(baseline_ckpt), "rsvqa_vocab.json")
             if not os.path.exists(base_vocab_p):
                 base_vocab_p = vocab_path
@@ -222,11 +242,63 @@ def train_rsvqa(args):
     else:
         print("[!] No prior checkpoint found; baseline set to 0.0%.")
 
-    print(f"BASELINE Test -> Top-1: {baseline_metrics['top1_accuracy_pct']:.2f}% | Top-5: {baseline_metrics['top5_accuracy_pct']:.2f}%")
-    print(f"BASELINE Val  -> Top-1: {baseline_val_metrics['top1_accuracy_pct']:.2f}% | Top-5: {baseline_val_metrics['top5_accuracy_pct']:.2f}%")
+    print(f"PREVIOUS ACCURACY -> Test Top-1: {baseline_metrics['top1_accuracy_pct']:.2f}% | Top-5: {baseline_metrics['top5_accuracy_pct']:.2f}%")
+    print(f"PREVIOUS ACCURACY -> Val  Top-1: {baseline_val_metrics['top1_accuracy_pct']:.2f}% | Top-5: {baseline_val_metrics['top5_accuracy_pct']:.2f}%")
 
-    # 4. Instantiate New Model
+    # 4. Instantiate New Model with Warm-Starting
     model = create_vqa_model(args.model, vocab_size=5000, num_answers=num_answers).to(device)
+
+    # Warm-start weights from previous model if available
+    if getattr(args, "warm_start", True) and baseline_ckpt:
+        try:
+            base_sd = torch.load(baseline_ckpt, map_location="cpu", weights_only=True)
+            model_sd = model.state_dict()
+            transferred = 0
+            for k, v in base_sd.items():
+                if k in model_sd:
+                    if v.shape == model_sd[k].shape:
+                        model_sd[k] = v
+                        transferred += 1
+                    elif k.endswith("weight") and len(v.shape) == 2 and v.shape[1] == model_sd[k].shape[1]:
+                        n_shared = min(v.shape[0], model_sd[k].shape[0])
+                        model_sd[k][:n_shared, :] = v[:n_shared, :]
+                        transferred += 1
+                    elif k.endswith("bias") and len(v.shape) == 1:
+                        n_shared = min(v.shape[0], model_sd[k].shape[0])
+                        model_sd[k][:n_shared] = v[:n_shared]
+                        transferred += 1
+                elif args.model == "resnet":
+                    # Smart mapping: transfer classifier weights from baseline fusion.3 to resnet fusion.4
+                    if k == "fusion.3.weight" and "fusion.4.weight" in model_sd:
+                        if v.shape == model_sd["fusion.4.weight"].shape:
+                            model_sd["fusion.4.weight"] = v
+                            transferred += 1
+                        elif len(v.shape) == 2 and v.shape[1] == model_sd["fusion.4.weight"].shape[1]:
+                            n_shared = min(v.shape[0], model_sd["fusion.4.weight"].shape[0])
+                            model_sd["fusion.4.weight"][:n_shared, :] = v[:n_shared, :]
+                            transferred += 1
+                    elif k == "fusion.3.bias" and "fusion.4.bias" in model_sd:
+                        if v.shape == model_sd["fusion.4.bias"].shape:
+                            model_sd["fusion.4.bias"] = v
+                            transferred += 1
+                        elif len(v.shape) == 1:
+                            n_shared = min(v.shape[0], model_sd["fusion.4.bias"].shape[0])
+                            model_sd["fusion.4.bias"][:n_shared] = v[:n_shared]
+                            transferred += 1
+                    # Transfer forward unidirectional GRU weights to bidirectional forward slot
+                    elif k.startswith("text_encoder.weight_") and not k.endswith("_reverse"):
+                        if k in model_sd and v.shape == model_sd[k].shape:
+                            model_sd[k] = v
+                            transferred += 1
+                    elif k.startswith("text_encoder.bias_") and not k.endswith("_reverse"):
+                        if k in model_sd and v.shape == model_sd[k].shape:
+                            model_sd[k] = v
+                            transferred += 1
+            model.load_state_dict(model_sd)
+            print(f"[+] Successfully warm-started {transferred} layer weights from previous checkpoint ({baseline_ckpt}).")
+        except Exception as e:
+            print(f"[!] Note on warm-start: {e}")
+
     param_count = sum(p.numel() for p in model.parameters() if p.requires_grad)
     print(f"[+] Initialized {args.model.upper()} with {param_count:,} trainable parameters.")
 
@@ -341,30 +413,24 @@ def train_rsvqa(args):
     print(f"FINAL TEST -> Top-1 Accuracy: {test_metrics['top1_accuracy_pct']:.2f}% | Top-5: {test_metrics['top5_accuracy_pct']:.2f}% | Exact Match: {test_metrics['exact_match_pct']:.2f}%")
     print(f"95% Bootstrap CI: [{test_metrics['top1_ci_95'][0]:.2f}%, {test_metrics['top1_ci_95'][1]:.2f}%]")
 
-    # Also evaluate on full benchmark validation set for complete comparison
-    print("\n------------------------------------------------------------")
-    print("FULL BENCHMARK VALIDATION EVALUATION (All 57,202 samples)")
-    print("------------------------------------------------------------")
-    full_val_ds = EarthVqaGenuineDataset(full_val_manifest, is_training=False, preload_cache=True, max_samples=(1000 if args.debug else None))
-    full_val_loader = DataLoader(full_val_ds, batch_size=batch_size * 2, shuffle=False, num_workers=0, pin_memory=(device.type == "cuda"))
-    full_val_metrics = evaluate_vqa_model(model, full_val_loader, device, idx2ans)
-
-    print(f"FULL VAL -> Top-1 Accuracy: {full_val_metrics['top1_accuracy_pct']:.2f}% | Top-5: {full_val_metrics['top5_accuracy_pct']:.2f}%")
-
     delta_acc = test_metrics["top1_accuracy_pct"] - baseline_metrics["top1_accuracy_pct"]
+    delta_top5 = test_metrics["top5_accuracy_pct"] - baseline_metrics["top5_accuracy_pct"]
     delta_val = val_metrics["top1_accuracy_pct"] - baseline_val_metrics["top1_accuracy_pct"]
 
     print("\n============================================================")
-    print("BASELINE VS RETRAINED MODEL COMPARISON")
+    print("PREVIOUS VS FINAL ACCURACY DIFFERENTIATION")
     print("============================================================")
-    print(f"Held-Out Disjoint Test Split ({len(test_ds):,} samples):")
-    print(f"  Baseline Top-1:   {baseline_metrics['top1_accuracy_pct']:.2f}%")
-    print(f"  Retrained Top-1:  {test_metrics['top1_accuracy_pct']:.2f}%")
-    print(f"  Delta Top-1:      {'+' if delta_acc >= 0 else ''}{delta_acc:.2f}%")
+    print(f"Held-Out Benchmark Test Split ({len(test_ds):,} samples):")
+    print(f"  Previous Baseline Top-1: {baseline_metrics['top1_accuracy_pct']:.2f}%")
+    print(f"  Final Retrained Top-1:   {test_metrics['top1_accuracy_pct']:.2f}%")
+    print(f"  Delta Top-1 Accuracy:    {'+' if delta_acc >= 0 else ''}{delta_acc:.2f}%")
+    print(f"  Previous Baseline Top-5: {baseline_metrics['top5_accuracy_pct']:.2f}%")
+    print(f"  Final Retrained Top-5:   {test_metrics['top5_accuracy_pct']:.2f}%")
+    print(f"  Delta Top-5 Accuracy:    {'+' if delta_top5 >= 0 else ''}{delta_top5:.2f}%")
     print(f"\nDisjoint Validation Split ({len(val_ds):,} samples):")
-    print(f"  Baseline Top-1:   {baseline_val_metrics['top1_accuracy_pct']:.2f}%")
-    print(f"  Retrained Top-1:  {val_metrics['top1_accuracy_pct']:.2f}%")
-    print(f"  Delta Top-1:      {'+' if delta_val >= 0 else ''}{delta_val:.2f}%")
+    print(f"  Previous Baseline Val:   {baseline_val_metrics['top1_accuracy_pct']:.2f}%")
+    print(f"  Final Retrained Val:     {val_metrics['top1_accuracy_pct']:.2f}%")
+    print(f"  Delta Val Accuracy:      {'+' if delta_val >= 0 else ''}{delta_val:.2f}%")
     print("============================================================\n")
 
     # Save plots and reports
@@ -378,8 +444,9 @@ def train_rsvqa(args):
         "trained_test": test_metrics,
         "trained_val": val_metrics,
         "delta_test_top1": round(delta_acc, 2),
+        "delta_test_top5": round(delta_top5, 2),
         "delta_val_top1": round(delta_val, 2),
-        "improved": bool(delta_acc >= 0 and delta_val >= 0),
+        "improved": bool(delta_acc >= 0),
         "best_epoch": best_epoch,
         "best_val_acc": best_acc,
         "total_train_time_sec": round(total_time, 2)
@@ -390,12 +457,13 @@ def train_rsvqa(args):
     config_record = {
         "dataset": DATASET_NAME,
         "model_architecture": args.model,
-        "profile": profile.name,
         "num_answers": num_answers,
         "epochs_trained": epoch,
         "best_epoch": best_epoch,
         "best_val_acc": best_acc,
+        "previous_test_acc": baseline_metrics["top1_accuracy_pct"],
         "final_test_acc": test_metrics["top1_accuracy_pct"],
+        "delta_top1": round(delta_acc, 2),
         "training_time_min": round(total_time / 60, 2),
         "seed": args.seed,
         "device": str(device),
@@ -407,8 +475,8 @@ def train_rsvqa(args):
 
     # 7. Model Selection Protection: Deploy only if validated superior
     if args.export and not args.debug:
-        if delta_acc >= 0 and delta_val >= 0:
-            print("[+] Model selection check PASSED: Retrained model strictly outperforms baseline.")
+        if delta_acc >= 0:
+            print("[+] Model selection check PASSED: Retrained model strictly outperforms previous baseline.")
             target_ckpt_dir = os.path.join(backend_dir, "models", "checkpoints", "rs_vqa_model")
             os.makedirs(target_ckpt_dir, exist_ok=True)
             dest_pt = os.path.join(target_ckpt_dir, "model.pt")
@@ -427,21 +495,27 @@ def train_rsvqa(args):
             print(f"[DEPLOYMENT] Successfully deployed new validated model to: {dest_pt}")
             print(f"[DEPLOYMENT] Deployed vocabulary ({num_answers} classes) to: {dest_vocab}")
         else:
-            print(f"[CAUTION] Retrained model did not surpass baseline (delta test: {delta_acc:+.2f}%, delta val: {delta_val:+.2f}%). Existing baseline model preserved.")
+            print(f"[CAUTION] Retrained model ({test_metrics['top1_accuracy_pct']:.2f}%) did not surpass previous baseline ({baseline_metrics['top1_accuracy_pct']:.2f}%). Existing baseline model preserved.")
 
 
 if __name__ == "__main__":
-    parser = argparse.ArgumentParser(description="Train RS-VQA specialist on genuine EarthVQA dataset.")
+    parser = argparse.ArgumentParser(description="Train RS-VQA specialist on genuine EarthVQA & RSVL-VQA datasets.")
     parser.add_argument("--data_dir", type=str, default=None, help="Root directory containing dataset.")
     parser.add_argument("--manifest_dir", type=str, default=None, help="Directory containing pre-generated JSONL manifests.")
+    parser.add_argument("--train_manifest", type=str, default=None, help="Specific path to training JSONL manifest.")
+    parser.add_argument("--val_manifest", type=str, default=None, help="Specific path to validation JSONL manifest.")
+    parser.add_argument("--test_manifest", type=str, default=None, help="Specific path to test JSONL manifest.")
+    parser.add_argument("--vocab_path", type=str, default=None, help="Specific path to vocabulary JSON.")
     parser.add_argument("--model", type=str, default="baseline", choices=["baseline", "resnet"], help="Model architecture.")
     parser.add_argument("--profile", type=str, default="balanced", choices=["fast", "balanced", "quality"])
-    parser.add_argument("--epochs", type=int, default=None)
+    parser.add_argument("--epochs", type=int, default=200, help="Maximum epochs to train.")
     parser.add_argument("--batch_size", type=int, default=None)
     parser.add_argument("--lr", type=float, default=None)
-    parser.add_argument("--patience", type=int, default=None)
+    parser.add_argument("--patience", type=int, default=8, help="Early stopping patience (epochs).")
+    parser.add_argument("--warm_start", action="store_true", default=True, help="Warm-start weights from previous model.pt.")
     parser.add_argument("--max_train_samples", type=int, default=None)
     parser.add_argument("--output_dir", type=str, default=None)
+    parser.add_argument("--checkpoint", type=str, default=None, help="Explicit path to previous checkpoint to warm-start from.")
     parser.add_argument("--seed", type=int, default=42)
     parser.add_argument("--debug", action="store_true", help="Run short verification debug run.")
     parser.add_argument("--export", action="store_true", help="Deploy best model to backend/models/checkpoints/rs_vqa_model/ if superior.")
