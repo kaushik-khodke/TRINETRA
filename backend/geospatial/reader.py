@@ -36,19 +36,19 @@ class GeospatialReader:
             return hsi_data.cube, meta
 
         # 2. GeoTIFF / TIFF reading
-        elif ext in [".tif", ".tiff"]:
+        elif ext in [".tif", ".tiff", ".geotiff"]:
             with Image.open(file_path) as img:
                 arr = np.array(img)
                 return arr, meta
 
-        # 3. Benchmark PNG / JPEG reading
-        elif ext in [".png", ".jpg", ".jpeg"]:
-            img = Image.open(file_path).convert("RGB")
-            arr = np.array(img)
-            return arr, meta
-
+        # 3. Standard Imagery (PNG, JPEG, WebP, BMP, GIF, JP2, etc.) reading
         else:
-            raise ValueError(f"Unsupported file format '{ext}'. Must be GeoTIFF/TIFF, HSI (.mat/.hdr), or benchmark PNG/JPEG.")
+            try:
+                img = Image.open(file_path).convert("RGB")
+                arr = np.array(img)
+                return arr, meta
+            except Exception as e:
+                raise ValueError(f"Unsupported or unreadable file format '{ext}': {str(e)}")
 
     @staticmethod
     def to_rgb_preview(arr: np.ndarray, modality: str = "optical") -> Image.Image:

@@ -137,7 +137,7 @@ The developer maintains complete manual oversight over dataset downloading, vali
 7. **Step 7 — Validation-Only Selection**: The best checkpoint (`best_model.pt`) is chosen purely based on peak validation score (e.g., Validation F1, Validation mAP, or Validation IoU). Test data is strictly untouched.
 8. **Step 8 — Checkpoint Freezing**: Export checkpoint to `backend/models/checkpoints/<specialist>/model.pt`.
 9. **Step 9 — Final Test Run**: Execute `evaluate.py` against the held-out test split. Compute primary metrics: mAP, Macro-F1, IoU@0.5, and Dice score.
-10. **Step 10 — Provenance Documentation**: Store evaluation metrics, test loss, confusion matrices, and representative failure cases into `runs/<run_id>/metrics.json`.
+10. **Step 10 — Provenance Documentation & Benchmark Matrix Update**: Store evaluation metrics, test loss, confusion matrices, and representative failure cases into `runs/<run_id>/metrics.json`. Record the authentic computed scores, sample counts, and baseline comparison in [`docs/MODEL_EVALUATION_BENCHMARK_MATRIX.md`](file:///d:/DEKSTOP_/PROJECT/SIH_2026/TRINETRA/docs/MODEL_EVALUATION_BENCHMARK_MATRIX.md) against peer-reviewed SOTA literature. Never write placeholder or fabricated scores.
 
 ---
 

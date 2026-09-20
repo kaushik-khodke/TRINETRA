@@ -29,7 +29,7 @@ from common.checkpoint import CheckpointManager
 from common.reporting import TrainingReporter
 
 from dataset import RSGroundingGenuineDataset
-from model import RSGroundingDetector, GiouLoss
+from model import RSGroundingDetector, CompoundGroundingLoss
 
 DATASET_NAME = "DIOR-RSVG (Referring Remote Sensing Visual Grounding)"
 
@@ -132,9 +132,8 @@ def train_grounding(args):
     baseline_metrics = evaluate_grounding(model, val_loader, device)
     print(f"BASELINE Validation -> Mean IoU: {baseline_metrics['mean_iou']:.4f} | Recall@0.5: {baseline_metrics['recall_at_0.50_pct']:.2f}%")
 
-    # 3. Training Loop with SmoothL1 + GIoU Loss + Cosine LR Scheduler
-    l1_crit = nn.SmoothL1Loss()
-    giou_crit = GiouLoss()
+    # 3. Training Loop with Compound Grounding Loss (SmoothL1 + GIoU + DIoU) + Cosine LR Scheduler
+    criterion = CompoundGroundingLoss(l1_weight=2.0, giou_weight=1.0, diou_weight=1.0)
     optimizer = torch.optim.AdamW(model.parameters(), lr=lr, weight_decay=1e-4)
     scheduler = torch.optim.lr_scheduler.CosineAnnealingLR(optimizer, T_max=epochs, eta_min=lr * 0.05)
     device_type = "cuda" if device.type == "cuda" else "cpu"
@@ -163,7 +162,7 @@ def train_grounding(args):
             optimizer.zero_grad()
             with torch.amp.autocast(device_type=device_type, enabled=use_scaler):
                 preds = model(imgs, tokens)
-                loss = 2.0 * l1_crit(preds, gt_boxes) + 1.0 * giou_crit(preds, gt_boxes)
+                loss = criterion(preds, gt_boxes)
 
             if scaler is not None:
                 scaler.scale(loss).backward()

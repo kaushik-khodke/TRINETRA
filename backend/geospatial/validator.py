@@ -61,8 +61,8 @@ class GeospatialValidator:
                 location_name=hsi.sensor_name
             )
 
-        # 2. Benchmark PNG / JPEG (Non-georeferenced)
-        if ext in [".png", ".jpg", ".jpeg"]:
+        # 2. Standard / Benchmark Imagery (.png, .jpg, .jpeg, .webp, .bmp, .gif, .jp2, .img)
+        if ext in [".png", ".jpg", ".jpeg", ".webp", ".bmp", ".gif", ".jp2", ".img"]:
             with Image.open(file_path) as img:
                 arr = np.array(img)
                 h, w = arr.shape[:2]
