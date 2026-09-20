@@ -1778,5 +1778,85 @@ Phase 4 introduces multi-temporal satellite observation discovery, interactive A
 - **Cache Acceleration**: Multi-temporal searches for repeated AOIs achieve $200\times+$ speedups via SHA-256 hash caching.
 - **Strict Separation from `/analysis`**: All temporal exploration, AOI drawing, and split comparison workflows operate entirely within `/explore`. Zero changes, zero state leakage, and zero regressions to existing `/analysis` specialist pipelines.
 
+---
+
+## 42. Phase 5: EO Analytical Intelligence Workstation User Flow
+
+```text
+  ┌──────────────────┐
+  │   AOI Polygon    │
+  │        +         │
+  │ Observation A/B  │
+  │        +         │
+  │   User Query     │
+  └────────┬─────────┘
+           ▼
+  ┌──────────────────┐
+  │ Pre-flight Check │ ──── (Bounds, Cloud Mask, Memory Headroom)
+  └────────┬─────────┘
+           ▼
+  ┌──────────────────┐
+  │  7-Stage Pipeline│ ──── (Windowed Preprocessing → Model Inference → Evidence Extraction)
+  └────────┬─────────┘
+           ▼
+  ┌────────────────────────────────────────────────────────────┐
+  │          Interactive Analytical Workstation UI             │
+  ├──────────────┬──────────────┬──────────────┬──────────────┤
+  │   Findings   │   Evidence   │  Narrative   │  Artifacts   │
+  │  (Map Focus) │  (Gate Math) │  (Executive) │  (GeoJSON)   │
+  └──────────────┴──────────────┴──────────────┴──────────────┘
+```
+
+### 42.1 Workflow Steps
+
+#### Step 1: Input Definition & Context Selection
+- User selects an AOI on the 2D/3D map using the polygon drawing tool or uses full scene bounds.
+- User selects Observation A (Baseline) and Observation B (Comparison) from the catalog or temporal acquisitions.
+- In the sidebar's **Analysis** tab, user types an analytical objective or selects a quick preset:
+  - *"Detect built-up change and new construction between observations"* (`BI_TEMPORAL`)
+  - *"Evaluate flood water extent using radar penetration and optical reflectance"* (`SAR_OPTICAL`)
+  - *"Detect and count all aircraft on the runway"* (`SINGLE_IMAGE`)
+
+#### Step 2: Pre-flight Feasibility Validation
+- User clicks the validation check button (`POST /api/v1/explore/analysis/validate`).
+- Backend inspects spatial intersection, resolution matching, estimated pixel count, and estimated runtime.
+- Pre-flight banner displays validation status (e.g., `Feasibility Check Passed • ~4.5s`).
+
+#### Step 3: Asynchronous Pipeline Execution
+- User clicks **"Execute Analytical Engine"** (`POST /api/v1/explore/analysis`).
+- Job is enqueued (HTTP 202 Accepted) and assigned a unique `run_id`.
+- Frontend state manager begins polling `/api/v1/explore/analysis/{run_id}` every 1.5 seconds.
+- The **AnalysisProgress** component displays a live multi-stage tracker:
+  1. `Validation` $\to$ 2. `Assets` $\to$ 3. `Preprocessing` $\to$ 4. `Inference` $\to$ 5. `Evidence` $\to$ 6. `Reasoning` $\to$ 7. `Finalize`.
+- User can cancel the job at any point via the **Cancel** button (`POST /api/v1/explore/analysis/{run_id}/cancel`).
+
+#### Step 4: Analytical Findings & Interactive Map Focus
+- Upon completion, the console switches to the results view.
+- Under the **Findings** tab, structured finding cards appear sorted by confidence and significance.
+- Each finding card displays title, category, calibrated confidence meter, summary statement, and key quantitative metrics (e.g. `25.0 ha changed`).
+- Clicking **"Focus on Map"** on any finding dispatches `FOCUS_ANALYSIS_REGION` through `globeCommandBus`:
+  - MapLibre (2D) smoothly zooms and pans to the exact bounding box of the finding using `fitBounds`.
+  - Cesium (3D) flies the camera to the geographic rectangle with a 1.5s transition.
+
+#### Step 5: Raw Numerical Evidence Inspection
+- Under the **Evidence** tab, user reviews the verifiable mathematical proofs:
+  - Vector change regions with exact pixel counts and centroid coordinates.
+  - Spectral index distributions ($\Delta \text{NDVI}$, baseline vs comparison mean).
+  - Cross-modal joint agreement scores (Optical support score vs SAR support score).
+  - Mathematical verification proofs passed by the consistency gatekeeper.
+
+#### Step 6: Structured Report & Narrative
+- Under the **Report** tab, user reads the Ollama-generated narrative (or deterministic fallback):
+  - Executive Summary outlining the primary analytical conclusion.
+  - Methodology documenting the model and preprocessing path.
+  - Confidence Explanation contextualizing data quality vs model confidence.
+
+#### Step 7: Artifact Downloads & Vector GeoJSON Export
+- Under the **Files** tab, user can download:
+  - `regions.geojson`: Polygon vectors of all detected change regions with feature properties for GIS import (QGIS, ArcGIS).
+  - `manifest.json`: Full provenance audit trail with deterministic SHA-256 processing hash.
+  - `annotated_preview.png`: High-resolution visual inspection image with marked detections.
+  - Copy URL buttons allow sharing artifact links directly.
+
 
 

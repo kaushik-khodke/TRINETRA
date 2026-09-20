@@ -27,10 +27,14 @@ from exploration.ai_schemas import (
     SetDateRangeCommand,
     SelectObservationCommand,
     CompareObservationsCommand,
+    RunAnalysisCommand,
+    FocusFindingCommand,
+    ShowEvidenceCommand,
     EXPLORE_COMMAND_FAILED,
     EXPLORE_LOCATION_AMBIGUOUS,
     EXPLORE_LOCATION_NOT_FOUND,
 )
+
 from exploration.geo_resolver import GeoResolver
 from exploration.service import explore_service
 
@@ -101,6 +105,10 @@ class CommandExecutor:
                 selected_obs_patch = details["selected_observation_id"]
             if "comparison" in details:
                 comparison_patch = details["comparison"]
+            if "active_finding_id" in details:
+                active_finding_patch = details["active_finding_id"]
+            if "analysis" in details:
+                analysis_patch = details["analysis"]
 
             items.append(
                 CommandExecutionItem(
@@ -125,7 +133,10 @@ class CommandExecutor:
             date_range=date_range_patch,
             selected_observation_id=selected_obs_patch,
             comparison=comparison_patch,
+            active_finding_id=active_finding_patch if "active_finding_patch" in locals() else None,
+            analysis=analysis_patch if "analysis_patch" in locals() else None,
         )
+
 
         return overall_status, items, patch, error_code
 
@@ -313,7 +324,48 @@ class CommandExecutor:
                 None,
             )
 
+        # 16. RUN_ANALYSIS
+        elif isinstance(cmd, RunAnalysisCommand):
+            return (
+                CommandExecutionStatus.EXECUTED,
+                f"Triggered {cmd.mode} Earth Observation analysis.",
+                {
+                    "analysis": {
+                        "mode": cmd.mode,
+                        "query": cmd.query,
+                        "trigger": True,
+                    }
+                },
+                None,
+            )
+
+        # 17. FOCUS_FINDING
+        elif isinstance(cmd, FocusFindingCommand):
+            details: Dict[str, Any] = {"active_finding_id": cmd.finding_id}
+            if cmd.latitude is not None and cmd.longitude is not None:
+                details["camera"] = {
+                    "latitude": cmd.latitude,
+                    "longitude": cmd.longitude,
+                    "zoom": cmd.zoom or 14.0,
+                }
+            return (
+                CommandExecutionStatus.EXECUTED,
+                f"Focused finding '{cmd.finding_id}'.",
+                details,
+                None,
+            )
+
+        # 18. SHOW_EVIDENCE
+        elif isinstance(cmd, ShowEvidenceCommand):
+            return (
+                CommandExecutionStatus.EXECUTED,
+                f"Highlighted evidence item '{cmd.evidence_id}'.",
+                {"active_evidence_id": cmd.evidence_id},
+                None,
+            )
+
         return CommandExecutionStatus.FAILED, f"Unexecutable command type '{cmd_type}'.", {}, EXPLORE_COMMAND_FAILED
+
 
 
     @classmethod

@@ -161,6 +161,30 @@ class CompareObservationsCommand(BaseModel):
     mode: Literal["split", "side_by_side", "opacity"] = "split"
 
 
+# --- Phase 5 AI Analytical Commands ---
+
+class RunAnalysisCommand(BaseModel):
+    model_config = ConfigDict(extra="forbid")
+    type: Literal["RUN_ANALYSIS"] = "RUN_ANALYSIS"
+    mode: Literal["BI_TEMPORAL", "SAR_OPTICAL", "SINGLE_IMAGE"] = "BI_TEMPORAL"
+    query: Optional[str] = Field(None, max_length=500)
+
+
+class FocusFindingCommand(BaseModel):
+    model_config = ConfigDict(extra="forbid")
+    type: Literal["FOCUS_FINDING"] = "FOCUS_FINDING"
+    finding_id: str = Field(..., min_length=1, max_length=64)
+    latitude: Optional[float] = Field(None, ge=-90.0, le=90.0)
+    longitude: Optional[float] = Field(None, ge=-180.0, le=180.0)
+    zoom: Optional[float] = Field(14.0, ge=0.0, le=24.0)
+
+
+class ShowEvidenceCommand(BaseModel):
+    model_config = ConfigDict(extra="forbid")
+    type: Literal["SHOW_EVIDENCE"] = "SHOW_EVIDENCE"
+    evidence_id: str = Field(..., min_length=1, max_length=64)
+
+
 ExploreCommand = Annotated[
     Union[
         FlyToCommand,
@@ -178,9 +202,13 @@ ExploreCommand = Annotated[
         SetDateRangeCommand,
         SelectObservationCommand,
         CompareObservationsCommand,
+        RunAnalysisCommand,
+        FocusFindingCommand,
+        ShowEvidenceCommand,
     ],
     Field(discriminator="type"),
 ]
+
 
 
 
@@ -244,6 +272,9 @@ class ExploreStatePatch(BaseModel):
     date_range: Optional[Dict[str, str]] = None
     selected_observation_id: Optional[str] = None
     comparison: Optional[Dict[str, Any]] = None
+    active_finding_id: Optional[str] = None
+    analysis: Optional[Dict[str, Any]] = None
+
 
 
 

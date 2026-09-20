@@ -98,6 +98,20 @@ class Settings(BaseSettings):
     exploration_search_timeout_seconds: float = Field(default=15.0, description="STAC temporal search timeout")
     exploration_cache_ttl_seconds: int = Field(default=600, description="TTL for temporal search query cache")
 
+    # 8. Analysis Engine & Shanetra Phase 5 Parameters
+    analysis_max_concurrent_jobs: int = Field(default=2, description="Max concurrent EO analysis runs")
+    analysis_max_runtime_seconds: float = Field(default=120.0, description="Max timeout per analysis run")
+    analysis_max_pixels: int = Field(default=16_000_000, description="Max total pixels for windowed read")
+    analysis_max_aoi_area_km2: float = Field(default=2500.0, description="Max permitted AOI area for full analysis")
+    analysis_max_artifact_size_bytes: int = Field(default=104_857_600, description="Max size per artifact file (100MB)")
+    analysis_artifacts_dir: str = Field(
+        default_factory=lambda: os.path.join(BACKEND_DIR, "outputs", "analysis")
+    )
+    analysis_tile_size: int = Field(default=512, description="Model input tile size in pixels")
+    analysis_tile_overlap: int = Field(default=64, description="Tile stride overlap in pixels")
+    analysis_change_threshold: float = Field(default=0.35, description="Default binary change probability threshold")
+    analysis_min_region_pixels: int = Field(default=20, description="Minimum connected component region area in pixels")
+
     def get_config_hash(self) -> str:
         """
         Computes a deterministic SHA-256 hash of all runtime configurations.
@@ -119,10 +133,11 @@ class Settings(BaseSettings):
 
     def ensure_directories(self) -> None:
         """Creates necessary filesystem directories if missing."""
-        for d in [self.checkpoints_dir, self.uploads_dir, self.reports_dir, self.samples_dir, self.outputs_dir]:
+        for d in [self.checkpoints_dir, self.uploads_dir, self.reports_dir, self.samples_dir, self.outputs_dir, self.analysis_artifacts_dir]:
             os.makedirs(d, exist_ok=True)
 
 
 # Singleton instance loaded once at startup
 settings = Settings()
 settings.ensure_directories()
+

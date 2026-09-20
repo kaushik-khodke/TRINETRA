@@ -12,6 +12,7 @@ import { globeController } from "@/lib/explore/globe-controller"
 import { globeState } from "@/lib/explore/globe-state"
 import { performanceMonitor } from "@/lib/explore/performance"
 import { GlobeCameraState, RendererAdapter } from "@/lib/explore/types"
+import { globeCommandBus } from "@/lib/explore/globe-command-bus"
 
 /**
  * Client-only standalone loader for CesiumJS
@@ -80,11 +81,13 @@ export default function GlobeView() {
         if (!isMounted || !containerRef.current) return
 
         try {
-          // Check WebGL support
-          if (
-            Cesium.FeatureDetection &&
-            !Cesium.FeatureDetection.supportsWebGL(containerRef.current)
-          ) {
+          // Check WebGL support natively
+          const canvas = document.createElement("canvas")
+          const gl =
+            canvas.getContext("webgl2") ||
+            canvas.getContext("webgl") ||
+            canvas.getContext("experimental-webgl")
+          if (!gl) {
             globeState.setWebglSupported(false)
             globeState.setRendererStatus("error", "WebGL not supported by hardware/browser")
             return
@@ -311,6 +314,21 @@ export default function GlobeView() {
           }
 
           globeController.registerAdapter("3d", adapter)
+
+          // Subscribe to GlobeCommandBus for focus and AOI
+          const unsubBus = globeCommandBus.subscribe((cmd) => {
+            if (!viewerRef.current || !Cesium) return
+            if (cmd.type === "FOCUS_ANALYSIS_REGION" && cmd.bounds && cmd.bounds.length === 4) {
+              const b = cmd.bounds
+              viewerRef.current.camera.flyTo({
+                destination: Cesium.Rectangle.fromDegrees(b[0], b[1], b[2], b[3]),
+                duration: 1.5,
+              })
+            }
+          })
+
+          // Save unsub function on viewer for unmount
+          ;(viewerRef.current as any).__unsubBus = unsubBus
         } catch (initErr: any) {
           console.error("[GlobeView] Cesium initialization error:", initErr)
           globeState.setRendererStatus("error", initErr?.message || "Cesium WebGL Init Failed")
@@ -326,6 +344,9 @@ export default function GlobeView() {
       globeController.unregisterAdapter("3d")
       if (viewerRef.current && !viewerRef.current.isDestroyed()) {
         try {
+          if ((viewerRef.current as any).__unsubBus) {
+            ;(viewerRef.current as any).__unsubBus()
+          }
           viewerRef.current.destroy()
         } catch (e) {
           // Safe teardown

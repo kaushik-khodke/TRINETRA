@@ -7,7 +7,7 @@
  */
 
 import React, { useState } from "react"
-import { Calendar, Compass, Database, GitCompare, Layers, MapPin, Navigation, Satellite } from "lucide-react"
+import { BrainCircuit, Calendar, Compass, Database, GitCompare, Layers, MapPin, Navigation, Satellite } from "lucide-react"
 import { globeCommandBus } from "@/lib/explore/globe-command-bus"
 import { useGlobeState } from "@/lib/explore/globe-state"
 import { DEFAULT_CAMERA_STATE, ISRO_HQ_LOCATION } from "@/lib/explore/constants"
@@ -20,12 +20,17 @@ import { TemporalToolbar } from "./TemporalToolbar"
 import { ObservationCard } from "./ObservationCard"
 import { ObservationDetails } from "./ObservationDetails"
 import { ComparisonPanel } from "./ComparisonPanel"
+import { AnalysisPanel } from "./AnalysisPanel"
 import { useTemporalState } from "@/lib/explore/temporal-state"
+import { useComparisonState } from "@/lib/explore/comparison-state"
+import { useAOIState } from "@/lib/explore/aoi-state"
 
 export function ExploreSidebar() {
   const { sidebarOpen } = useGlobeState()
-  const { observations } = useTemporalState()
-  const [activeTab, setActiveTab] = useState<"catalog" | "temporal" | "compare" | "layers" | "waypoints">("catalog")
+  const { observations, selectedObservation } = useTemporalState()
+  const comparisonState = useComparisonState()
+  const { activeAOI } = useAOIState()
+  const [activeTab, setActiveTab] = useState<"catalog" | "temporal" | "compare" | "analysis" | "layers" | "waypoints">("catalog")
 
   const handleFlyTo = (target: typeof DEFAULT_CAMERA_STATE) => {
     globeCommandBus.dispatch({
@@ -87,6 +92,14 @@ export function ExploreSidebar() {
           <span>Compare</span>
         </button>
         <button
+          className={`tab-btn ${activeTab === "analysis" ? "active" : ""}`}
+          onClick={() => setActiveTab("analysis")}
+          title="EO Analytical Intelligence Engine"
+        >
+          <BrainCircuit size={12} />
+          <span>Analysis</span>
+        </button>
+        <button
           className={`tab-btn ${activeTab === "layers" ? "active" : ""}`}
           onClick={() => setActiveTab("layers")}
           title="Active Layers"
@@ -136,6 +149,17 @@ export function ExploreSidebar() {
         {activeTab === "compare" && (
           <div className="compare-tab-pane">
             <ComparisonPanel />
+          </div>
+        )}
+
+        {activeTab === "analysis" && (
+          <div className="analysis-tab-pane h-full">
+            <AnalysisPanel
+              selectedObservation={selectedObservation}
+              comparisonObservationA={comparisonState.observationA}
+              comparisonObservationB={comparisonState.observationB}
+              aoiGeometry={activeAOI?.geometry}
+            />
           </div>
         )}
 

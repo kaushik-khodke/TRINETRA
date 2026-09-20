@@ -301,6 +301,17 @@ export default function MapView({ viewId = "view-a" }: MapViewProps) {
           updateAOILayers(mapRef.current, cmd.geometry)
         } else if (cmd.type === "CLEAR_AOI") {
           updateAOILayers(mapRef.current, null)
+        } else if (cmd.type === "FOCUS_ANALYSIS_REGION") {
+          const b = cmd.bounds
+          if (b && b.length === 4) {
+            mapRef.current.fitBounds(
+              [
+                [b[0], b[1]],
+                [b[2], b[3]],
+              ],
+              { padding: 50, maxZoom: 17, duration: 1000 }
+            )
+          }
         }
       })
 

@@ -131,6 +131,16 @@ export type GlobeCommand =
       observationA: ObservationSummary
       observationB: ObservationSummary
     }
+  | {
+      type: "FOCUS_ANALYSIS_REGION"
+      findingId: string
+      bounds?: number[]
+      geometry?: any
+      latitude?: number
+      longitude?: number
+      zoom?: number
+    }
+
 
 export interface AOIValidationResult {
   valid: boolean
@@ -150,6 +160,7 @@ export interface ObservationSummary {
   datetime: string
   cloud_cover?: number | null
   platform?: string
+  sensor_type?: string
   bbox: number[]
   thumbnail?: string | null
   preview_url?: string | null
@@ -194,5 +205,119 @@ export interface RendererAdapter {
   setObservationLayer?(slot: "primary" | "compare_a" | "compare_b", observation: ObservationSummary, opacity?: number): void
   getCameraState(): GlobeCameraState
   destroy(): void
+}
+
+// ==========================================
+// Phase 5 — EO Analytical Intelligence Engine Types
+// ==========================================
+
+export type AnalysisMode = "BI_TEMPORAL" | "SAR_OPTICAL" | "SINGLE_IMAGE"
+
+export type AnalysisRunStatus = "queued" | "running" | "completed" | "failed" | "cancelled"
+
+export type AnalysisProgressStage =
+  | "validating"
+  | "resolving_assets"
+  | "preprocessing"
+  | "inference"
+  | "evidence"
+  | "reasoning"
+  | "completed"
+  | "failed"
+
+export interface AnalysisProgress {
+  current_stage: AnalysisProgressStage | string
+  percent: number
+  message: string
+  step_index: number
+  total_steps: number
+  updated_at: string
+}
+
+export interface AnalysisFinding {
+  finding_id: string
+  title: string
+  category: string
+  confidence: number
+  summary: string
+  detailed_narrative: string
+  evidence_refs: string[]
+  bounding_box?: [number, number, number, number]
+  metric_highlight?: string
+}
+
+export interface AnalysisLimitation {
+  code: string
+  message: string
+  severity: "low" | "medium" | "high"
+  impact: string
+}
+
+export interface AnalysisArtifact {
+  artifact_id: string
+  name: string
+  artifact_type: string
+  file_path: string
+  mime_type: string
+  size_bytes?: number
+  download_url: string
+  metadata?: Record<string, any>
+}
+
+export interface AnalysisResult {
+  run_id: string
+  status: string
+  mode: AnalysisMode
+  query: string
+  aoi_bounds?: number[]
+  timestamp: string
+  execution_time_seconds: number
+  findings: AnalysisFinding[]
+  narrative: Record<string, any>
+  evidence: Record<string, any>
+  limitations: AnalysisLimitation[]
+  artifacts: AnalysisArtifact[]
+  provenance: Record<string, any>
+}
+
+export interface AnalysisRun {
+  run_id: string
+  request_id: string
+  status: AnalysisRunStatus
+  mode: string
+  query: string
+  observation_ids: string[]
+  created_at: string
+  started_at?: string
+  completed_at?: string
+  progress: AnalysisProgress
+  artifacts: AnalysisArtifact[]
+  result_data?: AnalysisResult
+  error?: {
+    error_code: string
+    message: string
+    details?: Record<string, any>
+  }
+  cancel_requested: boolean
+}
+
+export interface AnalysisRequest {
+  query: string
+  aoi?: Record<string, any>
+  mode?: AnalysisMode
+  observation_a_id?: string
+  observation_b_id?: string
+  options?: Record<string, any>
+}
+
+export interface AnalysisValidationResponse {
+  valid: boolean
+  estimated_pixel_count: number
+  estimated_runtime_seconds: number
+  memory_headroom_ok: boolean
+  recommended_mode?: AnalysisMode
+  tile_count: number
+  warnings: string[]
+  errors: string[]
 }
 

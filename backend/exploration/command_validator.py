@@ -52,7 +52,11 @@ ALLOWED_COMMAND_TYPES = {
     "SET_DATE_RANGE",
     "SELECT_OBSERVATION",
     "COMPARE_OBSERVATIONS",
+    "RUN_ANALYSIS",
+    "FOCUS_FINDING",
+    "SHOW_EVIDENCE",
 }
+
 
 
 
@@ -190,7 +194,32 @@ class CommandValidator:
                 return False, EXPLORE_COMMAND_REJECTED, f"Observations incompatible: {'; '.join(res.errors)}"
             return True, None, None
 
+        elif cmd_type == "RUN_ANALYSIS":
+            mode = getattr(cmd, "mode", None) if not isinstance(cmd, dict) else cmd.get("mode")
+            if mode and mode not in ("BI_TEMPORAL", "SAR_OPTICAL", "SINGLE_IMAGE"):
+                return False, EXPLORE_COMMAND_REJECTED, f"Invalid analysis mode '{mode}'."
+            return True, None, None
+
+        elif cmd_type == "FOCUS_FINDING":
+            finding_id = getattr(cmd, "finding_id", None) if not isinstance(cmd, dict) else cmd.get("finding_id")
+            if not finding_id or not isinstance(finding_id, str):
+                return False, EXPLORE_COMMAND_REJECTED, "FOCUS_FINDING requires a valid finding_id."
+            lat = getattr(cmd, "latitude", None) if not isinstance(cmd, dict) else cmd.get("latitude")
+            lon = getattr(cmd, "longitude", None) if not isinstance(cmd, dict) else cmd.get("longitude")
+            if lat is not None and (lat < -90.0 or lat > 90.0):
+                return False, EXPLORE_COMMAND_REJECTED, f"Latitude {lat} out of bounds."
+            if lon is not None and (lon < -180.0 or lon > 180.0):
+                return False, EXPLORE_COMMAND_REJECTED, f"Longitude {lon} out of bounds."
+            return True, None, None
+
+        elif cmd_type == "SHOW_EVIDENCE":
+            evidence_id = getattr(cmd, "evidence_id", None) if not isinstance(cmd, dict) else cmd.get("evidence_id")
+            if not evidence_id or not isinstance(evidence_id, str):
+                return False, EXPLORE_COMMAND_REJECTED, "SHOW_EVIDENCE requires a valid evidence_id."
+            return True, None, None
+
         return False, EXPLORE_COMMAND_REJECTED, f"Unsupported command '{cmd_type}'."
+
 
 
     @classmethod

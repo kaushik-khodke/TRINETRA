@@ -1982,10 +1982,63 @@ Phase 4 completes the multi-temporal discovery, geographic selection, and compar
 
 ### 48.5 Verified Phase 4 Performance Baseline (`outputs/performance/explore_phase4_temporal.json`)
 * AOI Geodesic Validation Latency: **41.44 ms**
-* Live Multi-Temporal Search Latency: **3948.88 ms**
-* Cached Multi-Temporal Search Latency: **15.078 ms** (Speedup: **261.9x**)
-* Frontend Build: Turbopack compilation clean in **4.9s**, TypeScript strict check **0 errors**.
 * Full Exploration Backend Test Suite: **120 tests passing 100%**.
+
+---
+
+## 49. Phase 5: EO Analytical Intelligence Engine Architecture
+
+### 49.1 Core Analytical Principle
+> **"Models generate evidence. The language model explains evidence."**
+
+The TRINETRA EO Analytical Intelligence Engine (`backend/analysis_engine/`) upgrades `/explore` from a visualization viewer into an authentic Earth-observation analytical intelligence workstation. The LLM is strictly prohibited from declaring conceptual observations (e.g., "construction occurred") without a measurable, model-backed, mathematical evidence trail.
+
+### 49.2 Three Specialized Analytical Modes
+1. **`BI_TEMPORAL` Mode**:
+   - Compares two observations from the same/similar optical modality across time.
+   - Sub-pipeline: Windowed spatial alignment $\to$ Radiometric surface reflectance normalization $\to$ Differential Siamese feature fusion (`change_specialist_model/model.pt`) $\to$ Continuous change probability map $\to$ Connected-component vector region extraction ($>20\text{px}$ threshold) $\to$ Numerical area/pixel statistics ($m^2$, hectares, change ratio) $\to$ Mathematical consistency gating.
+2. **`SAR_OPTICAL` Mode**:
+   - Cross-modal joint reasoning combining microwave radar (Sentinel-1 SAR) and multispectral optical (Sentinel-2).
+   - Sub-pipeline: Modality-aware preprocessing (amplitude to dB conversion for SAR, surface reflectance scaling for Optical) $\to$ Coregistration verification $\to$ Backscatter delta and spectral index fusion $\to$ Independent per-modality support scores $\to$ Cross-modal agreement matrix.
+3. **`SINGLE_IMAGE` Mode**:
+   - Single acquisition spatial inspection and feature grounding.
+   - Sub-pipeline: Windowed bounds extraction $\to$ Text-guided region grounding (`rs_ground`) $\to$ Scene captioning (`rs_caption`) $\to$ Visual Question Answering (`rs_vqa`) $\to$ Geo-referenced bounding box validation.
+
+### 49.3 Subsystem Architecture & Directory Structure
+```text
+backend/analysis_engine/
+├── __init__.py
+├── models.py                   # AnalysisRun, AnalysisProgress, AnalysisArtifact, RunStatus
+├── schemas.py                  # Pydantic schemas (AnalysisRequest, AnalysisResult, AnalysisFinding)
+├── errors.py                   # Structured error taxonomy (Input, Data, Preprocessing, Model, Resource, Reasoning)
+├── context.py                  # Raw numerical context decoupled from prompt strings
+├── provenance.py               # Deterministic SHA-256 provenance tracking (processing_hash)
+├── planner.py                  # Deterministic intent routing & observation assignment
+├── router.py                   # Execution routing to specialist services
+├── service.py                  # Async queue, semaphore concurrency control, lifecycle manager
+├── preprocessing/              # Windowed raster bounds, reprojection, grid alignment, radiometric norm
+├── change/                     # Bi-temporal change map, connected components, area calculation
+├── sar_optical/                # SAR dB conversion, spectral indices, cross-modal support scoring
+├── single_image/               # VQA, captioning, region grounding coordinate validation
+├── evidence/                   # EvidencePack, mathematical ranking, statistics, consistency validator
+├── reasoning/                  # Ollama native JSON schema constrained reasoning + deterministic fallback
+├── reports/                    # Vector GeoJSON, provenance manifest, annotated preview generation
+└── graph/                      # Compiled LangGraph StateGraph workflow
+```
+
+### 49.4 Strict Architectural Constraints Enforced
+- **Untouched Guided Workflow**: Strictly zero modifications to `/analysis` guided workflow or `langgraph_orchestrator.py`.
+- **Windowed Raster Reading**: All raster ingestion is strictly windowed via `rasterio.windows.Window` bounds calculations. Full multi-gigabyte rasters are never loaded in their entirety into memory.
+- **Strict Concurrency Limits**: `analysis_max_concurrent_jobs = 2` governed by `asyncio.Semaphore` and mutex locking to prevent GPU/CPU OOM.
+- **Deterministic Provenance**: SHA-256 hash computed over model weights, software versions, input raster fingerprints, and preprocessing hyperparameters.
+- **Structured LLM Output**: Local Ollama model (`llama3.2`) is constrained by native JSON schema (`temperature=0.0`, compact token-budgeted prompts).
+- **Graceful Deterministic Fallback**: In the event Ollama is offline or unavailable, the engine generates 100% verified, hallucination-free analytical reports directly from raw evidence tokens.
+
+### 49.5 Test & Build Verification Baseline
+- **Analytical Engine Backend Tests**: **32 tests passing 100%** (`backend/tests/analysis_engine/`).
+- **Exploration Backend Tests**: **120 tests passing 100%** (`backend/tests/exploration/`).
+- **End-to-End Pipeline Scripts**: All 6 verification gates passed (`scripts/test_explore_analysis_flow.py`, `scripts/test_change_pipeline.py`, `scripts/test_sar_optical_pipeline.py`, `scripts/test_single_image_pipeline.py`).
+- **Frontend Architecture**: TypeScript strict validation clean (**0 errors**), Turbopack build optimized (**0 warnings**).
 
 
 
