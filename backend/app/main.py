@@ -33,12 +33,16 @@ from qml.research_buffer import research_buffer
 from app.middleware import RequestIDMiddleware, format_rfc7807_error
 from core.security import SecurityValidator
 from core.exceptions import TRINETRABaseException, SecurityViolationError
+from app.routes.explore import router as explore_router
 
 app = FastAPI(
     title="SatQuery AI — Vision-Language Assistant API",
     version="2.0.0",
     description="100% Local Agentic Remote-Sensing Intelligence Platform for Multimodal Satellite Analysis"
 )
+
+# Exploration & Tile Service Router
+app.include_router(explore_router)
 
 # Reliability: Request ID & audit tracing middleware
 app.add_middleware(RequestIDMiddleware)

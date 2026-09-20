@@ -82,6 +82,7 @@ function Header({ path, navigate }: { path: string; navigate: (path: string) => 
 
   const navItems = [
     { href: "/analysis", label: t("nav.workspace") },
+    { href: "/explore", label: "Explore" },
     { href: "/dashboard", label: t("nav.history") },
     { href: "/evaluation", label: t("nav.evaluation") },
   ]

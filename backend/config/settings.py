@@ -90,6 +90,14 @@ class Settings(BaseSettings):
         default_factory=lambda: os.path.join(BACKEND_DIR, "qml", "results")
     )
 
+    # 7. Exploration & Shanetra Phase 4 Parameters
+    exploration_max_aoi_area_km2: float = Field(default=250_000.0, description="Max AOI area in sq km")
+    exploration_max_aoi_vertices: int = Field(default=500, description="Max vertex count for AOI polygons")
+    exploration_max_temporal_span_days: int = Field(default=365, description="Max allowed temporal query window in days")
+    exploration_max_observations: int = Field(default=100, description="Hard limit on temporal observation results")
+    exploration_search_timeout_seconds: float = Field(default=15.0, description="STAC temporal search timeout")
+    exploration_cache_ttl_seconds: int = Field(default=600, description="TTL for temporal search query cache")
+
     def get_config_hash(self) -> str:
         """
         Computes a deterministic SHA-256 hash of all runtime configurations.

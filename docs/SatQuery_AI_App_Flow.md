@@ -1568,3 +1568,215 @@ SatQuery AI should feel like a single intelligent workspace:
 ```
 
 **The application should hide technical complexity from the user while making the important technical evidence and execution trace visible to the evaluator.**
+
+---
+
+# 39. Shanetra Exploration Flow (`/explore`)
+
+Phase 1 and Phase 2 introduce the dedicated Earth-observation exploration workstation at `/explore` alongside the existing `/analysis` pipeline.
+
+```text
+                           TRINETRA
+                              │
+             ┌────────────────┴────────────────┐
+             │                                 │
+         /analysis                          /explore
+     (Guided Analysis)                 (Shanetra Workstation)
+             │                                 │
+     UPLOAD & QUERY                     EARTH VISUALIZATION
+             │                         (2D MapLibre / 3D Cesium)
+      SPECIALIST AI                            │
+             │                         DISCOVER OBSERVATIONS
+      EVIDENCE & PDF                   (Local GeoTIFFs / Copernicus)
+                                               │
+                                        SELECT OBSERVATION
+                                               │
+                                        + ADD TO MAP
+                                               │
+                                       WINDOWED TILE SERVICE
+                                  (/api/v1/explore/tiles/...png)
+                                               │
+                                       CONTROLLED LAYERS
+                                   (Visibility, Opacity, Limits)
+```
+
+### 39.1 Key Workflow Guarantees
+1. **Zero Browser Overload**: Full satellite GeoTIFFs are never downloaded to the browser. 256×256 PNG tiles are fetched dynamically on demand.
+2. **Deterministic Fallback**: Local indexed fixtures ensure the exploration shell remains 100% functional even in air-gapped or offline environments.
+3. **Strict Layer Governance**: Layer limits (`MAX_ACTIVE_IMAGERY_LAYERS = 2`) prevent WebGL context exhaustion and browser crashes.
+
+---
+
+# 40. Explore AI Natural-Language Control Flow (`/explore`)
+
+Phase 3 introduces controlled natural-language interaction to the Shanetra workstation via an air-gapped AI Gateway.
+
+```text
+                            USER INPUT
+                     ("Go to Nagpur and show S2")
+                                 │
+                                 ▼
+                         QUERY BAR & HUD
+                                 │
+                                 ▼
+                     ┌───────────────────────┐
+                     │ Fast Fallback Parser  │ ─── [Simple Match: reset, zoom, show] ───┐
+                     └───────────┬───────────┘                                          │
+                                 │                                                      │
+                            [Complex]                                                   │
+                                 ▼                                                      │
+                     ┌───────────────────────┐                                          │
+                     │  Fast Intent Router   │ (fast_router)                            │
+                     └───────────┬───────────┘                                          │
+                                 │                                                      │
+                                 ▼                                                      │
+                     ┌───────────────────────┐                                          │
+                     │  AI Command Planner   │ (planner + native Ollama JSON Schema)    │
+                     └───────────┬───────────┘                                          │
+                                 │                                                      │
+                                 ▼                                                      │
+                        STRUCTURED PLAN ◄───────────────────────────────────────────────┘
+                                 │
+                                 ▼
+                     ┌───────────────────────┐
+                     │      GeoResolver      │ (Gazetteer & Coordinate Parser)
+                     └───────────┬───────────┘
+                                 │
+                                 ▼
+                     ┌───────────────────────┐
+                     │   Command Validator   │ (Enforces Allowlist, Opacities, Bounds)
+                     └───────────┬───────────┘
+                                 │
+                        ┌────────┴────────┐
+                        │                 │
+                     [Valid]          [Invalid]
+                        │                 │
+                        ▼                 ▼
+                 ┌──────────────┐   ┌────────────┐
+                 │   Executor   │   │ Safe Error │
+                 └──────┬───────┘   └────────────┘
+                        │
+                        ▼
+                 ┌──────────────┐
+                 │ State Patch  │ (Camera Target & Visible Layers)
+                 └──────┬───────┘
+                        │
+                        ▼
+               GLOBE COMMAND BUS & CONTROLLER
+                 (MapLibre 2D / Cesium 3D)
+```
+
+### 40.1 Flow Guarantees
+1. **Sub-millisecond Fast Path**: Obvious commands (`reset`, `zoom in`, `show boundaries`) run deterministically in `< 0.02ms`, preserving GPU resources.
+2. **Hard Renderer Isolation**: The LLM outputs typed Pydantic command schemas; it never invokes renderer methods directly or executes arbitrary code.
+3. **Zero Coordinate Fabrication**: Place names pass through an embedded gazetteer; explicit coordinates are deterministically parsed and range-checked.
+4. **Idempotency & Resilience**: Re-enabling an active layer is a `no_op`. Map remains operational with offline notice if Ollama is unreachable.
+
+---
+
+# 41. Temporal Exploration, AOI Selection & Observation Comparison Flow (`/explore`)
+
+Phase 4 introduces multi-temporal satellite observation discovery, interactive Area of Interest (AOI) drawing, timeline scrubbing, and synchronized dual-observation comparison to Shanetra.
+
+```text
+                            EXPLORATION WORKSTATION
+                                       │
+                    ┌──────────────────┴──────────────────┐
+                    ▼                                     ▼
+           INTERACTIVE AOI DRAWING              TEMPORAL SEARCH CONTROLS
+        (Rectangle Box / Free Polygon)           (Date Range, Cloud Cover)
+                    │                                     │
+                    ▼                                     ▼
+            GEOJSON VALIDATION                   DISCOVERY QUERY DISPATCH
+         (POST /explore/aoi/validate)        (POST /explore/observations/search)
+          - Max area: 250,000 km²                         │
+          - Max vertices: 500                             ▼
+          - Geodesic LAEA area                 STAC SEARCH & NORMALIZATION
+          - SHA-256 geometry hash               - Copernicus STAC / Local Cache
+                    │                           - ObservationSummary schema
+                    │                           - Deterministic sort (DESC)
+                    └──────────────────┬──────────────────┘
+                                       │
+                                       ▼
+                             HORIZONTAL TIMELINE
+                     (Scrubbing, Step Controls, Playback)
+                                       │
+                    ┌──────────────────┴──────────────────┐
+                    ▼                                     ▼
+           INSPECT OBSERVATION                  SELECT OBSERVATION PAIR
+         - Footprint boundary                 - Observation A (e.g. Baseline)
+         - Metadata (Platform, Sun, Cloud)    - Observation B (e.g. Recent)
+         - Asset preview & band mapping                   │
+                                                          ▼
+                                                COMPATIBILITY VALIDATOR
+                                            (POST /explore/comparison/validate)
+                                             - Spatial overlap check (> 0%)
+                                             - Temporal delta calculation
+                                             - Sensor alignment warnings
+                                                          │
+                                                          ▼
+                                             DUAL-VIEW COMPARISON ENGINE
+                                              - Mode: split / side_by_side / opacity
+                                              - Draggable divider slider (0-100%)
+                                              - cameraSyncBus: Loop-free 2-way sync
+```
+
+### 41.1 Detailed Interaction Sequences
+
+#### Sequence A: AOI Selection & Geometry Governance
+1. User clicks **"Draw Box"** or **"Draw Polygon"** in the floating `AOIToolbar`.
+2. Map switches to draw mode; cursor transforms to crosshair.
+3. User drags a rectangle or clicks vertices on the map canvas. Double-click or closing the ring completes the geometry.
+4. The frontend calculates initial bounds and automatically submits the GeoJSON polygon to `/api/v1/explore/aoi/validate`.
+5. Backend computes exact geodesic area via Lambert Azimuthal Equal Area (LAEA) projection centered on geometry centroid:
+   - If area exceeds $250,000\text{ km}^2$, validation fails with actionable error message.
+   - If vertices exceed $500$, adaptive Douglas-Peucker simplification reduces vertex count while preserving spatial envelope.
+   - Computes deterministic SHA-256 geometry hash for cache deduplication.
+6. Frontend updates AOI status pill with computed area (e.g. `1,420.5 km²`) and activates temporal search.
+
+#### Sequence B: Multi-Temporal Observation Discovery
+1. User opens the **Temporal Sidebar Tab** or floating `TemporalToolbar`.
+2. Sets date range (e.g. `2024-01-01` to `2024-06-30`, max span 730 days) and maximum cloud cover threshold (e.g. `<= 20%`).
+3. Clicks **"Discover Observations"**.
+4. Backend executes `search_observations`:
+   - Checks memory-bounded LRU cache using composite key `(geometry_hash, datetime, collections, max_cloud_cover)`.
+   - On cache hit: returns in $< 20\text{ms}$.
+   - On cache miss: queries Copernicus STAC API (`stac.dataspace.copernicus.eu/v1`) with fallback to local indexed GeoTIFFs.
+   - Normalizes raw STAC items into compact `ObservationSummary` structures (stripping unused assets and properties to conserve bandwidth).
+5. Results populate both the horizontal acquisition `Timeline` and the observation catalog list.
+
+#### Sequence C: Timeline Scrubbing & Inspection
+1. Horizontal `Timeline` plots observation badges along the time axis, color-coded by cloud cover.
+2. Scrubbing or clicking an observation updates active selection state.
+3. User can click **Play** to automatically advance through observations sequentially at configured speed (1s, 2s, 5s per step).
+4. Clicking **"Inspect"** displays `ObservationDetails`: sensor platform, orbit direction, processing level, cloud cover percentage, and tile availability.
+
+#### Sequence D: Synchronized Observation Comparison
+1. User marks first observation as **"Set as Observation A"** (Baseline) and second observation as **"Set as Observation B"** (Comparison).
+2. Frontend calls `/api/v1/explore/comparison/validate`:
+   - Validates that $A \neq B$.
+   - Computes intersection bounding box and spatial overlap percentage.
+   - Calculates exact temporal delta (e.g. `+45 days`).
+   - Assesses sensor compatibility (e.g. Optical vs Optical, or Sentinel-2 vs Landsat-8).
+3. User selects comparison mode:
+   - **Split View**: A single viewport divided by a draggable vertical slider. Left side renders Observation A; right side renders Observation B using CSS clip-path or synchronized dual canvas.
+   - **Side-by-Side**: Two adjacent viewports for direct parallel inspection.
+   - **Opacity Fade**: A single viewport with an opacity slider blending Observation B over Observation A.
+4. **Loop-Free Camera Synchronization**:
+   - As user pans or zooms either map, `cameraSyncBus` broadcasts `{ center, zoom, bearing, pitch }` accompanied by a unique `originToken`.
+   - The opposing map updates its camera only if the event token originated from the other instance, preventing recursive ping-pong loops.
+
+#### Sequence E: AI Temporal Commands
+1. User types natural-language commands in the Query Bar:
+   - *"Select area around coordinates 79.08, 21.14"* $\rightarrow$ `SET_AOI`
+   - *"Show observations from last month with less than 15% clouds"* $\rightarrow$ `SET_DATE_RANGE` + `search`
+   - *"Compare latest observation with previous"* $\rightarrow$ `COMPARE_OBSERVATIONS(mode="split")`
+2. AI Command Validator checks parameters against strict bounds before invoking the Command Executor.
+
+### 41.2 Performance & Boundary Guarantees
+- **Zero Full-Raster Download**: Browser never loads full Multi-spectral GeoTIFFs; imagery is rendered through 256×256 WebP/PNG dynamic windowed tiles.
+- **Cache Acceleration**: Multi-temporal searches for repeated AOIs achieve $200\times+$ speedups via SHA-256 hash caching.
+- **Strict Separation from `/analysis`**: All temporal exploration, AOI drawing, and split comparison workflows operate entirely within `/explore`. Zero changes, zero state leakage, and zero regressions to existing `/analysis` specialist pipelines.
+
+
+

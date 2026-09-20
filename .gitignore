@@ -226,3 +226,6 @@ shatnetra/test-results/
 shatnetra/coverage/
 
 .png
+
+# Exploration runtime caches
+backend/runtime_cache/

@@ -1857,3 +1857,135 @@ The evidence layer makes results inspectable.
 The execution trace makes the system auditable.
 
 Together, these components form the technical implementation required to satisfy the SatQuery AI problem statement.
+
+---
+
+# 46. Exploration & Shanetra Architecture (Phase 1 & Phase 2 Verified Implementation)
+
+The TRINETRA system integrates an isolated Earth-observation exploration workstation at `/explore` without altering existing `/analysis` workflows.
+
+### 46.1 Dual-Renderer Controlled Architecture
+* **2D Vector/Raster Map**: Powered by MapLibre GL JS with watermark-free Esri Dark Gray canvas tiles and dynamic Web Mercator raster tile layers.
+* **3D Earth Globe**: Powered by CesiumJS with `requestRenderMode` conservatism, dynamic client-side module loading, and multi-layer imagery providers.
+* **Centralized Controller & Command Bus**: Unified `GlobeController` and `GlobeCommandBus` preventing direct map state mutations and eliminating memory leaks.
+
+### 46.2 Backend Exploration Engine (`backend/exploration/`)
+* **Local Provider**: In-memory metadata index of curated GeoTIFF fixtures, supporting spatial bounding-box searches and deterministic local testing.
+* **STAC Provider**: SpatioTemporal Asset Catalog client for Copernicus Data Space (`https://stac.dataspace.copernicus.eu/v1/`) with normalized item parsing, request field minimization, and explicit 5s/10s connect/read timeouts.
+* **Windowed Raster Service**: Extracts pixel windows (`rasterio.windows.from_bounds`) directly from source files, preventing massive raster loads into memory.
+* **Slippy Tile Service**: Dynamically generates 256×256 PNG tiles at `/api/v1/explore/tiles/{layer_id}/{z}/{x}/{y}.png` with ETag and Cache-Control headers.
+* **Bounded LRU/TTL Cache**: Thread-safe in-memory cache for tile bytes (1000 items, 900s TTL), raster metadata (300 items, 3600s TTL), and STAC queries (100 items, 300s TTL).
+* **Layer Policy Engine**: Security and rendering governance enforcing:
+  - `MAX_ACTIVE_BASE_LAYERS = 1`
+  - `MAX_ACTIVE_IMAGERY_LAYERS = 2`
+  - `MAX_ACTIVE_ANALYTICAL_LAYERS = 4`
+  - Zoom gating and strict path traversal protection (`^[a-zA-Z0-9_\-\.:]{1,128}$`).
+
+### 46.3 Verified Performance Baseline (`outputs/performance/explore_phase2_tiles.json`)
+* Cold tile generation latency: ~20.48ms
+* Cached tile latency: ~0.0036ms (p50: 0.0033ms, p95: 0.0036ms)
+* Cache hit ratio: 99.0%
+* All 56 regression and unit tests passing 100%.
+
+---
+
+# 47. Phase 3 Natural-Language Exploration Engine & AI Command Gateway
+
+Phase 3 introduces the first operational natural-language command capability to `/explore`, establishing a strictly validated, typed command gateway between local LLMs (Ollama) and the map/globe renderers.
+
+### 47.1 AI Command Gateway Architecture
+* **Strict Command Boundary**: The LLM outputs an abstract `ExploreCommandPlan` and never has direct access to DOM or renderer APIs (`map.flyTo`, `viewer.camera`).
+* **Fast-Path Deterministic Parser (`fallback_parser.py`)**: Sub-millisecond string and regex parser (`< 0.02ms` p50) that executes simple, predictable operations (`reset`, `zoom in`, `zoom out`, `show/hide boundaries`) while completely bypassing GPU inference.
+* **Two-Stage Model Inference**:
+  1. **Stage A: Fast Intent Router (`fast_router`)**: Classifies query into `navigation`, `layer_control`, `dataset_search`, `view_control`, `reset`, `combined`, or `unsupported`. Deferrals for deep scientific analysis (VQA, change detection, NDVI) are safely filtered out before planning.
+  2. **Stage B: Structured Command Planner (`planner`)**: Emits typed command plans via Ollama's native JSON Schema-constrained format (`OllamaProvider.generate_structured_native`) with temperature 0.0.
+* **Discriminated Command Models (`ai_schemas.py`)**:
+  - `FLY_TO`, `ZOOM_IN`, `ZOOM_OUT`, `RESET_VIEW`
+  - `SHOW_LAYER`, `HIDE_LAYER`, `SET_LAYER_OPACITY`, `REMOVE_LAYER`
+  - `SEARCH_DATASETS`, `ADD_DATASET_LAYER`
+  - Maximum limit enforced: `MAX_AI_COMMANDS_PER_REQUEST = 6`.
+* **Zero Coordinate / Dataset Hallucination**:
+  - Places are resolved via offline gazetteer and deterministic coordinate parser (`GeoResolver`), with LRU memory caching (bounded at 256 items).
+  - Ambiguous place names (`Springfield`) trigger `EXPLORE_LOCATION_AMBIGUOUS` and halt navigation.
+  - Dataset discovery delegates to the Phase 2 `DataBroker`; the model cannot fabricate observation IDs.
+* **Sequential Execution & Idempotency (`command_executor.py`)**:
+  - Duplicate layer activations produce `no_op`.
+  - Partial failure handling halts execution at failing command, marking subsequent commands `cancelled`.
+  - Compact `state_patch` and deterministic user summaries (no redundant 3rd LLM call).
+* **Workstation UI Components**:
+  - `QueryBar.tsx`: Floating tactical query bar with `AbortController` request cancellation.
+  - `QuerySuggestions.tsx`: Contextual suggestion chips based on active layer state.
+  - `CommandActivity.tsx`: Live execution progress HUD.
+  - `AIStatus.tsx`: Telemetry badge reporting local model readiness.
+
+### 47.2 Verified Phase 3 Performance Baseline (`outputs/performance/explore_phase3_ai.json`)
+* Fast-Path p50 latency: **0.0151 ms** (Target: < 0.5 ms)
+* Fast-Path p95 latency: **0.0210 ms** (Target: < 1.0 ms)
+* Mocked AI Path p50 latency: **0.215 ms**
+* Prompt estimated token budget: **178 tokens** (Bounded < 1000 tokens)
+* Complete Test Suite: **91 exploration tests + 21 system tests = 112 passed 100%**.
+
+---
+
+# 48. Phase 4 Temporal Exploration, AOI Selection & Observation Comparison Architecture
+
+Phase 4 completes the multi-temporal discovery, geographic selection, and comparative observation foundations of the `/explore` workstation, enabling multi-temporal satellite querying and visual side-by-side analysis without triggering full raster downloads or modifying the `/analysis` workflows.
+
+### 48.1 Server-Authoritative Area of Interest (AOI) Governance (`backend/exploration/aoi/`)
+* **Strict Policy Engine (`validator.py`, `AOIPolicy`)**:
+  - Validates all user and AI polygons server-side prior to query execution.
+  - Limits maximum surface area to **250,000 km²** (`exploration_max_aoi_area_km2`).
+  - Limits vertex count to **500 vertices** (`exploration_max_aoi_vertices`).
+  - Rejects NaN/Inf coordinates, self-intersections, and unclosed polygon rings.
+* **Geodesic Calculations (`geometry.py`)**:
+  - Uses `pyproj` local Lambert Azimuthal Equal Area (`laea`) projections centered on polygon centroids for sub-meter area estimation.
+  - Normalizes antimeridian crossings into `[-180, 180]` longitude bounds.
+  - Computes deterministic SHA-256 geometry hashes (`geometry_hash`) to power stable query caching across sessions.
+* **Adaptive Douglas-Peucker Simplification (`simplifier.py`)**:
+  - Downsamples overly complex vector geometries while preserving topological validity (`shapely.simplify(preserve_topology=True)`).
+
+### 48.2 Multi-Temporal Observation Discovery (`backend/exploration/temporal/`)
+* **Capability-Aware STAC Client (`stac_provider.py`)**:
+  - Discovers Sentinel-2 and Sentinel-1 acquisitions from the Copernicus Data Space (`https://stac.dataspace.copernicus.eu/v1/`).
+  - Employs spatial intersection queries (`intersects`), temporal interval spans (`datetime`), and cloud-cover filtering (`query: {"eo:cloud_cover": {"lte": max}}`).
+  - Enforces strict 5s connect and 10s read timeouts with graceful offline fallback.
+* **Bounded Normalization (`normalizer.py`)**:
+  - Strips extensive STAC metadata payloads down to compact, lightweight `ObservationSummary` models (ID, platform, datetime, cloud cover %, bbox, thumbnail URL, asset keys).
+  - Protects browser memory from bloating across long temporal sequence queries.
+* **Deterministic Sorting & Resolving (`sorter.py`, `resolver.py`)**:
+  - Sorts acquisitions deterministically (`datetime_desc`, `datetime_asc`, `cloud_asc`) with duplicate identification across providers.
+  - Exposes natural-language resolution helpers (`resolve_latest`, `resolve_previous`, `resolve_pair`).
+* **Multi-Dimensional Temporal Cache (`cache.py`)**:
+  - Dedicated `temporal_search_cache` keyed by `(aoi_hash, start_dt, end_dt, collections, cloud_max, sort, limit)`.
+  - Cache hits execute in **~15ms** (a **261x speedup** over live external catalog discovery).
+
+### 48.3 Dual-Observation Comparison Subsystem (`backend/exploration/comparison/`)
+* **Pair Compatibility Engine (`validator.py`, `ComparisonValidator`)**:
+  - Enforces self-comparison prevention ($A \neq B$).
+  - Calculates temporal delta in days between acquisition timestamps.
+  - Computes spatial overlap percentage via Shapely bounding-box intersection; rejects pairs with $< 10\%$ overlap as disjoint footprints, and flags partial overlap ($10\% - 50\%$) with warnings.
+* **Comparison Modes & Controls**:
+  - **Split View (`split`)**: Real-time draggable vertical divider with dual synchronized map panes.
+  - **Side-by-Side (`side_by_side`)**: Simultaneous dual-viewport layout.
+  - **Opacity Blend (`opacity`)**: Alpha blending slider for layer B overlay.
+* **Loop-Free Camera Synchronization (`camera-sync.ts`, `cameraSyncBus`)**:
+  - Token-based origin tracking (`view-a`, `view-b`, `system`) preventing infinite feedback loops during interactive panning and zooming.
+
+### 48.4 AI Gateway Temporal Extensions (`ai_schemas.py`, `command_validator.py`, `command_executor.py`)
+* Five new typed, validated explore commands:
+  - `SET_AOI`: Establishes validated polygon boundary.
+  - `CLEAR_AOI`: Clears active AOI.
+  - `SET_DATE_RANGE`: Constrains temporal search window.
+  - `SELECT_OBSERVATION`: Selects observation for inspection or primary slot.
+  - `COMPARE_OBSERVATIONS`: Initiates dual comparison mode with validation.
+* Zero URL or coordinate hallucination: All commands validate against catalog and policy boundaries.
+
+### 48.5 Verified Phase 4 Performance Baseline (`outputs/performance/explore_phase4_temporal.json`)
+* AOI Geodesic Validation Latency: **41.44 ms**
+* Live Multi-Temporal Search Latency: **3948.88 ms**
+* Cached Multi-Temporal Search Latency: **15.078 ms** (Speedup: **261.9x**)
+* Frontend Build: Turbopack compilation clean in **4.9s**, TypeScript strict check **0 errors**.
+* Full Exploration Backend Test Suite: **120 tests passing 100%**.
+
+
+
