@@ -54,25 +54,28 @@ class ChangeDatasetValidator:
 
         if os.path.isdir(a_dir) and os.path.isdir(b_dir):
             a_files = sorted(os.listdir(a_dir))
+            b_map = {os.path.splitext(f)[0]: f for f in os.listdir(b_dir)}
+            lbl_map = {os.path.splitext(f)[0]: f for f in os.listdir(lbl_dir)} if os.path.isdir(lbl_dir) else {}
+
             for fname in a_files:
                 base, ext = os.path.splitext(fname)
                 if ext.lower() not in cls.SUPPORTED_EXTS:
                     continue
 
                 t1_path = os.path.join(a_dir, fname)
-                # Find matching t2 and label
-                t2_candidates = glob.glob(os.path.join(b_dir, f"{base}.*"))
-                lbl_candidates = glob.glob(os.path.join(lbl_dir, f"{base}.*")) if os.path.isdir(lbl_dir) else []
-
-                if not t2_candidates:
+                t2_fname = b_map.get(base)
+                if not t2_fname:
                     raise DatasetValidationError(
                         f"Missing T2 (post-change) counterpart for sample '{base}' in '{b_dir}'"
                     )
+                t2_path = os.path.join(b_dir, t2_fname)
+                lbl_fname = lbl_map.get(base)
+                lbl_path = os.path.join(lbl_dir, lbl_fname) if lbl_fname else ""
 
                 triplets[base] = {
                     "t1_path": t1_path,
-                    "t2_path": t2_candidates[0],
-                    "label_path": lbl_candidates[0] if lbl_candidates else ""
+                    "t2_path": t2_path,
+                    "label_path": lbl_path
                 }
         else:
             # Check for subdirectories per pair: <split_dir>/<pair_id>/

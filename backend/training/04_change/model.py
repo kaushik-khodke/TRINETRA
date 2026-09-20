@@ -61,12 +61,15 @@ class HybridBCEDiceLoss(nn.Module):
         super().__init__()
         self.bce_weight = bce_weight
         self.dice_weight = dice_weight
-        pw = torch.tensor([pos_weight]) if pos_weight is not None else None
-        self.bce = nn.BCEWithLogitsLoss(pos_weight=pw)
+        if pos_weight is not None:
+            self.register_buffer("pos_weight", torch.tensor([pos_weight], dtype=torch.float32))
+        else:
+            self.pos_weight = None
         self.dice = DiceLoss()
 
     def forward(self, logits: torch.Tensor, targets: torch.Tensor) -> torch.Tensor:
-        bce_loss = self.bce(logits, targets.float())
+        pw = self.pos_weight.to(logits.device) if self.pos_weight is not None else None
+        bce_loss = F.binary_cross_entropy_with_logits(logits, targets.float(), pos_weight=pw)
         dice_loss = self.dice(logits, targets.float())
         return self.bce_weight * bce_loss + self.dice_weight * dice_loss
 

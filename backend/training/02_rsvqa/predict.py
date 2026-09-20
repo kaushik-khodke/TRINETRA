@@ -15,15 +15,15 @@ training_dir = os.path.abspath(os.path.join(os.path.dirname(__file__), ".."))
 if training_dir not in sys.path:
     sys.path.insert(0, training_dir)
 
-from model import RSVqaFusionNetwork
+backend_dir = os.path.abspath(os.path.join(os.path.dirname(__file__), "..", ".."))
+if backend_dir not in sys.path:
+    sys.path.insert(0, backend_dir)
+
+from models.tokenizer import tokenize_sequence
+from model import RSVqaFusionNetwork, load_vqa_model
 
 def tokenize_query(text: str, max_len: int = 16) -> torch.Tensor:
-    words = text.lower().replace("?", "").replace(",", "").split()
-    ids = []
-    for w in words[:max_len]:
-        ids.append(abs(hash(w)) % 4900 + 100)
-    while len(ids) < max_len:
-        ids.append(0)
+    ids = tokenize_sequence(text, max_length=max_len, vocab_size=5000, offset=100)
     return torch.tensor([ids], dtype=torch.long)
 
 def predict_vqa(args):
@@ -56,9 +56,7 @@ def predict_vqa(args):
     token_tensor = tokenize_query(args.question).to(device)
 
     # Model
-    model = RSVqaFusionNetwork(num_answers=len(idx2ans)).to(device)
-    weights = torch.load(args.checkpoint, map_location=device)
-    model.load_state_dict(weights)
+    model = load_vqa_model(args.checkpoint, device=device)
     model.eval()
 
     with torch.no_grad():

@@ -153,13 +153,19 @@ class ModelManager:
         if model_key == "bigearthnet_adapted":
             model = BigEarthNetAdaptedResNet(in_channels=4, num_classes=19).to(device)
         elif model_key == "rs_vqa_model":
-            num_answers = 120
-            vocab_size = 5000
-            if "fusion.3.weight" in state:
-                num_answers = state["fusion.3.weight"].shape[0]
-            if "text_embedding.weight" in state:
-                vocab_size = state["text_embedding.weight"].shape[0]
-            model = RSVqaFusionNetwork(vocab_size=vocab_size, num_answers=num_answers).to(device)
+            vocab_size = state["text_embedding.weight"].shape[0] if "text_embedding.weight" in state else 5000
+            is_resnet = (
+                "text_encoder.weight_ih_l0_reverse" in state or
+                ("fusion.0.weight" in state and state["fusion.0.weight"].shape[1] == 768) or
+                ("visual_encoder.0.weight" in state and state["visual_encoder.0.weight"].shape[2] == 7)
+            )
+            if is_resnet:
+                from models.architectures import RSVqaResNetFusionNetwork
+                num_answers = state["fusion.4.weight"].shape[0] if "fusion.4.weight" in state else 147
+                model = RSVqaResNetFusionNetwork(vocab_size=vocab_size, num_answers=num_answers, pretrained=False).to(device)
+            else:
+                num_answers = state["fusion.3.weight"].shape[0] if "fusion.3.weight" in state else 147
+                model = RSVqaFusionNetwork(vocab_size=vocab_size, num_answers=num_answers).to(device)
         elif model_key == "rs_grounding_model":
             model = RSGroundingDetector().to(device)
         elif model_key == "change_specialist_model":

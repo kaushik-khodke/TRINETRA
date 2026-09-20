@@ -26,11 +26,12 @@ def prepare_change(data_dir: str, manifest_dir: str, verify_only: bool = False):
     print("=================================================================")
 
     data_path = Path(data_dir)
-    # Check for LEVIR-CD structure (A, B, label) or OSCD structure
+    # Check for LEVIR-CD structure with split subdirs (train/A, val/A, test/A), flat (A, B, label), or OSCD structure
+    has_split_dirs = (data_path / "train" / "A").exists() and (data_path / "train" / "B").exists()
     is_levir = (data_path / "A").exists() and (data_path / "B").exists()
-    is_oscd = (data_path / "train").exists() or any("pair" in f.name.lower() for f in data_path.iterdir() if f.is_dir())
+    is_oscd = not (has_split_dirs or is_levir) and ((data_path / "train").exists() or any("pair" in f.name.lower() for f in data_path.iterdir() if f.is_dir()))
 
-    if not (is_levir or is_oscd):
+    if not (has_split_dirs or is_levir or is_oscd):
         verify_real_dataset(data_dir, ["A", "B"], DATASET_NAME, OFFICIAL_URL)
 
     print(f"[+] Verified genuine bi-temporal structure at: {data_path.resolve()}")
@@ -40,40 +41,74 @@ def prepare_change(data_dir: str, manifest_dir: str, verify_only: bool = False):
         return
 
     # Extract sample IDs
-    if is_levir:
+    if has_split_dirs:
+        print("[+] Detected standard split directories (train/, val/, test/).")
+        train_files = sorted(glob.glob(os.path.join(data_dir, "train", "A", "*.*")))
+        val_files = sorted(glob.glob(os.path.join(data_dir, "val", "A", "*.*")))
+        test_files = sorted(glob.glob(os.path.join(data_dir, "test", "A", "*.*"))) if (data_path / "test" / "A").exists() else []
+
+        train_ids = [Path(f).stem for f in train_files]
+        val_ids = [Path(f).stem for f in val_files]
+        test_ids = [Path(f).stem for f in test_files]
+    elif is_levir:
         a_files = sorted(glob.glob(os.path.join(data_dir, "A", "*.*")))
         sample_ids = [Path(f).stem for f in a_files]
+        print(f"[+] Found {len(sample_ids):,} verified bi-temporal pairs.")
+
+        # Check if samples already have official split prefixes (e.g. train_*, val_*, test_*)
+        train_prefixed = [sid for sid in sample_ids if sid.lower().startswith("train_") or sid.lower().startswith("train/")]
+        val_prefixed = [sid for sid in sample_ids if sid.lower().startswith("val_") or sid.lower().startswith("val/")]
+        test_prefixed = [sid for sid in sample_ids if sid.lower().startswith("test_") or sid.lower().startswith("test/")]
+
+        if train_prefixed and val_prefixed and test_prefixed:
+            print("[+] Detected official LEVIR-CD benchmark splits from file prefixes.")
+            train_ids = sorted(train_prefixed)
+            val_ids = sorted(val_prefixed)
+            test_ids = sorted(test_prefixed)
+        else:
+            # Deterministic 70/15/15 Split
+            import random
+            rng = random.Random(42)
+            shuffled = list(sample_ids)
+            rng.shuffle(shuffled)
+
+            n = len(shuffled)
+            n_train = int(0.70 * n)
+            n_val = int(0.15 * n)
+
+            train_ids = shuffled[:n_train]
+            val_ids = shuffled[n_train:n_train + n_val]
+            test_ids = shuffled[n_train + n_val:]
     else:
         # OSCD directory
         pairs = [f.name for f in data_path.iterdir() if f.is_dir()]
         sample_ids = sorted(pairs)
+        print(f"[+] Found {len(sample_ids):,} verified bi-temporal pairs.")
 
-    print(f"[+] Found {len(sample_ids):,} verified bi-temporal pairs.")
+        # Check if samples already have official split prefixes (e.g. train_*, val_*, test_*)
+        train_prefixed = [sid for sid in sample_ids if sid.lower().startswith("train_") or sid.lower().startswith("train/")]
+        val_prefixed = [sid for sid in sample_ids if sid.lower().startswith("val_") or sid.lower().startswith("val/")]
+        test_prefixed = [sid for sid in sample_ids if sid.lower().startswith("test_") or sid.lower().startswith("test/")]
 
-    # Check if samples already have official split prefixes (e.g. train_*, val_*, test_*)
-    train_prefixed = [sid for sid in sample_ids if sid.lower().startswith("train_") or sid.lower().startswith("train/")]
-    val_prefixed = [sid for sid in sample_ids if sid.lower().startswith("val_") or sid.lower().startswith("val/")]
-    test_prefixed = [sid for sid in sample_ids if sid.lower().startswith("test_") or sid.lower().startswith("test/")]
+        if train_prefixed and val_prefixed and test_prefixed:
+            print("[+] Detected official LEVIR-CD benchmark splits from file prefixes.")
+            train_ids = sorted(train_prefixed)
+            val_ids = sorted(val_prefixed)
+            test_ids = sorted(test_prefixed)
+        else:
+            # Deterministic 70/15/15 Split
+            import random
+            rng = random.Random(42)
+            shuffled = list(sample_ids)
+            rng.shuffle(shuffled)
 
-    if train_prefixed and val_prefixed and test_prefixed:
-        print("[+] Detected official LEVIR-CD benchmark splits from file prefixes.")
-        train_ids = sorted(train_prefixed)
-        val_ids = sorted(val_prefixed)
-        test_ids = sorted(test_prefixed)
-    else:
-        # Deterministic 70/15/15 Split
-        import random
-        rng = random.Random(42)
-        shuffled = list(sample_ids)
-        rng.shuffle(shuffled)
+            n = len(shuffled)
+            n_train = int(0.70 * n)
+            n_val = int(0.15 * n)
 
-        n = len(shuffled)
-        n_train = int(0.70 * n)
-        n_val = int(0.15 * n)
-
-        train_ids = shuffled[:n_train]
-        val_ids = shuffled[n_train:n_train + n_val]
-        test_ids = shuffled[n_train + n_val:]
+            train_ids = shuffled[:n_train]
+            val_ids = shuffled[n_train:n_train + n_val]
+            test_ids = shuffled[n_train + n_val:]
 
     # Mathematically verify split leakage
     verify_split_leakage(train_ids, val_ids, test_ids)

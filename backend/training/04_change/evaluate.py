@@ -101,19 +101,45 @@ def run_evaluation(args):
     metrics = binary_change_mask_metrics(preds_arr, gts_arr, threshold=args.threshold)
     failure_report = ChangeFailureAnalysisEngine.generate_failure_report(sample_diagnoses)
 
+    # Historical baseline from earlier small LEVIR-CD run
+    PREVIOUS = {
+        "f1": 0.3152,
+        "iou": 0.1871,
+        "accuracy": 0.8976,
+        "precision": 0.2391,
+        "recall": 0.4625,
+        "object_f1": 0.4254
+    }
+
     print("------------------------------------------------------------")
     print("TEST BENCHMARK RESULTS (Strictly Held-Out Test Split)")
     print("------------------------------------------------------------")
     print(f"Overall Accuracy:       {metrics['accuracy'] * 100:.2f}%")
-    print(f"Precision:              {metrics['precision']:.4f}")
-    print(f"Recall:                 {metrics['recall']:.4f}")
-    print(f"F1 Score:               {metrics['f1']:.4f}")
-    print(f"Intersection over Union (IoU): {metrics['iou']:.4f}")
+    print(f"Precision:              {metrics['precision']:.4f} ({metrics['precision'] * 100:.2f}%)")
+    print(f"Recall:                 {metrics['recall']:.4f} ({metrics['recall'] * 100:.2f}%)")
+    print(f"F1 Score:               {metrics['f1']:.4f} ({metrics['f1'] * 100:.2f}%)")
+    print(f"Intersection over Union (IoU): {metrics['iou']:.4f} ({metrics['iou'] * 100:.2f}%)")
     print(f"Confusion Matrix:       TP={metrics['confusion_matrix']['tp']:,}, FP={metrics['confusion_matrix']['fp']:,}, TN={metrics['confusion_matrix']['tn']:,}, FN={metrics['confusion_matrix']['fn']:,}")
+    obj_f1 = 0.0
     if "object_metrics" in metrics and "error" not in metrics["object_metrics"]:
         obj = metrics["object_metrics"]
-        print(f"Object F1:              {obj.get('object_f1', 0.0):.4f} (Detected: {obj.get('detected_objects', 0)}/{obj.get('gt_object_count', 0)})")
+        obj_f1 = obj.get("object_f1", 0.0)
+        print(f"Object F1:              {obj_f1:.4f} ({obj_f1 * 100:.2f}%) (Detected: {obj.get('detected_objects', 0)}/{obj.get('gt_object_count', 0)})")
     print(f"Total Evaluated Pairs:  {len(test_ds):,}")
+
+    print("\n============================================================")
+    print("TRINETRA — RETRAINING PERFORMANCE DIFFERENTIATION (TEST SET)")
+    print("============================================================")
+    print(f"Metric                 Previous Model    Retrained Model      Delta")
+    print(f"F1 Score:              {PREVIOUS['f1']*100:6.2f}%            {metrics['f1']*100:6.2f}%           {(metrics['f1']-PREVIOUS['f1'])*100:+6.2f}%")
+    print(f"IoU (Overlap):         {PREVIOUS['iou']*100:6.2f}%            {metrics['iou']*100:6.2f}%           {(metrics['iou']-PREVIOUS['iou'])*100:+6.2f}%")
+    print(f"Overall Accuracy:      {PREVIOUS['accuracy']*100:6.2f}%            {metrics['accuracy']*100:6.2f}%           {(metrics['accuracy']-PREVIOUS['accuracy'])*100:+6.2f}%")
+    print(f"Precision:             {PREVIOUS['precision']*100:6.2f}%            {metrics['precision']*100:6.2f}%           {(metrics['precision']-PREVIOUS['precision'])*100:+6.2f}%")
+    print(f"Recall:                {PREVIOUS['recall']*100:6.2f}%            {metrics['recall']*100:6.2f}%           {(metrics['recall']-PREVIOUS['recall'])*100:+6.2f}%")
+    if obj_f1 > 0:
+        print(f"Object F1:             {PREVIOUS['object_f1']*100:6.2f}%            {obj_f1*100:6.2f}%           {(obj_f1-PREVIOUS['object_f1'])*100:+6.2f}%")
+    print("============================================================\n")
+
     print("------------------------------------------------------------")
     print("FAILURE AUTOPSY SUMMARY")
     print(f"Identified Failure Cases: {failure_report['total_failures']}")
@@ -151,6 +177,7 @@ def run_evaluation(args):
     with open(metrics_path, "w", encoding="utf-8") as f:
         json.dump({
             "metrics": metrics,
+            "previous_baseline": PREVIOUS,
             "benchmark_run": benchmark_run.model_dump(),
             "failure_report": failure_report
         }, f, indent=2)
@@ -170,7 +197,7 @@ if __name__ == "__main__":
     parser.add_argument("--checkpoint", type=str, required=True, help="Path to trained checkpoint (.pt).")
     parser.add_argument("--data_dir", type=str, required=True, help="Path to dataset directory.")
     parser.add_argument("--manifest", type=str, default=None, help="Path to change_test.txt.")
-    parser.add_argument("--model", type=str, default="baseline", choices=["baseline", "bit"], help="Model architecture")
+    parser.add_argument("--model", type=str, default="bit", choices=["baseline", "bit"], help="Model architecture (default: bit)")
     parser.add_argument("--batch_size", type=int, default=16)
     parser.add_argument("--image_size", type=int, default=256)
     parser.add_argument("--threshold", type=float, default=0.5)
