@@ -30,6 +30,8 @@ class RSGroundingSpecialist:
         intent = SpatialQueryInterpreter.parse(query)
         clean_q = query.lower()
         regions: List[Dict[str, Any]] = []
+        mask = None
+        feature_label = f"Target: {intent.target.title()}"
 
         h, w = image_arr.shape[:2]
         max_dim = max(h, w)

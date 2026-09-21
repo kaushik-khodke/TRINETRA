@@ -351,7 +351,7 @@ python backend/training/06_hyperspectral/failure_analysis.py `
 ### Alternative: Standalone Google Colab / Headless GPU Script
 ```powershell
 # Run the standalone Colab adaptation script locally or copy to Colab notebook
-python 06_train_hyperspectral_colab.py `
+python backend/training/06_hyperspectral/train_colab.py `
   --dataset indian_pines `
   --epochs 10 `
   --lr 0.001 `

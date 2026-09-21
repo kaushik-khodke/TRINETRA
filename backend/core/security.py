@@ -24,11 +24,11 @@ from core.exceptions import SecurityViolationError
 class SecurityValidator:
     """Central security and input validation engine for TRINETRA."""
 
-    # Whitelist of allowed extensions for remote sensing and tabular data
+    # Whitelist of allowed extensions for remote sensing, imagery, and tabular data
     ALLOWED_EXTENSIONS = {
         ".tif", ".tiff", ".geotiff",
-        ".png", ".jpg", ".jpeg",
-        ".mat", ".h5", ".hdf5", ".nc",
+        ".png", ".jpg", ".jpeg", ".webp", ".bmp", ".gif", ".jp2",
+        ".mat", ".h5", ".hdf5", ".nc", ".hdr", ".dat", ".img",
         ".npy", ".npz",
         ".json", ".csv",
         ".zip", ".tar", ".gz"
@@ -196,11 +196,40 @@ class SecurityValidator:
 
         elif ext == ".png":
             if not header.startswith(cls.MAGIC_SIGNATURES["png"]):
+                if header.startswith(b"MZ") or header.startswith(b"\x7fELF"):
+                    raise SecurityViolationError(f"Disguised binary executable detected in PNG file '{filename}'.")
                 raise SecurityViolationError(f"Invalid PNG magic bytes in file '{filename}'.")
 
         elif ext in [".jpg", ".jpeg"]:
             if not header.startswith(cls.MAGIC_SIGNATURES["jpeg"]):
+                if header.startswith(b"MZ") or header.startswith(b"\x7fELF"):
+                    raise SecurityViolationError(f"Disguised binary executable detected in JPEG file '{filename}'.")
                 raise SecurityViolationError(f"Invalid JPEG magic bytes in file '{filename}'.")
+
+        elif ext == ".webp":
+            if not header.startswith(b"RIFF"):
+                if header.startswith(b"MZ") or header.startswith(b"\x7fELF"):
+                    raise SecurityViolationError(f"Disguised binary executable detected in WebP file '{filename}'.")
+                raise SecurityViolationError(f"Invalid WebP magic bytes in file '{filename}'.")
+
+        elif ext == ".bmp":
+            if not header.startswith(b"BM"):
+                if header.startswith(b"MZ") or header.startswith(b"\x7fELF"):
+                    raise SecurityViolationError(f"Disguised binary executable detected in BMP file '{filename}'.")
+                raise SecurityViolationError(f"Invalid BMP magic bytes in file '{filename}'.")
+
+        elif ext == ".gif":
+            if not (header.startswith(b"GIF87a") or header.startswith(b"GIF89a")):
+                if header.startswith(b"MZ") or header.startswith(b"\x7fELF"):
+                    raise SecurityViolationError(f"Disguised binary executable detected in GIF file '{filename}'.")
+                raise SecurityViolationError(f"Invalid GIF magic bytes in file '{filename}'.")
+
+        elif ext == ".jp2":
+            valid_jp2 = header.startswith(b"\x00\x00\x00\x0c") or header.startswith(b"\xff\x4f")
+            if not valid_jp2:
+                if header.startswith(b"MZ") or header.startswith(b"\x7fELF"):
+                    raise SecurityViolationError(f"Disguised binary executable detected in JPEG 2000 file '{filename}'.")
+                raise SecurityViolationError(f"Invalid JPEG 2000 magic bytes in file '{filename}'.")
 
         elif ext in [".h5", ".hdf5"]:
             if not header.startswith(cls.MAGIC_SIGNATURES["hdf5"]):

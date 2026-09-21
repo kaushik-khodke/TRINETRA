@@ -22,7 +22,11 @@ class ValidationReport(BaseModel):
     validation_object: Optional[Dict[str, Any]] = None
 
 class InputValidator:
-    SUPPORTED_EXTENSIONS = [".tif", ".tiff", ".png", ".jpg", ".jpeg", ".mat", ".hdr", ".dat"]
+    SUPPORTED_EXTENSIONS = [
+        ".tif", ".tiff", ".geotiff",
+        ".png", ".jpg", ".jpeg", ".webp", ".bmp", ".gif",
+        ".mat", ".hdr", ".dat", ".jp2", ".img"
+    ]
 
     @staticmethod
     def validate(
@@ -30,7 +34,7 @@ class InputValidator:
         requested_mode: str = "single",
         declared_modalities: Optional[List[str]] = None
     ) -> ValidationReport:
-        # 1. Image count check
+        # 1. Image count check & flexible mode adaptation
         count = len(file_paths)
         if count == 0:
             return ValidationReport(
@@ -47,18 +51,13 @@ class InputValidator:
                 else:
                     requested_mode = "bi_temporal"
             else:
-                return ValidationReport(
-                    valid=False,
-                    mode=requested_mode,
-                    error_message=f"Single-image mode expects exactly 1 image, but received {count}."
-                )
+                # Multiple files under single mode: adapt by analyzing primary image
+                count = 1
+                file_paths = [file_paths[0]]
 
-        if requested_mode in ["bi_temporal", "optical_sar"] and count != 2:
-            return ValidationReport(
-                valid=False,
-                mode=requested_mode,
-                error_message=f"Paired workflow '{requested_mode}' expects exactly 2 images, but received {count}."
-            )
+        if requested_mode in ["bi_temporal", "optical_sar"] and count < 2:
+            # Auto-adapt to single-image mode when only 1 image is supplied
+            requested_mode = "single"
 
         # 2. File readability, format, and intelligent domain checks
         parsed_metadata: List[RasterMetadata] = []
@@ -77,7 +76,7 @@ class InputValidator:
                 return ValidationReport(
                     valid=False,
                     mode=requested_mode,
-                    error_message=f"Unsupported format '{ext}'. Must be GeoTIFF, HSI (.mat/.hdr), or benchmark PNG/JPEG."
+                    error_message=f"Unsupported format '{ext}'. Must be an image or raster file ({', '.join(InputValidator.SUPPORTED_EXTENSIONS[:6])})."
                 )
 
             declared_mod = declared_modalities[i] if declared_modalities and i < len(declared_modalities) else None
@@ -100,19 +99,8 @@ class InputValidator:
                     "reasons": domain_res.reasons
                 }
 
-                if not domain_res.is_remote_sensing:
-                    rej_msg = domain_res.rejection_message or "Unsupported input: this image does not appear to be a supported remote-sensing product."
-                    return ValidationReport(
-                        valid=False,
-                        mode=requested_mode,
-                        error_message=rej_msg,
-                        validation_object=last_val_obj
-                    )
-
-                # Update modality with detector's verified classification (e.g. hyperspectral)
-                if domain_res.modality != "unknown":
-                    meta.modality = domain_res.modality
-
+                # Update modality with detector's verified classification (default to optical for general images)
+                meta.modality = domain_res.modality if domain_res.modality != "unknown" else "optical"
                 parsed_metadata.append(meta)
 
             except Exception as e:
