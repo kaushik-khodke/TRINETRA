@@ -22,7 +22,11 @@ class ValidationReport(BaseModel):
     validation_object: Optional[Dict[str, Any]] = None
 
 class InputValidator:
-    SUPPORTED_EXTENSIONS = [".tif", ".tiff", ".png", ".jpg", ".jpeg", ".mat", ".hdr", ".dat"]
+    SUPPORTED_EXTENSIONS = [
+        ".tif", ".tiff", ".geotiff",
+        ".png", ".jpg", ".jpeg", ".webp", ".bmp", ".gif",
+        ".mat", ".hdr", ".dat", ".jp2", ".img"
+    ]
 
     @staticmethod
     def validate(
@@ -30,7 +34,7 @@ class InputValidator:
         requested_mode: str = "single",
         declared_modalities: Optional[List[str]] = None
     ) -> ValidationReport:
-        # 1. Image count check
+        # 1. Image count check & flexible mode adaptation
         count = len(file_paths)
         if count == 0:
             return ValidationReport(
@@ -47,18 +51,13 @@ class InputValidator:
                 else:
                     requested_mode = "bi_temporal"
             else:
-                return ValidationReport(
-                    valid=False,
-                    mode=requested_mode,
-                    error_message=f"Single-image mode expects exactly 1 image, but received {count}."
-                )
+                # Multiple files under single mode: adapt by analyzing primary image
+                count = 1
+                file_paths = [file_paths[0]]
 
-        if requested_mode in ["bi_temporal", "optical_sar"] and count != 2:
-            return ValidationReport(
-                valid=False,
-                mode=requested_mode,
-                error_message=f"Paired workflow '{requested_mode}' expects exactly 2 images, but received {count}."
-            )
+        if requested_mode in ["bi_temporal", "optical_sar"] and count < 2:
+            # Auto-adapt to single-image mode when only 1 image is supplied
+            requested_mode = "single"
 
         # 2. File readability, format, and intelligent domain checks
         parsed_metadata: List[RasterMetadata] = []
@@ -77,7 +76,7 @@ class InputValidator:
                 return ValidationReport(
                     valid=False,
                     mode=requested_mode,
-                    error_message=f"Unsupported format '{ext}'. Must be GeoTIFF, HSI (.mat/.hdr), or benchmark PNG/JPEG."
+                    error_message=f"Unsupported format '{ext}'. Must be an image or raster file ({', '.join(InputValidator.SUPPORTED_EXTENSIONS[:6])})."
                 )
 
             declared_mod = declared_modalities[i] if declared_modalities and i < len(declared_modalities) else None
@@ -100,19 +99,8 @@ class InputValidator:
                     "reasons": domain_res.reasons
                 }
 
-                if not domain_res.is_remote_sensing:
-                    rej_msg = domain_res.rejection_message or "Unsupported input: this image does not appear to be a supported remote-sensing product."
-                    return ValidationReport(
-                        valid=False,
-                        mode=requested_mode,
-                        error_message=rej_msg,
-                        validation_object=last_val_obj
-                    )
-
-                # Update modality with detector's verified classification (e.g. hyperspectral)
-                if domain_res.modality != "unknown":
-                    meta.modality = domain_res.modality
-
+                # Update modality with detector's verified classification (default to optical for general images)
+                meta.modality = domain_res.modality if domain_res.modality != "unknown" else "optical"
                 parsed_metadata.append(meta)
 
             except Exception as e:
@@ -122,17 +110,19 @@ class InputValidator:
                     error_message=f"Failed to read raster at '{os.path.basename(path)}': {str(e)}"
                 )
 
-        # 3. Mode-specific pairing compatibility checks
+        # 3. Stage 3 Mode-Specific Geospatial Pairing & Alignment Verification
         compatibility: Dict[str, Any] = {
             "file_count": count,
             "all_geotiff": all(m.is_geotiff for m in parsed_metadata),
             "spatial_coverage_aligned": True
         }
 
+        from geospatial.validator import GeospatialValidator
+
         if requested_mode == "optical_sar":
             m0, m1 = parsed_metadata[0].modality.lower(), parsed_metadata[1].modality.lower()
-            has_optical = ("optical" in m0 or "optical" in m1 or parsed_metadata[0].bands >= 3 or parsed_metadata[1].bands >= 3)
-            has_sar = ("sar" in m0 or "sar" in m1 or parsed_metadata[0].bands == 1 or parsed_metadata[1].bands == 1)
+            has_optical = ("optical" in m0 or "optical" in m1 or parsed_metadata[0].band_count >= 3 or parsed_metadata[1].band_count >= 3)
+            has_sar = ("sar" in m0 or "sar" in m1 or parsed_metadata[0].band_count == 1 or parsed_metadata[1].band_count == 1)
 
             if not (has_optical and has_sar):
                 compatibility["modality_match"] = False
@@ -142,26 +132,53 @@ class InputValidator:
                     error_message="Optical–SAR mode requires one Optical/Multispectral image and one SAR radar image.",
                     compatibility=compatibility
                 )
+
+            # Determine optical vs SAR
+            if "sar" in m0 or parsed_metadata[0].band_count == 1:
+                sar_m, opt_m = parsed_metadata[0], parsed_metadata[1]
+            else:
+                opt_m, sar_m = parsed_metadata[0], parsed_metadata[1]
+
+            align_rep = GeospatialValidator.validate_optical_sar_coregistration(opt_m, sar_m)
             compatibility["modality_match"] = True
-            compatibility["cross_modal_coregistered"] = True
+            compatibility["alignment_report"] = align_rep.model_dump()
+            compatibility["cross_modal_coregistered"] = align_rep.coregistered
+            compatibility["bounds_overlap_pct"] = align_rep.bounds_overlap_pct
+
+            # Strict rejection if both are georeferenced GeoTIFFs but completely disjoint
+            if opt_m.is_geotiff and sar_m.is_geotiff and align_rep.bounds_overlap_pct <= 0.0:
+                return ValidationReport(
+                    valid=False,
+                    mode=requested_mode,
+                    error_message=f"Spatial alignment failure: 0.0% spatial overlap between Optical ({opt_m.filename}) and SAR ({sar_m.filename}).",
+                    compatibility=compatibility
+                )
 
         elif requested_mode == "bi_temporal":
-            # Check dimensional compatibility
-            h0, w0 = parsed_metadata[0].height, parsed_metadata[0].width
-            h1, w1 = parsed_metadata[1].height, parsed_metadata[1].width
-            aspect0 = round(w0 / h0, 2)
-            aspect1 = round(w1 / h1, 2)
-            
-            if aspect0 != aspect1 and (abs(w0 - w1) > 200 or abs(h0 - h1) > 200):
-                compatibility["spatial_coverage_aligned"] = False
+            m1, m2 = parsed_metadata[0], parsed_metadata[1]
+            align_rep = GeospatialValidator.validate_bitemporal_alignment(m1, m2)
+            compatibility["alignment_report"] = align_rep.model_dump()
+            compatibility["bitemporal_aligned"] = align_rep.coregistered or align_rep.grid_aligned
+            compatibility["bounds_overlap_pct"] = align_rep.bounds_overlap_pct
+            compatibility["resampling_needed"] = align_rep.resampling_applied or (not align_rep.grid_aligned)
+
+            # Strict rejection if both are georeferenced GeoTIFFs but completely disjoint
+            if m1.is_geotiff and m2.is_geotiff and align_rep.bounds_overlap_pct <= 0.0:
+                return ValidationReport(
+                    valid=False,
+                    mode=requested_mode,
+                    error_message=f"Spatial alignment failure: 0.0% spatial overlap between T1 ({m1.filename}) and T2 ({m2.filename}).",
+                    compatibility=compatibility
+                )
+
+            if align_rep.bounds_overlap_pct < 95.0 and align_rep.bounds_overlap_pct > 0.0:
                 return ValidationReport(
                     valid=True,
                     mode=requested_mode,
-                    warning_message="Dimensional disparity between T1 and T2 rasters; automated spatial resampling will be applied.",
+                    warning_message=f"Partial spatial overlap ({align_rep.bounds_overlap_pct}%); intersecting common grid will be extracted.",
                     images_metadata=[m.to_dict() for m in parsed_metadata],
                     compatibility=compatibility
                 )
-            compatibility["bitemporal_aligned"] = True
 
         return ValidationReport(
             valid=True,
@@ -190,23 +207,10 @@ class InputValidator:
             gray = image_arr.astype(float)
 
         total_pixels = gray.size
-        p_min = float(np.nanmin(gray))
-        p_max = float(np.nanmax(gray))
-        rng = p_max - p_min
-
-        if rng < 1e-4 or float(np.nanstd(gray)) < 1e-4:
-            return False, "The uploaded image is completely blank or uniform."
-
-        if p_max <= 1.05 and p_min >= 0.0:
-            norm_gray = gray * 255.0
-        elif p_max > 255.0 or p_min < 0.0:
-            norm_gray = ((gray - p_min) / (rng + 1e-6)) * 255.0
-        else:
-            norm_gray = gray
 
         # 1. Text Document / Book Page Detection
-        white_bg_pct = float(np.sum(norm_gray > 220) / total_pixels * 100.0)
-        dark_text_pct = float(np.sum(norm_gray < 45) / total_pixels * 100.0)
+        white_bg_pct = float(np.sum(gray > 220) / total_pixels * 100.0)
+        dark_text_pct = float(np.sum(gray < 45) / total_pixels * 100.0)
 
         if image_arr.ndim == 3 and image_arr.shape[2] >= 3:
             r = image_arr[:, :, 0].astype(float)
@@ -229,9 +233,9 @@ class InputValidator:
             )
 
         # 2. Predominantly blank image
-        if white_bg_pct > 85.0 and float(np.nanstd(gray)) < 15.0:
+        if white_bg_pct > 85.0:
             return False, "The uploaded image is predominantly blank white (>85% white pixels), not an Earth observation scene."
-        if float(np.sum(norm_gray < 15) / total_pixels * 100.0) > 92.0 and float(np.nanstd(gray)) < 8.0:
+        if float(np.sum(gray < 15) / total_pixels * 100.0) > 92.0:
             return False, "The uploaded image is predominantly black (>92% dark pixels), not an Earth observation scene."
 
         # 3. Screen Capture / UI Diagram heuristic

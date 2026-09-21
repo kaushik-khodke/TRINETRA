@@ -125,7 +125,7 @@ class DomainDetector:
                 reasons=reasons
             )
 
-        # Case C: SAR (Radar) / Single-Band Raster (Elevation/DEM, Panchromatic, SAR)
+        # Case C: SAR (Radar) -> 1 or 2 bands with characteristic dB backscatter or speckle
         if c in [1, 2]:
             min_val, max_val = float(np.nanmin(image_arr)), float(np.nanmax(image_arr))
             if min_val < -5.0 and max_val <= 10.0:
@@ -140,38 +140,10 @@ class DomainDetector:
                     dimensions=(h, w),
                     reasons=reasons
                 )
-            elif has_geospatial:
-                fn_lower = filename.lower()
-                is_dem = any(k in fn_lower for k in ["dem", "srtm", "elevation", "height", "dsm", "dtm"]) or (max_val > 255 and min_val >= -500)
-                modality = "sar"
-                label = "digital elevation model (DEM/SRTM)" if is_dem else "single-band geospatial remote-sensing"
-                reasons.append(f"Geospatial {label} raster verified ({crs or 'GeoTIFF'}) with physical range [{min_val:.1f}, {max_val:.1f}]")
-                conf_scores.append(0.98 if crs else 0.94)
-                return DomainValidationResult(
-                    is_remote_sensing=True,
-                    modality=modality,
-                    confidence=round(float(np.mean(conf_scores)), 3),
-                    band_count=c,
-                    dimensions=(h, w),
-                    reasons=reasons
-                )
 
         # =====================================================================
         # 3. Tier 3 & 4: Optical (RGB) & Non-Remote-Sensing Plausibility Checks
         # =====================================================================
-        if has_geospatial and c >= 3:
-            modality = "optical"
-            reasons.append(f"Geospatial optical raster confirmed ({crs or 'GeoTIFF'}) with {c} channels")
-            conf_scores.append(0.98 if crs else 0.94)
-            return DomainValidationResult(
-                is_remote_sensing=True,
-                modality=modality,
-                confidence=round(float(np.mean(conf_scores)), 3),
-                band_count=c,
-                dimensions=(h, w),
-                reasons=reasons
-            )
-
         if c >= 3:
             r = image_arr[:, :, 0].astype(float)
             g = image_arr[:, :, 1].astype(float)
@@ -189,151 +161,46 @@ class DomainDetector:
                 rejection_message="Unsupported input: raster dimensions are invalid."
             )
 
-        # 3.1 Dynamic-Range Aware Blank / Degenerate Imagery Check
-        valid_pixels = gray[~np.isnan(gray)]
-        if valid_pixels.size == 0:
-            return DomainValidationResult(
-                is_remote_sensing=False,
-                reasons=["Raster contains only NaN or empty values."],
-                rejection_message="Unsupported input: raster dimensions or pixel values are invalid."
-            )
+        # 3.1 Informational Feature Profiling (No Rejections — Universal Image Analysis Enabled)
+        white_pct = float(np.sum(gray > 245) / total_pixels * 100.0)
+        black_pct = float(np.sum(gray < 10) / total_pixels * 100.0)
+        if white_pct > 85.0:
+            reasons.append(f"High brightness/saturation content ({white_pct:.1f}%)")
+        if black_pct > 92.0:
+            reasons.append(f"High dark/null content ({black_pct:.1f}%)")
 
-        p_min = float(np.min(valid_pixels))
-        p_max = float(np.max(valid_pixels))
-        pixel_range = p_max - p_min
-        std_val = float(np.std(valid_pixels))
+        # 3.2 Document / Text Profiling (Informational note only, allow full analysis)
+        dark_text_pct = float(np.sum(gray < 45) / total_pixels * 100.0)
+        paper_bg_pct = float(np.sum(gray > 220) / total_pixels * 100.0)
+        if paper_bg_pct > 40.0 and dark_text_pct > 0.5:
+            reasons.append("High contrast text/graphic layout observed; processing as optical raster.")
 
-        if pixel_range < 1e-4 or std_val < 1e-4:
-            return DomainValidationResult(
-                is_remote_sensing=False,
-                reasons=["Raster pixel variance is zero (all pixels have identical value)."],
-                rejection_message="Unsupported input: this image is completely flat/blank and does not contain valid Earth observation features."
-            )
-
-        # Scale luminance appropriately according to its physical dynamic range
-        if p_max <= 1.05 and p_min >= 0.0:
-            norm_gray = gray * 255.0
-        elif p_max > 255.0 or p_min < 0.0:
-            norm_gray = ((gray - p_min) / (pixel_range + 1e-6)) * 255.0
-        else:
-            norm_gray = gray
-
-        white_pct = float(np.sum(norm_gray > 245) / total_pixels * 100.0)
-        black_pct = float(np.sum(norm_gray < 10) / total_pixels * 100.0)
-
-        # For unreferenced images without geospatial tags, check for artificial saturation
-        if not has_geospatial:
-            if white_pct > 85.0 and std_val < 15.0:
-                return DomainValidationResult(
-                    is_remote_sensing=False,
-                    reasons=[f"Over {white_pct:.1f}% of pixels are pure white saturation with negligible texture variance"],
-                    rejection_message="Unsupported input: this image is predominantly blank white and does not contain valid Earth observation features."
-                )
-            if black_pct > 92.0 and std_val < 8.0:
-                return DomainValidationResult(
-                    is_remote_sensing=False,
-                    reasons=[f"Over {black_pct:.1f}% of pixels are completely black null values"],
-                    rejection_message="Unsupported input: this image is predominantly black and does not contain valid Earth observation features."
-                )
-
-        # 3.2 Document / Book Page / Scanned Text Check (applies to unreferenced photos/scans)
-        if not has_geospatial:
-            if c >= 3:
-                max_c = np.maximum(np.maximum(r, g), b)
-                min_c = np.minimum(np.minimum(r, g), b)
-                saturation = np.where(max_c > 0, (max_c - min_c) / (max_c + 1e-5), 0.0)
-                mean_sat = float(np.mean(saturation))
-            else:
-                mean_sat = 0.0
-
-            # Document / Book Page / Scanned Text / Certificate Photo Check
-            dark_text_pct = float(np.sum(norm_gray < 45) / total_pixels * 100.0)
-            paper_bg_pct = float(np.sum(norm_gray > 220) / total_pixels * 100.0)
-
-            # Ambient / Indoor lighting adaptive document check
-            bg_candidates = norm_gray[norm_gray > 80]
-            bg_median = float(np.median(bg_candidates)) if bg_candidates.size > 0 else 0.0
-            adaptive_paper_pct = float(np.sum((norm_gray >= bg_median - 35) & (norm_gray <= bg_median + 35)) / total_pixels * 100.0)
-            adaptive_text_pct = float(np.sum(norm_gray < bg_median - 55) / total_pixels * 100.0)
-
-            is_scanned_doc = (paper_bg_pct > 48.0 and dark_text_pct > 0.75 and mean_sat < 0.10)
-            is_photographed_doc = (
-                not is_geotiff
-                and adaptive_paper_pct > 45.0
-                and adaptive_text_pct > 1.2
-                and mean_sat < 0.22
-                and bg_median > 115.0
-            )
-
-            if is_scanned_doc or is_photographed_doc:
-                doc_type = "document scan" if is_scanned_doc else "printed document or certificate photograph"
-                return DomainValidationResult(
-                    is_remote_sensing=False,
-                    reasons=[
-                        f"Document text characteristics detected ({adaptive_paper_pct:.1f}% paper background, {adaptive_text_pct:.1f}% text glyphs, {mean_sat:.3f} saturation)"
-                    ],
-                    rejection_message=f"Unsupported input: this image appears to be a {doc_type}, not remote-sensing Earth observation imagery. SatQuery AI requires nadir satellite or aerial imagery."
-                )
-
-        # 3.3 Application Screenshot / Flat UI Graphic Check
+        # 3.3 Application / Graphic Profiling (Informational note only)
         fn_lower = filename.lower()
         if "screenshot" in fn_lower or "screengrab" in fn_lower:
-            if paper_bg_pct > 30.0 or mean_sat < 0.06:
-                return DomainValidationResult(
-                    is_remote_sensing=False,
-                    reasons=["File exhibits desktop screenshot metadata and flat UI window luminance"],
-                    rejection_message="Unsupported input: this image appears to be an application or desktop screenshot, not satellite imagery."
-                )
+            reasons.append("Digital capture metadata observed; processing as optical imagery.")
 
-        # 3.4 Perspective Camera Horizon & Sky Detection
+        # 3.4 Perspective / Horizon Profiling (Informational note only)
         if h > 80 and w > 80 and c >= 3:
             top_section = image_arr[: int(h * 0.35), :, :]
             top_r = top_section[:, :, 0].astype(float)
             top_g = top_section[:, :, 1].astype(float)
             top_b = top_section[:, :, 2].astype(float)
-
             blue_ratio = float(np.mean(top_b / (top_r + 1e-5)))
             top_lum = 0.299 * top_r + 0.587 * top_g + 0.114 * top_b
             top_std = float(np.std(top_lum))
-
             if top_std < 18.0 and blue_ratio > 1.35 and float(np.mean(top_lum)) > 130.0:
-                return DomainValidationResult(
-                    is_remote_sensing=False,
-                    reasons=[
-                        f"Horizontal ground perspective detected (Upper frame displays uniform sky: B/R ratio {blue_ratio:.2f}, std {top_std:.1f})"
-                    ],
-                    rejection_message="Unsupported input: this is a horizontal ground-level camera photograph with a visible sky/horizon. SatQuery AI requires top-down (nadir) Earth observation imagery."
-                )
+                reasons.append("Atmospheric / sky gradient gradient observed; analyzing terrain features.")
 
-        # 3.5 Portrait / Selfie / Human Skin Tone Heuristic
-        # Distinguishes smooth human flesh from textured terrestrial terrain/clay/soil
+        # 3.5 Portrait / Close-up Profiling (Informational note only)
         if not is_geotiff and c >= 3 and h >= 64 and w >= 64:
             sum_rgb = r + g + b + 1e-5
             norm_r = r / sum_rgb
             norm_g = g / sum_rgb
             skin_mask = (norm_r > 0.36) & (norm_r < 0.54) & (norm_g > 0.28) & (norm_g < 0.38) & (r > g) & (g > b) & (r > 60)
             skin_pct = float(np.sum(skin_mask) / total_pixels * 100.0)
-
-            ch_start, ch_end = int(h * 0.25), int(h * 0.75)
-            cw_start, cw_end = int(w * 0.25), int(w * 0.75)
-            center_skin = skin_mask[ch_start:ch_end, cw_start:cw_end]
-            center_skin_pct = float(np.sum(center_skin) / max(1, center_skin.size) * 100.0)
-
-            if skin_pct > 22.0 and center_skin_pct > 32.0:
-                # Differentiate smooth human face vs textured satellite terrain (red/brown soil, clay, arid farmland)
-                gray_u8 = gray.astype(np.uint8)
-                gx = np.diff(gray_u8, axis=1)
-                gy = np.diff(gray_u8, axis=0)
-                edge_energy = float(np.mean(np.abs(gx)) + np.mean(np.abs(gy)))
-
-                # Real human portraits have smooth skin (edge energy < 6.0)
-                # Satellite terrain has sharp parcel boundaries, roads, waterlines, structures (edge energy > 15.0)
-                if edge_energy < 6.0:
-                    return DomainValidationResult(
-                        is_remote_sensing=False,
-                        reasons=[f"Smooth portrait skin tones detected ({skin_pct:.1f}% skin tone, edge energy {edge_energy:.1f})"],
-                        rejection_message="Unsupported input: this image appears to be a portrait or selfie photograph. Remote-sensing models require Earth observation imagery."
-                    )
+            if skin_pct > 20.0:
+                reasons.append(f"Warm spectral distribution observed ({skin_pct:.1f}% warm tones); processing as optical scene.")
 
         # =====================================================================
         # 4. Verified Nadir Optical Satellite Imagery

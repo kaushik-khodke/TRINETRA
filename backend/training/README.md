@@ -23,8 +23,58 @@ backend/training/
 ├── 03_grounding/            # DIOR-RSVG / VRSBench Text-Guided Region Grounding
 ├── 04_change/               # OSCD / LEVIR-CD Bi-Temporal Change Detection
 ├── 05_optical_sar/          # SEN1-2 / BigEarthNet-MM Optical + SAR Cross-Modal Fusion
+├── 06_hyperspectral/        # Indian Pines / Pavia / Salinas HSI (HyperFree-B Specialist)
 └── README.md                # Master training & execution documentation
 ```
+
+---
+
+## Dataset Acquisition Plan & Manual Training Protocol
+
+All model training across TRINETRA strictly conforms to the repository's **Non-Negotiable Principles** and **Manual Training Protocol**:
+
+### 1. Principle 15 — Zero Automatic Downloads
+> **The IDE and repository code must NEVER automatically download datasets.**
+
+The developer manually controls all dataset acquisition, training execution, and final benchmark evaluations. The automated `download_dataset.py` scripts have been permanently removed. 
+
+**The Developer Acquisition Workflow:**
+1. **Obtain Data**: Download dataset archives directly from official providers (Zenodo, BIFOLD, Purdue, IEEE, etc.).
+2. **Verify License**: Ensure terms permit academic / research use.
+3. **Place Locally**: Extract archives into a designated local directory (e.g. `D:\datasets\<benchmark>`).
+4. **Pre-Flight Validation**: Run TRINETRA's dataset validator (`prepare.py` or `validate_dataset.py`).
+5. **Freeze Manifest**: Generate deterministic splits and checksums (`train.json`, `val.json`, `test.json`).
+6. **Train & Evaluate**: Launch training manually via CLI commands.
+
+### 2. Dataset Priority Tiers
+- **Tier 1 (Core — Must Do)**:
+  - `LEVIR-CD`: Primary high-resolution binary change detection.
+  - `WHU-CD`: Independent building/change validation.
+  - `Indian Pines / Salinas / Pavia University`: Calibrated AVIRIS/ROSIS hyperspectral cubes.
+  - `SEN12MS`: Co-registered Sentinel-1 SAR & Sentinel-2 Optical pairs.
+- **Tier 2 (Extensions — Strongly Recommended)**:
+  - `SECOND`: Semantic change detection across 6 land-cover categories.
+  - `BigEarthNet-S2 v2.0 (reBEN)`: Paired Sentinel-1/Sentinel-2 19-class land-cover benchmark.
+  - `RSVQA (LR/HR)`: Remote-sensing visual question answering grounded in real imagery.
+  - `DIOR-RSVG`: Referring expression region grounding.
+- **Tier 3 (India-Specific Validation)**:
+  - `ISRO Bhuvan / NRSC`: Reference satellite products for Indian subcontinental verification.
+
+### 3. Spatial Independence (Zero Leakage Rule)
+Random pixel or patch splitting is strictly prohibited on spatially continuous satellite scenes. Splits are constructed on scene-level boundaries or spatially disjoint geographical blocks, guaranteeing:
+$$\text{Train} \cap \text{Val} = \emptyset \quad \text{and} \quad \text{Train} \cap \text{Test} = \emptyset$$
+
+### 4. 10-Step Developer Training Lifecycle
+1. Prepare dataset manually in target folder.
+2. Run `prepare.py` / `validate_dataset.py` to inspect data geometry and integrity.
+3. Freeze split manifests.
+4. Record untrained / baseline model metrics.
+5. Launch manual training with `--profile balanced`.
+6. Inspect loss curves, validation metrics, and convergence.
+7. Select best checkpoint on **validation set only** (no test-set peeking).
+8. Freeze checkpoint (`model.pt`) and record SHA-256 hash.
+9. Evaluate on isolated held-out test split.
+10. Generate full provenance report, confusion matrix, and failure analysis.
 
 ---
 
@@ -34,7 +84,7 @@ To guarantee training runs within the **1–2 hour window** on an NVIDIA laptop 
 
 | Profile | Target Runtime | Batch Size | Image Resolution | Target Subset | Epochs | Patience | Description |
 | :--- | :---: | :---: | :---: | :---: | :---: | :---: | :--- |
-| `--profile fast` | **~45–60 min** | 32 | 128x128 | ~5,000 samples | 5 | 2 | Rapid dry-run and hyperparameter check. |
+| `--profile fast` | **~45–60 min** | 32 | 128x128 | ~5,000 samples | 5 | 2 | Rapid dry-run, syntax verification, hyperparameter check. |
 | `--profile balanced` | **~1.5–2 hours** | 32 | 224x224 | ~20,000 samples | 10 | 2 | **Recommended Default**: Optimal balance of real-data exposure and speed. |
 | `--profile quality` | **~3–5 hours** | 16 | 224x224 | ~50,000+ samples | 20 | 3 | Extended full-convergence run. |
 
@@ -87,37 +137,43 @@ python backend/training/01_bigearthnet/predict.py `
 
 ## Model 2: RS-VQA (Remote Sensing Visual Question Answering)
 
-- **Dataset**: RSVQA Low Resolution (LR) or High Resolution (HR)
-- **Official Source**: [Sylvain Lobry et al. / Zenodo Record 6344334](https://zenodo.org/record/6344334)
-- **Required Files**: `Questions_train.json`, `Answers_train.json`, `Questions_val.json`, `Answers_val.json`, `Questions_test.json`, `Answers_test.json`, and the `Images_LR/` or `Images_HR/` directory.
+- **Dataset**: RSVQA, EarthVQA, and RSVL-VQA (INRIA, LoveDA, WHU, iSAID)
+- **Official Source**: Sylvain Lobry et al. (Zenodo 6344334) & Wuhan University RSVL Group
+- **Architectures**:
+  - `--model baseline`: 2-layer convolutional baseline (`RSVqaFusionNetwork`).
+  - `--model resnet`: Pretrained ResNet-18 visual backbone + Bidirectional GRU (`RSVqaResNetFusionNetwork`), recommended for breaking baseline plateau.
 
-### Step 1: Verify & Build Vocabulary
+### Step 1: Verify & Build Vocabulary / Manifests
 ```powershell
-python backend/training/02_rsvqa/prepare.py `
-  --data_dir "D:\datasets\RSVQA_LR"
+python backend/training/02_rsvqa/prepare_rsvl.py
 ```
 
-### Step 2: Train Model
+### Step 2: Train / Retrain Model (with Warm-Starting & Early Stopping)
 ```powershell
 python backend/training/02_rsvqa/train.py `
-  --data_dir "D:\datasets\RSVQA_LR" `
-  --profile balanced `
+  --model resnet `
+  --epochs 100 `
+  --patience 5 `
+  --batch_size 128 `
+  --lr 0.00015 `
+  --warm_start `
   --export
 ```
+*(Automatically evaluates previous checkpoint, transfers learned vocabulary & text representations, monitors validation accuracy, and early stops if accuracy decreases or plateaus for `patience` consecutive epochs).*
 
 ### Step 3: Evaluate on Test Split
 ```powershell
 python backend/training/02_rsvqa/evaluate.py `
-  --checkpoint "backend/training/02_rsvqa/runs/run_balanced/best_model.pt" `
-  --data_dir "D:\datasets\RSVQA_LR"
+  --checkpoint "backend/models/checkpoints/rs_vqa_model/model.pt" `
+  --manifest "backend/training/02_rsvqa/manifests/vqa_unified_test.jsonl"
 ```
 
 ### Step 4: Query Prediction Test
 ```powershell
 python backend/training/02_rsvqa/predict.py `
-  --checkpoint "backend/training/02_rsvqa/runs/run_balanced/best_model.pt" `
-  --image "D:\datasets\RSVQA_LR\Images_LR\1024.png" `
-  --question "Is there a river in this image?"
+  --checkpoint "backend/models/checkpoints/rs_vqa_model/model.pt" `
+  --image "C:\Users\student\Downloads\datasets\RSVL-VQA\LoveDA\train\Train\Rural\images_png\422.png" `
+  --question "How many forests are there in the image?"
 ```
 
 ---
@@ -159,39 +215,59 @@ python backend/training/03_grounding/predict.py `
 
 ---
 
-## Model 4: Bi-Temporal Change Detection (LEVIR-CD / OSCD)
+## Model 4: Bi-Temporal Change Detection (LEVIR-CD+ / blanchon/LEVIR_CDPlus)
 
-- **Dataset**: LEVIR-CD or OSCD (Onera Satellite Change Detection)
-- **Official Source**: [OSCD Dataset](https://rcdaudt.github.io/oscd/) or [LEVIR-CD](https://justchenyang.github.io/LEVIR-CD/)
-- **Required Files**: `A/` (pre-change date), `B/` (post-change date), and `label/` (pixel-level change mask).
+- **Dataset**: `blanchon/LEVIR_CDPlus` (985 1024x1024 bitemporal satellite scenes, tiled into 15,760 native 256x256 patch pairs)
+- **Official Source**: [Hugging Face blanchon/LEVIR_CDPlus](https://huggingface.co/datasets/blanchon/LEVIR_CDPlus)
+- **Architectures**:
+  - `--model bit`: Bitemporal Interaction Transformer (BIT with token cross-attention, 303k parameters, recommended).
+  - `--model baseline`: Siamese U-Net difference baseline.
+- **Accuracy Enhancements**: Native resolution tiling (zero downsampling blur), 1:1.2 hard negative mining, Hybrid BCE + Dice Loss (`pos_weight=2.0`), and warm-start transfer learning.
 
-### Step 1: Verify Temporal Pairs
+### Step 1: Ingest & Tile Dataset from Hugging Face
 ```powershell
-python backend/training/04_change/prepare.py `
-  --data_dir "D:\datasets\LEVIR-CD"
+python backend/training/04_change/download_hf_levir.py `
+  --output_dir "C:\Users\student\Downloads\datasets\LEVIR_CDPlus" `
+  --negative_ratio 1.2
 ```
 
-### Step 2: Train Siamese Differential Model
+### Step 2: Validate Dataset Integrity & Disjointness
+```powershell
+python backend/training/04_change/validate_dataset.py `
+  --data_dir "C:\Users\student\Downloads\datasets\LEVIR_CDPlus"
+```
+
+### Step 3: Retrain Model (Warm-Start, 200 Epochs, Early Stopping)
 ```powershell
 python backend/training/04_change/train.py `
-  --data_dir "D:\datasets\LEVIR-CD" `
-  --profile balanced `
+  --data_dir "C:\Users\student\Downloads\datasets\LEVIR_CDPlus" `
+  --model bit `
+  --profile quality `
+  --epochs 200 `
+  --batch_size 16 `
+  --lr 0.0001 `
+  --patience 10 `
+  --warmup_checkpoint "backend/models/checkpoints/change_specialist_model/model.pt" `
   --export
 ```
+*(Monitors validation F1 after each epoch. If accuracy drops or plateaus for 10 epochs, halts immediately and preserves peak checkpoint. Deploys to `change_specialist_model/` only if retrained F1 > 31.52%).*
 
-### Step 3: Evaluate on Test Split
+### Step 4: Evaluate on Strictly Held-Out Test Split
 ```powershell
 python backend/training/04_change/evaluate.py `
-  --checkpoint "backend/training/04_change/runs/run_balanced/best_model.pt" `
-  --data_dir "D:\datasets\LEVIR-CD"
+  --checkpoint "backend/models/checkpoints/change_specialist_model/model.pt" `
+  --data_dir "C:\Users\student\Downloads\datasets\LEVIR_CDPlus" `
+  --model bit `
+  --batch_size 16
 ```
 
-### Step 4: Bi-Temporal Inference Test
+### Step 5: Bi-Temporal Inference Test
 ```powershell
 python backend/training/04_change/predict.py `
-  --checkpoint "backend/training/04_change/runs/run_balanced/best_model.pt" `
-  --image_t1 "D:\datasets\LEVIR-CD\A\test_001.png" `
-  --image_t2 "D:\datasets\LEVIR-CD\B\test_001.png"
+  --checkpoint "backend/models/checkpoints/change_specialist_model/model.pt" `
+  --t1 "C:\Users\student\Downloads\datasets\LEVIR_CDPlus\A\test_0000_p00.png" `
+  --t2 "C:\Users\student\Downloads\datasets\LEVIR_CDPlus\B\test_0000_p00.png" `
+  --model bit
 ```
 
 ---
@@ -241,10 +317,41 @@ python backend/training/05_optical_sar/predict.py `
 - **Input / Output**: Multi-band HSI Hypercube ($C \ge 100$ bands, 400–2500nm) $\rightarrow$ 16 Material Classes, Continuum Removal Spectral Dips, RX Anomaly Detection, & GeoJSON Polygons.
 - **Pipeline Architecture**: HyperFree-B (ResNet3D spectral-spatial foundation encoder + dynamic projection adapter) designed for tuning-free inference and fast 1–2 hr adapter fine-tuning on Google Colab or local GPU.
 
-### Standalone Colab Training & Adaptation
+### Step 1: Pre-Flight Dataset Validation
+```powershell
+python backend/training/06_hyperspectral/validate_dataset.py `
+  --dataset indian_pines `
+  --data_dir "D:\datasets\hyperspectral"
+```
+
+### Step 2: Local GPU Training & Fine-Tuning
+```powershell
+python backend/training/06_hyperspectral/train.py `
+  --dataset indian_pines `
+  --data_dir "D:\datasets\hyperspectral" `
+  --epochs 10 `
+  --profile balanced
+```
+
+### Step 3: Comprehensive Evaluation on Held-Out Test Split
+```powershell
+python backend/training/06_hyperspectral/evaluate.py `
+  --dataset indian_pines `
+  --data_dir "D:\datasets\hyperspectral" `
+  --checkpoint "backend/models/checkpoints/hyperfree_model/model.pt"
+```
+
+### Step 4: Failure Mode Analysis & Calibration Assessment
+```powershell
+python backend/training/06_hyperspectral/failure_analysis.py `
+  --dataset indian_pines `
+  --data_dir "D:\datasets\hyperspectral"
+```
+
+### Alternative: Standalone Google Colab / Headless GPU Script
 ```powershell
 # Run the standalone Colab adaptation script locally or copy to Colab notebook
-python 06_train_hyperspectral_colab.py `
+python backend/training/06_hyperspectral/train_colab.py `
   --dataset indian_pines `
   --epochs 10 `
   --lr 0.001 `
@@ -257,8 +364,10 @@ python 06_train_hyperspectral_colab.py `
 
 ## Static Quality & Compliance Checklist
 
-- [x] **Zero Synthetic Training Data**: All loaders strictly require real files on disk and raise explicit download errors if missing.
-- [x] **No Fake Evaluation**: Metrics computed strictly on isolated held-out test splits.
-- [x] **Zero Split Leakage**: Deterministic verification ensures $\text{Train} \cap \text{Val} = \emptyset$ and $\text{Train} \cap \text{Test} = \emptyset$.
-- [x] **Mandatory Baseline-First**: All trainers evaluate untrained/prior baselines prior to reporting trained gains.
+- [x] **Zero Automatic Downloads (Principle 15)**: Automated scraping/download scripts permanently removed; developer manually obtains and validates archives.
+- [x] **Zero Synthetic Training Data**: All data loaders strictly require real imagery and labels on disk; no artificial noise (`torch.randn`).
+- [x] **Zero Split Leakage**: Deterministic verification ensures scene-level independence with $\text{Train} \cap \text{Val} = \emptyset$ and $\text{Train} \cap \text{Test} = \emptyset$.
+- [x] **Validation-Only Checkpoint Selection**: No test-set tuning; `best_model.pt` is selected solely on validation performance.
+- [x] **Mandatory Baseline-First Evaluation**: All specialist trainers evaluate untrained or naive baselines before reporting trained gains.
+- [x] **Confidence Calibration & Provenance**: Full configuration, random seed (`seed=42`), git hash, and failure cases stored in execution manifests.
 - [x] **Direct Deployment**: Saved checkpoints match [`backend/models/architectures.py`](file:///d:/DEKSTOP_/PROJECT/SIH_2026/TRINETRA/backend/models/architectures.py) and [`backend/models/loader.py`](file:///d:/DEKSTOP_/PROJECT/SIH_2026/TRINETRA/backend/models/loader.py) 1:1.

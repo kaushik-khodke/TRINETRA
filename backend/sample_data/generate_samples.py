@@ -150,6 +150,16 @@ def create_hsi_sample():
     }
     sio.savemat(os.path.join(SAMPLE_DIR, "sample_hsi.mat"), mat_data)
 
+    # Companion authentic ground truth mask (classes: 1: vegetation, 2: water, 3: anomaly, 0: background)
+    gt = np.ones((H, W), dtype=np.int64)  # class 1: vegetation
+    gt[40:60, 40:60] = 2                  # class 2: water
+    gt[10:14, 10:14] = 3                  # class 3: anomaly
+    gt[:5, :] = 0                         # class 0: background margin
+    gt[:, :5] = 0
+    gt[-5:, :] = 0
+    gt[:, -5:] = 0
+    sio.savemat(os.path.join(SAMPLE_DIR, "sample_hsi_gt.mat"), {"indian_pines_gt": gt})
+
 def create_rejection_samples():
     """Generates non-satellite domain rejection benchmark images."""
     # 1. Document / printed paper scan (white page with black text lines)

@@ -7,26 +7,6 @@ Usage:
 
 import os
 import sys
-import subprocess
-
-# Auto-detect dedicated D: drive virtual environment if run from global Python
-VENV_PYTHON = r"D:\satquery_env\Scripts\python.exe"
-if os.path.exists(VENV_PYTHON):
-    current_exe = os.path.normcase(os.path.abspath(sys.executable))
-    target_exe = os.path.normcase(os.path.abspath(VENV_PYTHON))
-    if current_exe != target_exe:
-        print(f"[*] Running from: {sys.executable}")
-        print(f"[*] Auto-switching to dedicated D: drive environment: {VENV_PYTHON}")
-        sys.exit(subprocess.call([VENV_PYTHON] + sys.argv))
-
-# Verify required packages are installed in the active environment
-for pkg, mod in [("python-multipart", "multipart"), ("langfuse", "langfuse"), ("langgraph", "langgraph")]:
-    try:
-        __import__(mod)
-    except ImportError:
-        print(f"[*] Installing required '{pkg}' into virtual environment...")
-        subprocess.check_call([sys.executable, "-m", "pip", "install", pkg])
-
 import uvicorn
 
 BACKEND_DIR = os.path.dirname(os.path.abspath(__file__))

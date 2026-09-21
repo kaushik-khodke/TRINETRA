@@ -6,18 +6,6 @@ ISRO Problem Statement 26167
 
 import os
 import sys
-import subprocess
-
-# Auto-detect dedicated D: drive virtual environment if run from global Python
-VENV_PYTHON = r"D:\satquery_env\Scripts\python.exe"
-if os.path.exists(VENV_PYTHON):
-    current_exe = os.path.normcase(os.path.abspath(sys.executable))
-    target_exe = os.path.normcase(os.path.abspath(VENV_PYTHON))
-    if current_exe != target_exe:
-        print(f"[*] Running from: {sys.executable}")
-        print(f"[*] Auto-switching to dedicated D: drive environment: {VENV_PYTHON}")
-        sys.exit(subprocess.call([VENV_PYTHON] + sys.argv))
-
 import re
 import unittest
 

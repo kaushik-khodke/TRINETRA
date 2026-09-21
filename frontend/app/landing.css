@@ -288,8 +288,8 @@
 .trinetra-landing-root .hero-section {
   min-height: 78vh;
   padding-top: 14vw;
-  background: var(--dark-surface) !important;
-  background-color: var(--dark-surface) !important;
+  background: #000000 !important;
+  background-color: #000000 !important;
 }
 
 .trinetra-landing-root .hero-section .hero-intro p,
@@ -967,140 +967,376 @@
 }
 
 /* Idea Section Details */
+/* ==========================================================================
+   Idea Section & Analytical Pipeline Cards (Ultra-Premium Redesign)
+   ========================================================================== */
 .trinetra-landing-root .idea-section,
 .trinetra-landing-root > .section.idea-section {
-  background: #eeeee8 !important;
-  background-color: #eeeee8 !important;
+  background: 
+    radial-gradient(ellipse 80% 50% at 50% -10%, rgba(199, 92, 64, 0.05), transparent 70%),
+    radial-gradient(circle at 8% 88%, rgba(37, 38, 37, 0.03), transparent 45%),
+    radial-gradient(circle at 92% 82%, rgba(199, 92, 64, 0.035), transparent 50%),
+    #f4f3ee !important;
+  background-color: #f4f3ee !important;
   background-image: none !important;
   color: #252625 !important;
   min-height: 185vh;
+  position: relative;
 }
 
-.trinetra-landing-root .idea-section .steps {
-  position: sticky;
-  top: 16vh;
-  display: grid;
-  grid-template-columns: repeat(5, minmax(0, 1fr));
-  gap: 0;
-  min-height: 0;
-  margin-top: clamp(58px, 9vw, 130px);
-  overflow: visible;
-  background: transparent !important;
+/* Header typography */
+.trinetra-landing-root .idea-section .section-kicker {
+  color: #636158 !important;
+  font-size: 11px;
+  font-weight: 700;
+  letter-spacing: 0.16em;
+  margin-bottom: 24px;
 }
 
-.trinetra-landing-root .idea-section h2,
-.trinetra-landing-root .idea-section .section-kicker,
-.trinetra-landing-root .idea-section .lede,
-.trinetra-landing-root .idea-section .step h3 {
-  color: #252625 !important;
+.trinetra-landing-root .idea-section .section-kicker span {
+  color: #c75c40 !important;
+}
+
+.trinetra-landing-root .idea-section h2 {
+  color: #1a1a18 !important;
+  font-size: clamp(38px, 4.5vw, 68px);
+  font-weight: 700;
+  line-height: 1.06;
+  letter-spacing: -0.03em;
+  margin-bottom: 24px;
+}
+
+.trinetra-landing-root .idea-section h2 em {
+  font-style: normal;
+  color: transparent !important;
+  background: linear-gradient(110deg, #c75c40 0%, #8c3b28 45%, #252625 90%);
+  background-size: 200% auto;
+  background-clip: text;
+  -webkit-background-clip: text;
+  display: inline-block;
 }
 
 .trinetra-landing-root .idea-section .lede {
-  color: #252625 !important;
-  font-weight: 650;
-  opacity: 1 !important;
+  color: #383733 !important;
+  font-size: clamp(16px, 1.35vw, 20px);
+  font-weight: 500;
+  line-height: 1.6;
+  max-width: 680px;
+  opacity: 0.92 !important;
   filter: none !important;
   transform: none !important;
   clip-path: none !important;
   text-shadow: none !important;
+  margin-bottom: 0;
 }
 
-.trinetra-landing-root .idea-section .section-kicker {
-  color: #5c5b54 !important;
+/* Steps Grid Container */
+.trinetra-landing-root .idea-section .steps {
+  position: sticky;
+  top: 15vh;
+  display: grid;
+  grid-template-columns: repeat(5, minmax(0, 1fr));
+  gap: clamp(12px, 1.3vw, 20px);
+  min-height: 0;
+  margin-top: clamp(48px, 6.5vw, 96px);
+  overflow: visible;
+  background: transparent !important;
+  padding: 10px 4px 20px;
 }
 
-.trinetra-landing-root .idea-section .section-kicker span,
-.trinetra-landing-root .idea-section .step > span {
-  color: #c75c40 !important;
-}
-
-.trinetra-landing-root .idea-section h2 em {
-  color: transparent !important;
-  background: linear-gradient(105deg, #c75c40, #252625 52%, #a8442d);
-  background-size: 220% auto;
-  background-clip: text;
-  -webkit-background-clip: text;
-}
-
+/* Individual Pipeline Step Card */
 .trinetra-landing-root .idea-section .step {
-  grid-column: auto;
-  min-height: 300px;
-  padding: 34px 24px 26px;
-  border-top: 1px solid rgba(37, 38, 37, 0.22);
-  border-right: 1px solid rgba(37, 38, 37, 0.22);
-  border-bottom: 0;
-  border-radius: 0;
-  background: transparent !important;
-  opacity: 0.42;
-  transform: none !important;
-  transition: opacity 0.5s ease, color 0.5s ease, border-color 0.5s ease;
-  position: relative;
+  display: flex;
+  flex-direction: column;
+  min-height: 330px;
+  padding: 26px 22px 22px;
+  border-radius: 20px;
+  background: rgba(255, 255, 255, 0.65) !important;
+  backdrop-filter: blur(16px) saturate(160%);
+  -webkit-backdrop-filter: blur(16px) saturate(160%);
+  border: 1px solid rgba(37, 38, 37, 0.09);
+  box-shadow: 
+    0 4px 16px -2px rgba(37, 38, 37, 0.04),
+    inset 0 1px 0 0 rgba(255, 255, 255, 0.85);
   cursor: pointer;
-}
-
-.trinetra-landing-root .idea-section .step:first-child {
-  border-left: 1px solid rgba(37, 38, 37, 0.22);
-}
-
-.trinetra-landing-root .idea-section .step:hover,
-.trinetra-landing-root .idea-section .step:focus-visible,
-.trinetra-landing-root .idea-section .step.is-active {
-  opacity: 1;
-  transform: none !important;
-  background: transparent !important;
-  border-color: #252625;
-}
-
-.trinetra-landing-root .idea-section .step > span {
-  display: block;
-  margin-bottom: 72px;
-  color: #8f8d84 !important;
-  transition: color 0.5s ease;
-}
-
-.trinetra-landing-root .idea-section .step h3 {
-  color: #77756c !important;
-  font-size: clamp(18px, 2vw, 28px);
-  transition: color 0.5s ease, transform 0.5s ease;
-}
-
-.trinetra-landing-root .idea-section .step p {
-  color: #85837a !important;
-  max-width: none;
-  opacity: 0.7;
-  transition: color 0.5s ease, opacity 0.5s ease;
-}
-
-.trinetra-landing-root .idea-section .step.is-active > span,
-.trinetra-landing-root .idea-section .step.is-active h3 {
-  color: #252625 !important;
-}
-
-.trinetra-landing-root .idea-section .step.is-active p {
-  color: #4d4c45 !important;
-  opacity: 1;
-}
-
-.trinetra-landing-root .idea-section .step-progress {
-  position: absolute;
-  left: 24px;
-  right: 24px;
-  bottom: 0;
-  height: 3px;
+  position: relative;
   overflow: hidden;
-  background: rgba(37, 38, 37, 0.14);
+  transition: 
+    transform 0.4s cubic-bezier(0.16, 1, 0.3, 1),
+    box-shadow 0.4s cubic-bezier(0.16, 1, 0.3, 1),
+    border-color 0.35s ease,
+    background 0.35s ease,
+    opacity 0.35s ease;
+  outline: none;
+  opacity: 0.75;
 }
 
-.trinetra-landing-root .idea-section .step-progress > span {
+/* Hover State */
+.trinetra-landing-root .idea-section .step:hover,
+.trinetra-landing-root .idea-section .step:focus-visible {
+  opacity: 0.96;
+  transform: translateY(-5px) !important;
+  background: rgba(255, 255, 255, 0.92) !important;
+  border-color: rgba(199, 92, 64, 0.28);
+  box-shadow: 
+    0 16px 32px -8px rgba(37, 38, 37, 0.08),
+    0 4px 12px -2px rgba(199, 92, 64, 0.06),
+    inset 0 1px 0 0 #ffffff;
+}
+
+/* Active State */
+.trinetra-landing-root .idea-section .step.is-active {
+  opacity: 1 !important;
+  transform: translateY(-8px) scale(1.012) !important;
+  background: #ffffff !important;
+  border-color: rgba(199, 92, 64, 0.48);
+  box-shadow: 
+    0 24px 48px -12px rgba(199, 92, 64, 0.18),
+    0 10px 24px -4px rgba(37, 38, 37, 0.06),
+    0 0 0 1.5px #c75c40,
+    inset 0 1px 0 0 #ffffff !important;
+  z-index: 2;
+}
+
+/* Completed Step Subtle Highlight */
+.trinetra-landing-root .idea-section .step.is-completed {
+  opacity: 0.85;
+  background: rgba(255, 255, 255, 0.78) !important;
+  border-color: rgba(199, 92, 64, 0.18);
+}
+
+/* Card Header (Number + Icon Badge) */
+.trinetra-landing-root .idea-section .step-header {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  margin-bottom: 18px;
+}
+
+.trinetra-landing-root .idea-section .step-number {
+  font-family: ui-monospace, SFMono-Regular, Menlo, Monaco, Consolas, monospace;
+  font-size: 13px;
+  font-weight: 700;
+  letter-spacing: 0.08em;
+  color: #8c897f;
+  transition: color 0.35s ease;
+}
+
+.trinetra-landing-root .idea-section .step.is-active .step-number {
+  color: #c75c40;
+}
+
+/* Icon Badge */
+.trinetra-landing-root .idea-section .step-icon-badge {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  width: 36px;
+  height: 36px;
+  border-radius: 11px;
+  background: rgba(37, 38, 37, 0.05);
+  border: 1px solid rgba(37, 38, 37, 0.07);
+  color: #636159;
+  transition: 
+    background 0.35s ease,
+    border-color 0.35s ease,
+    color 0.35s ease,
+    transform 0.35s cubic-bezier(0.34, 1.56, 0.64, 1),
+    box-shadow 0.35s ease;
+}
+
+.trinetra-landing-root .idea-section .step:hover .step-icon-badge {
+  color: #c75c40;
+  border-color: rgba(199, 92, 64, 0.25);
+  transform: scale(1.05);
+}
+
+.trinetra-landing-root .idea-section .step.is-active .step-icon-badge {
+  background: linear-gradient(135deg, #c75c40, #e86b4b);
+  border-color: transparent;
+  color: #ffffff;
+  transform: scale(1.08);
+  box-shadow: 0 6px 16px -2px rgba(199, 92, 64, 0.4);
+}
+
+.trinetra-landing-root .idea-section .step.is-completed .step-icon-badge {
+  background: rgba(199, 92, 64, 0.09);
+  border-color: rgba(199, 92, 64, 0.2);
+  color: #c75c40;
+}
+
+/* Meta Row (Tag + Live/Done Status) */
+.trinetra-landing-root .idea-section .step-meta {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 8px;
+  margin-bottom: 12px;
+}
+
+.trinetra-landing-root .idea-section .step-tag {
+  font-size: 10px;
+  font-weight: 700;
+  text-transform: uppercase;
+  letter-spacing: 0.1em;
+  color: #8f8b80;
+  transition: color 0.35s ease;
+}
+
+.trinetra-landing-root .idea-section .step.is-active .step-tag {
+  color: #8c3b28;
+}
+
+.trinetra-landing-root .idea-section .step-status-pill {
+  display: inline-flex;
+  align-items: center;
+  gap: 5px;
+  font-size: 9px;
+  font-weight: 800;
+  letter-spacing: 0.08em;
+  padding: 2px 7px;
+  border-radius: 9999px;
+  text-transform: uppercase;
+}
+
+.trinetra-landing-root .idea-section .step-status-pill.is-live {
+  background: rgba(199, 92, 64, 0.12);
+  color: #b84326;
+  border: 1px solid rgba(199, 92, 64, 0.24);
+}
+
+.trinetra-landing-root .idea-section .step-status-pill.is-done {
+  background: rgba(46, 125, 50, 0.1);
+  color: #2e7d32;
+  border: 1px solid rgba(46, 125, 50, 0.2);
+}
+
+/* Live Pulsing Dot */
+.trinetra-landing-root .idea-section .live-pulse {
+  display: inline-block;
+  width: 6px;
+  height: 6px;
+  border-radius: 50%;
+  background: #c75c40;
+  box-shadow: 0 0 0 0 rgba(199, 92, 64, 0.7);
+  animation: liveDotPulse 1.6s infinite cubic-bezier(0.66, 0, 0, 1);
+}
+
+@keyframes liveDotPulse {
+  0% {
+    box-shadow: 0 0 0 0 rgba(199, 92, 64, 0.7);
+  }
+  70% {
+    box-shadow: 0 0 0 6px rgba(199, 92, 64, 0);
+  }
+  100% {
+    box-shadow: 0 0 0 0 rgba(199, 92, 64, 0);
+  }
+}
+
+/* Step Typography */
+.trinetra-landing-root .idea-section .step-title {
+  color: #383630 !important;
+  font-size: clamp(20px, 1.8vw, 25px);
+  font-weight: 700;
+  letter-spacing: -0.02em;
+  line-height: 1.15;
+  margin: 0 0 10px 0;
+  transition: color 0.35s ease, transform 0.35s ease;
+}
+
+.trinetra-landing-root .idea-section .step.is-active .step-title {
+  color: #171715 !important;
+}
+
+.trinetra-landing-root .idea-section .step-description {
+  color: #6c6960 !important;
+  font-size: 13.5px;
+  line-height: 1.55;
+  font-weight: 450;
+  margin: 0 0 20px 0;
+  max-width: none;
+  flex-grow: 1;
+  transition: color 0.35s ease;
+}
+
+.trinetra-landing-root .idea-section .step.is-active .step-description {
+  color: #2b2a26 !important;
+}
+
+/* ==========================================================================
+   State-of-the-Art Dynamic Progress Bar Animation
+   ========================================================================== */
+.trinetra-landing-root .idea-section .step-progress-wrapper {
+  margin-top: auto;
+  padding-top: 12px;
+  position: relative;
+}
+
+.trinetra-landing-root .idea-section .step-progress-track {
+  position: relative;
+  width: 100%;
+  height: 4px;
+  border-radius: 9999px;
+  background: rgba(37, 38, 37, 0.08);
+  overflow: hidden;
+  transition: background 0.35s ease;
+}
+
+.trinetra-landing-root .idea-section .step.is-active .step-progress-track {
+  background: rgba(199, 92, 64, 0.14);
+}
+
+.trinetra-landing-root .idea-section .step.is-completed .step-progress-track {
+  background: rgba(199, 92, 64, 0.18);
+}
+
+.trinetra-landing-root .idea-section .step-progress-bar {
   display: block;
   height: 100%;
-  width: 0;
-  background: #c75c40;
-  transition: width 0.08s linear;
+  width: 0%;
+  border-radius: 9999px;
+  background: linear-gradient(90deg, #c75c40 0%, #e86b4b 60%, #ff8364 100%);
+  position: relative;
+  transition: width 0.06s linear;
 }
 
-.trinetra-landing-root .idea-section .step.is-active .step-progress {
-  background: rgba(37, 38, 37, 0.28);
+/* Glowing tip effect on the active moving progress bar */
+.trinetra-landing-root .idea-section .step.is-active .step-progress-bar::after {
+  content: "";
+  position: absolute;
+  right: 0;
+  top: 50%;
+  transform: translateY(-50%);
+  width: 8px;
+  height: 8px;
+  border-radius: 50%;
+  background: #ff8c6e;
+  box-shadow: 
+    0 0 8px 2px rgba(255, 120, 90, 0.9),
+    0 0 16px 4px rgba(199, 92, 64, 0.5);
+}
+
+.trinetra-landing-root .idea-section .step.is-completed .step-progress-bar {
+  background: rgba(199, 92, 64, 0.7);
+  box-shadow: none;
+}
+
+.trinetra-landing-root .idea-section .closing-line {
+  margin-top: clamp(48px, 6vw, 80px);
+  text-align: center;
+  font-size: clamp(16px, 1.4vw, 22px);
+  font-weight: 550;
+  color: #57554e !important;
+  line-height: 1.45;
+}
+
+.trinetra-landing-root .idea-section .closing-line em {
+  font-style: normal;
+  color: transparent !important;
+  background: linear-gradient(110deg, #c75c40, #252625 70%);
+  background-clip: text;
+  -webkit-background-clip: text;
 }
 
 /* Button & Nav Interaction */
@@ -1236,17 +1472,14 @@
   }
   .trinetra-landing-root .idea-section .steps {
     top: 12vh;
-    grid-template-columns: repeat(5, minmax(170px, 1fr));
+    grid-template-columns: repeat(5, minmax(240px, 1fr));
     overflow-x: auto;
-    padding-bottom: 8px;
+    padding-bottom: 16px;
+    gap: 12px;
   }
   .trinetra-landing-root .idea-section .step {
-    min-height: 260px;
-    padding-inline: 18px;
-  }
-  .trinetra-landing-root .idea-section .step-progress {
-    left: 18px;
-    right: 18px;
+    min-height: 300px;
+    padding: 20px 18px;
   }
   .trinetra-landing-root .model-row {
     grid-template-columns: 30px 1fr;

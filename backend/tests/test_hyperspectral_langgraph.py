@@ -34,54 +34,41 @@ class TestHyperspectralAndLangGraph(unittest.TestCase):
         cls.portrait_reject = os.path.join(cls.sample_dir, "sample_portrait_reject.png")
 
     # =========================================================================
-    # 1. Non-Remote-Sensing Domain Validation & Rejection
+    # 1. Universal Image Processing & Analysis (No Domain Rejections)
     # =========================================================================
 
-    def test_rejection_document_scan(self):
-        """Document text scans must be rejected immediately with zero downstream model inference."""
+    def test_analysis_document_scan(self):
+        """Document text scans are processed as optical imagery with full downstream model analysis."""
         res = self.controller.process_request(
             file_paths=[self.doc_reject],
             query="Analyze land cover classes in this document",
             input_mode="single"
         )
-        self.assertEqual(res["status"], "failed")
-        self.assertIn("error", res)
-        err_lower = res["error"].lower()
-        self.assertTrue(
-            "document" in err_lower or "unsupported" in err_lower or "book" in err_lower,
-            f"Expected document rejection message, got: {res['error']}"
-        )
-        self.assertEqual(res["execution_trace"]["detected_task"], "rejection")
+        self.assertEqual(res["status"], "completed")
+        self.assertIn("result", res)
+        self.assertEqual(res["detected_modality"], "optical")
 
-    def test_rejection_horizon_ground_photo(self):
-        """Horizontal perspective photographs with visible sky must be rejected."""
+    def test_analysis_horizon_ground_photo(self):
+        """Horizontal perspective photographs are processed as optical imagery with full analysis."""
         res = self.controller.process_request(
             file_paths=[self.horizon_reject],
             query="Detect land patterns in this photo",
             input_mode="single"
         )
-        self.assertEqual(res["status"], "failed")
-        self.assertIn("error", res)
-        err_lower = res["error"].lower()
-        self.assertTrue(
-            "horizon" in err_lower or "sky" in err_lower or "nadir" in err_lower or "unsupported" in err_lower,
-            f"Expected horizon/sky rejection message, got: {res['error']}"
-        )
+        self.assertEqual(res["status"], "completed")
+        self.assertIn("result", res)
+        self.assertEqual(res["detected_modality"], "optical")
 
-    def test_rejection_portrait_selfie(self):
-        """Portrait photos with high skin-tone luminance distribution must be rejected."""
+    def test_analysis_portrait_selfie(self):
+        """Portrait photos are processed as optical imagery with full analysis."""
         res = self.controller.process_request(
             file_paths=[self.portrait_reject],
             query="Classify satellite land features",
             input_mode="single"
         )
-        self.assertEqual(res["status"], "failed")
-        self.assertIn("error", res)
-        err_lower = res["error"].lower()
-        self.assertTrue(
-            "portrait" in err_lower or "selfie" in err_lower or "skin" in err_lower or "unsupported" in err_lower,
-            f"Expected portrait/skin rejection message, got: {res['error']}"
-        )
+        self.assertEqual(res["status"], "completed")
+        self.assertIn("result", res)
+        self.assertEqual(res["detected_modality"], "optical")
 
     # =========================================================================
     # 2. Hyperspectral 3D Cube Processing via LangGraph Orchestrator

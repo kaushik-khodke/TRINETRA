@@ -104,51 +104,132 @@ class RSVqaFusionNetwork(nn.Module):
         return logits
 
 
+class RSVqaResNetFusionNetwork(nn.Module):
+    """
+    Candidate VQA architecture utilizing a pretrained ResNet backbone with
+    multimodal cross-feature fusion and question conditioning.
+    """
+    def __init__(self, vocab_size: int = 5000, num_answers: int = 147, text_dim: int = 128, pretrained: bool = False):
+        super().__init__()
+        import torchvision.models as models
+        try:
+            weights = models.ResNet18_Weights.DEFAULT if pretrained else None
+            base_resnet = models.resnet18(weights=weights)
+        except Exception:
+            base_resnet = models.resnet18(weights=None)
+
+        self.visual_encoder = nn.Sequential(*list(base_resnet.children())[:-1])
+        self.text_embedding = nn.Embedding(vocab_size, text_dim)
+        self.text_encoder = nn.GRU(text_dim, text_dim, batch_first=True, bidirectional=True)
+
+        self.fusion = nn.Sequential(
+            nn.Linear(512 + text_dim * 2, 256),
+            nn.BatchNorm1d(256),
+            nn.ReLU(),
+            nn.Dropout(0.3),
+            nn.Linear(256, num_answers)
+        )
+
+    def forward(self, img: torch.Tensor, token_ids: torch.Tensor) -> torch.Tensor:
+        v_feat = self.visual_encoder(img).flatten(1)
+        embed = self.text_embedding(token_ids)
+        _, t_hidden = self.text_encoder(embed)
+        t_feat = torch.cat([t_hidden[-2], t_hidden[-1]], dim=-1)
+
+        fused = torch.cat([v_feat, t_feat], dim=-1)
+        logits = self.fusion(fused)
+        return logits
+
+
 # ==============================================================================
 # 3. Text-Guided Region Grounding Network
 # ==============================================================================
+class GroundingResBlock(nn.Module):
+    """Residual convolutional block with identity/projection skip connection."""
+    def __init__(self, in_c: int, out_c: int, stride: int = 1):
+        super().__init__()
+        self.conv = nn.Sequential(
+            nn.Conv2d(in_c, out_c, kernel_size=3, stride=stride, padding=1, bias=False),
+            nn.BatchNorm2d(out_c),
+            nn.ReLU(inplace=True),
+            nn.Conv2d(out_c, out_c, kernel_size=3, stride=1, padding=1, bias=False),
+            nn.BatchNorm2d(out_c)
+        )
+        self.skip = nn.Sequential(
+            nn.Conv2d(in_c, out_c, kernel_size=1, stride=stride, bias=False),
+            nn.BatchNorm2d(out_c)
+        ) if in_c != out_c or stride != 1 else nn.Identity()
+        self.relu = nn.ReLU(inplace=True)
+
+    def forward(self, x: torch.Tensor) -> torch.Tensor:
+        return self.relu(self.conv(x) + self.skip(x))
+
+
 class RSGroundingDetector(nn.Module):
     """
     Spatial localization network predicting normalized bounding boxes [ymin, xmin, ymax, xmax].
+    Upgraded with 4-stage Residual CNN, Bi-GRU text encoder, and FiLM cross-modal conditioning.
     """
-    def __init__(self, vocab_size: int = 4000, text_dim: int = 64, feat_dim: int = 128):
+    def __init__(self, vocab_size: int = 4000, text_dim: int = 128):
         super().__init__()
-        self.backbone = nn.Sequential(
-            nn.Conv2d(3, 64, kernel_size=5, stride=2, padding=2),
+        # 4-stage Residual Convolutional Backbone
+        self.stem = nn.Sequential(
+            nn.Conv2d(3, 64, kernel_size=7, stride=2, padding=3, bias=False),
             nn.BatchNorm2d(64),
-            nn.ReLU(),
-            nn.Conv2d(64, feat_dim, kernel_size=3, stride=2, padding=1),
-            nn.BatchNorm2d(feat_dim),
-            nn.ReLU(),
-            nn.AdaptiveAvgPool2d((4, 4))
+            nn.ReLU(inplace=True),
+            nn.MaxPool2d(kernel_size=3, stride=2, padding=1)
         )
-        self.text_embed = nn.Embedding(vocab_size, text_dim)
+        self.stage1 = GroundingResBlock(64, 64)
+        self.stage2 = nn.Sequential(GroundingResBlock(64, 128, stride=2), GroundingResBlock(128, 128))
+        self.stage3 = nn.Sequential(GroundingResBlock(128, 256, stride=2), GroundingResBlock(256, 256))
+        self.stage4 = nn.Sequential(GroundingResBlock(256, 256, stride=2), GroundingResBlock(256, 256))
 
+        # Bidirectional GRU Text Sequence Encoder
+        self.text_embed = nn.Embedding(vocab_size, text_dim)
+        self.gru = nn.GRU(text_dim, text_dim // 2, batch_first=True, bidirectional=True)
+
+        # Feature-wise Linear Modulation (FiLM)
+        self.film_gen = nn.Linear(text_dim, 256 * 2)
+
+        # Multi-scale spatial pooling & regression head
+        self.pool = nn.AdaptiveAvgPool2d((2, 2))
         self.box_head = nn.Sequential(
-            nn.Linear(feat_dim * 16 + text_dim, 128),
-            nn.ReLU(),
-            nn.Linear(128, 64),
-            nn.ReLU(),
+            nn.Linear(256 * 4 + text_dim, 256),
+            nn.ReLU(inplace=True),
+            nn.Linear(256, 64),
+            nn.ReLU(inplace=True),
             nn.Linear(64, 4),
-            nn.Sigmoid()  # Outputs [0, 1] normalized bounding box coordinates
+            nn.Sigmoid()  # Normalizes to [0, 1] bounds
         )
 
     def forward(self, img: torch.Tensor, tokens: torch.Tensor) -> torch.Tensor:
-        b_feat = self.backbone(img).flatten(1)
-        t_feat = self.text_embed(tokens).mean(dim=1)
-        fused = torch.cat([b_feat, t_feat], dim=-1)
-        raw = self.box_head(fused)
-        # Enforce canonical [ymin, xmin, ymax, xmax] ordering where ymin < ymax and xmin < xmax
-        y_min = torch.min(raw[:, 0], raw[:, 2])
-        y_max = torch.max(raw[:, 0], raw[:, 2])
-        x_min = torch.min(raw[:, 1], raw[:, 3])
-        x_max = torch.max(raw[:, 1], raw[:, 3])
+        # Visual feature extraction
+        x = self.stem(img)
+        x = self.stage1(x)
+        x = self.stage2(x)
+        x = self.stage3(x)
+        feat_map = self.stage4(x)  # (B, 256, 7, 7)
 
-        # Guarantee non-zero positive area to eliminate inverted boxes
-        y_max = torch.maximum(y_max, y_min + 1e-3).clamp(max=1.0)
-        x_max = torch.maximum(x_max, x_min + 1e-3).clamp(max=1.0)
+        # Text sequence representation
+        _, h_n = self.gru(self.text_embed(tokens))
+        t_feat = torch.cat([h_n[0], h_n[1]], dim=-1)  # (B, text_dim)
 
-        return torch.stack([y_min, x_min, y_max, x_max], dim=-1)
+        # FiLM cross-modal conditioning
+        film = self.film_gen(t_feat).unsqueeze(-1).unsqueeze(-1)
+        gamma, beta = film[:, :256], film[:, 256:]
+        modulated = (1.0 + gamma) * feat_map + beta
+
+        # Spatial fusion & box coordinate prediction
+        spatial_fused = torch.cat([self.pool(modulated).flatten(1), t_feat], dim=-1)
+        raw = self.box_head(spatial_fused)
+
+        # Canonical [ymin, xmin, ymax, xmax] enforcement
+        ymin = torch.min(raw[:, 0], raw[:, 2])
+        ymax = torch.maximum(torch.max(raw[:, 0], raw[:, 2]), ymin + 1e-3).clamp(max=1.0)
+        xmin = torch.min(raw[:, 1], raw[:, 3])
+        xmax = torch.maximum(torch.max(raw[:, 1], raw[:, 3]), xmin + 1e-3).clamp(max=1.0)
+
+        return torch.stack([ymin, xmin, ymax, xmax], dim=-1)
 
 
 # ==============================================================================
@@ -235,3 +316,36 @@ class OpticalSARCrossAttentionNet(nn.Module):
         attn_out, _ = self.cross_attn(opt_feat, sar_feat, sar_feat)
         fused = torch.cat([opt_feat.squeeze(1), attn_out.squeeze(1)], dim=-1)
         return self.cross_fusion(fused)
+
+
+# ==============================================================================
+# 6. Bi-Temporal Dense Change Architectures (Stage 4)
+# ==============================================================================
+from models.change_models import (
+    SiameseUNetBaseline,
+    BitemporalInteractionTransformer,
+    create_change_model
+)
+
+
+# ==============================================================================
+# 7. Optical + SAR Multimodal Architectures (Stage 5)
+# ==============================================================================
+from models.optical_sar_models import (
+    OpticalSARConcatBaseline,
+    OpticalSARGatedFusionNet,
+    OpticalOnlyBaseline,
+    SAROnlyBaseline,
+    create_optical_sar_model
+)
+
+
+# ==============================================================================
+# 8. Hyperspectral Specialist Architectures (Stage 6)
+# ==============================================================================
+from models.hyperspectral_models import (
+    SpectralMLPBaseline,
+    HybridSNBaseline,
+    HyperFreeBAdapter,
+    create_hsi_model
+)

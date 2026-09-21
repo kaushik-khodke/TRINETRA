@@ -18,17 +18,8 @@ from fastapi.responses import FileResponse, JSONResponse
 # Add backend and project root to sys.path
 BACKEND_DIR = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
 PROJECT_ROOT = os.path.dirname(BACKEND_DIR)
-# Load backend/.env into environment
-_env_file = os.path.join(BACKEND_DIR, ".env")
-if os.path.exists(_env_file):
-    with open(_env_file, "r", encoding="utf-8") as _f:
-        for _line in _f:
-            _line = _line.strip()
-            if _line and not _line.startswith("#") and "=" in _line:
-                _k, _v = _line.split("=", 1)
-                _k = _k.strip()
-                _v = _v.strip().strip('"').strip("'")
-                os.environ[_k] = _v
+sys.path.insert(0, BACKEND_DIR)
+sys.path.insert(0, PROJECT_ROOT)
 
 from agent.controller import AgentController
 from agent.registry import list_tools
@@ -39,12 +30,18 @@ from observability.langfuse_tracer import LangfuseTracer
 from qml.config import qml_config
 from qml.backends.simulator import get_quantum_backend
 from qml.research_buffer import research_buffer
+from app.middleware import RequestIDMiddleware, format_rfc7807_error
+from core.security import SecurityValidator
+from core.exceptions import TRINETRABaseException, SecurityViolationError
 
 app = FastAPI(
     title="SatQuery AI — Vision-Language Assistant API",
     version="2.0.0",
     description="100% Local Agentic Remote-Sensing Intelligence Platform for Multimodal Satellite Analysis"
 )
+
+# Reliability: Request ID & audit tracing middleware
+app.add_middleware(RequestIDMiddleware)
 
 # CORS configuration
 app.add_middleware(
@@ -62,6 +59,33 @@ app.add_middleware(
     allow_methods=["*"],
     allow_headers=["*"],
 )
+
+# Standardized RFC 7807 Exception Handlers
+@app.exception_handler(SecurityViolationError)
+async def security_exception_handler(request, exc: SecurityViolationError):
+    req_id = getattr(request.state, "request_id", None)
+    return format_rfc7807_error(
+        status_code=400,
+        title="Security Violation",
+        detail=exc.message,
+        request_id=req_id,
+        error_code=exc.error_code,
+        remediation=exc.mitigation,
+        instance=request.url.path
+    )
+
+@app.exception_handler(TRINETRABaseException)
+async def trinetra_domain_exception_handler(request, exc: TRINETRABaseException):
+    req_id = getattr(request.state, "request_id", None)
+    return format_rfc7807_error(
+        status_code=422,
+        title="Domain Validation Error",
+        detail=exc.message,
+        request_id=req_id,
+        error_code=exc.error_code,
+        remediation=exc.mitigation,
+        instance=request.url.path
+    )
 
 UPLOAD_DIR = os.path.join(BACKEND_DIR, "uploads")
 REPORTS_DIR = os.path.join(BACKEND_DIR, "outputs", "reports")
@@ -89,6 +113,38 @@ def startup_diagnostics():
     print(f" Telemetry      : Langfuse (Enabled={LangfuseTracer.is_available()})")
     print(" Cloud LLM      : NONE (100% Air-Gapped / Zero External APIs)")
     print("=" * 60)
+
+
+@app.get("/healthz")
+def liveness_check():
+    """Kubernetes & container liveness probe."""
+    return {"status": "ok", "service": "TRINETRA", "version": "2.0.0"}
+
+@app.get("/readyz")
+def readiness_check():
+    """Production readiness probe auditing storage writeability and model availability."""
+    storage_ok = os.access(UPLOAD_DIR, os.W_OK) and os.access(REPORTS_DIR, os.W_OK)
+    model_status = ModelRegistryStatus.get_status()
+    llm_status = local_registry.get_status_summary()
+
+    is_ready = storage_ok
+    status_code = 200 if is_ready else 503
+
+    return JSONResponse(
+        status_code=status_code,
+        content={
+            "status": "ready" if is_ready else "not_ready",
+            "storage_writable": storage_ok,
+            "models": {
+                k: {"loaded": v.get("loaded", False), "engine": v.get("engine")}
+                for k, v in model_status.items()
+            },
+            "llm_engine": {
+                "ollama_online": llm_status.get("ollama_connected", False),
+                "installed_models": llm_status.get("installed_models", [])
+            }
+        }
+    )
 
 @app.get("/api/v1/health")
 def health_check():
@@ -297,12 +353,17 @@ def get_demo_samples():
 @app.post("/api/v1/inspect-image")
 async def inspect_image(file: UploadFile = File(...)):
     """Fast pre-inspection of raster to extract coordinates, CRS, and Shatnetra 3D Globe URL immediately on upload."""
+    safe_filename = SecurityValidator.sanitize_filename(file.filename)
+    contents = await file.read()
+    await file.seek(0)
+    SecurityValidator.validate_file_type_and_size(contents, safe_filename, max_size_bytes=500 * 1024 * 1024)
+
     temp_dir = os.path.join(UPLOAD_DIR, "inspect")
     os.makedirs(temp_dir, exist_ok=True)
-    temp_file = os.path.join(temp_dir, f"{uuid.uuid4()}_{file.filename}")
+    temp_file = os.path.join(temp_dir, f"{uuid.uuid4()}_{safe_filename}")
     try:
         with open(temp_file, "wb") as buffer:
-            shutil.copyfileobj(file.file, buffer)
+            buffer.write(contents)
 
         from geospatial.reader import GeospatialReader
         meta = GeospatialReader.read_metadata(temp_file)
@@ -314,7 +375,7 @@ async def inspect_image(file: UploadFile = File(...)):
             "height": 5000,
             "bounds": list(meta.bounds) if meta.bounds else None,
             "crs": meta.crs or "EPSG:4326",
-            "location_name": meta.location_name or os.path.splitext(file.filename)[0]
+            "location_name": meta.location_name or os.path.splitext(safe_filename)[0]
         }
 
         globe_url = None
@@ -324,7 +385,7 @@ async def inspect_image(file: UploadFile = File(...)):
             globe_url = f"{globe_base}/?lat={geo['lat']:.5f}&lng={geo['lng']:.5f}&lon={geo['lng']:.5f}&height=5000&source=satquery&name={target_name}"
 
         return {
-            "filename": file.filename,
+            "filename": safe_filename,
             "width": meta.width,
             "height": meta.height,
             "bands": meta.bands,
@@ -333,9 +394,11 @@ async def inspect_image(file: UploadFile = File(...)):
             "geographic_location": geo,
             "globe_url": globe_url
         }
+    except SecurityViolationError:
+        raise
     except Exception as e:
         return {
-            "filename": file.filename,
+            "filename": safe_filename,
             "error": str(e),
             "geographic_location": {"has_location": False},
             "globe_url": None
@@ -362,9 +425,14 @@ async def analyze_request(
     saved_paths = []
     try:
         for f in files:
-            dest_path = os.path.join(req_upload_dir, f.filename)
+            safe_name = SecurityValidator.sanitize_filename(f.filename)
+            contents = await f.read()
+            await f.seek(0)
+            SecurityValidator.validate_file_type_and_size(contents, safe_name, max_size_bytes=500 * 1024 * 1024)
+
+            dest_path = os.path.join(req_upload_dir, safe_name)
             with open(dest_path, "wb") as buffer:
-                shutil.copyfileobj(f.file, buffer)
+                buffer.write(contents)
             saved_paths.append(dest_path)
 
         declared_mods = [m.strip() for m in modalities.split(",")] if modalities else None
@@ -386,17 +454,11 @@ async def analyze_request(
             response_language=response_language or "en"
         )
 
-        req_id = result_payload.get("request_id") or request_id
-        JOBS_DB[req_id] = result_payload
-
-        from fastapi.encoders import jsonable_encoder
-        return JSONResponse(content=jsonable_encoder(result_payload))
+        JOBS_DB[result_payload["request_id"]] = result_payload
+        return result_payload
 
     except Exception as e:
-        import traceback
-        traceback.print_exc()
-        err_msg = str(e) or repr(e) or "Unknown internal processing error"
-        raise HTTPException(status_code=500, detail=err_msg)
+        raise HTTPException(status_code=500, detail=str(e))
 
 @app.post("/api/v1/analyze-preset")
 async def analyze_preset(

@@ -64,7 +64,26 @@ class QMLService:
             try:
                 state = torch.load(ckpt_path, map_location="cpu")
                 model.load_state_dict(state, strict=False)
-                print(f"[QMLService] Loaded verified QML checkpoint (Acc: 76.37%) from {ckpt_path}")
+                
+                # Retrieve empirical accuracy dynamically from saved metrics manifest
+                eval_path = os.path.join(os.path.dirname(ckpt_path), "metrics.json")
+                if not os.path.exists(eval_path):
+                    eval_path = os.path.join(os.path.dirname(ckpt_path), "evaluation_results.json")
+                
+                metric_info = ""
+                if os.path.exists(eval_path):
+                    try:
+                        import json
+                        with open(eval_path, "r", encoding="utf-8") as f:
+                            m_data = json.load(f)
+                            if "accuracy" in m_data:
+                                metric_info = f" (Reported Acc: {float(m_data['accuracy'])*100:.2f}%)"
+                            elif "val_accuracy" in m_data:
+                                metric_info = f" (Val Acc: {float(m_data['val_accuracy'])*100:.2f}%)"
+                    except Exception:
+                        pass
+
+                print(f"[QMLService] Loaded QML checkpoint{metric_info} from {ckpt_path}")
             except Exception as e:
                 print(f"[QMLService] Warning: Failed to load state dict from {ckpt_path}: {e}")
 
