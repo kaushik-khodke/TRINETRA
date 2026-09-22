@@ -185,6 +185,137 @@ class ShowEvidenceCommand(BaseModel):
     evidence_id: str = Field(..., min_length=1, max_length=64)
 
 
+class RunInvestigationCommand(BaseModel):
+    model_config = ConfigDict(extra="forbid")
+    type: Literal["RUN_INVESTIGATION"] = "RUN_INVESTIGATION"
+    question: str = Field(..., min_length=3, max_length=500)
+    observation_ids: List[str] = Field(default_factory=list)
+
+
+class FocusEvidenceCommand(BaseModel):
+    model_config = ConfigDict(extra="forbid")
+    type: Literal["FOCUS_EVIDENCE"] = "FOCUS_EVIDENCE"
+    evidence_id: str = Field(..., min_length=1, max_length=64)
+    latitude: Optional[float] = Field(None, ge=-90.0, le=90.0)
+    longitude: Optional[float] = Field(None, ge=-180.0, le=180.0)
+    zoom: Optional[float] = Field(15.0, ge=0.0, le=24.0)
+
+
+class ShowTimelineCommand(BaseModel):
+    model_config = ConfigDict(extra="forbid")
+    type: Literal["SHOW_TIMELINE"] = "SHOW_TIMELINE"
+    investigation_id: Optional[str] = Field(None, max_length=64)
+
+
+class TrackObjectCommand(BaseModel):
+    model_config = ConfigDict(extra="forbid")
+    type: Literal["TRACK_OBJECT"] = "TRACK_OBJECT"
+    target_class: str = Field("structure", max_length=64)
+    observation_ids: List[str] = Field(default_factory=list)
+
+
+class CompareRegionsCommand(BaseModel):
+    model_config = ConfigDict(extra="forbid")
+    type: Literal["COMPARE_REGIONS"] = "COMPARE_REGIONS"
+    region_a_id: str = Field(..., min_length=1, max_length=64)
+    region_b_id: str = Field(..., min_length=1, max_length=64)
+
+
+# --- Phase 7 Persistent Intelligence & Discovery Commands ---
+
+class SearchIntelligenceCommand(BaseModel):
+    model_config = ConfigDict(extra="forbid")
+    type: Literal["SEARCH_INTELLIGENCE"] = "SEARCH_INTELLIGENCE"
+    query: str = Field(..., min_length=1, max_length=500)
+    semantic_class: Optional[str] = Field(None, max_length=64)
+    state: Optional[str] = Field(None, max_length=32)
+    min_confidence: Optional[float] = Field(None, ge=0.0, le=1.0)
+
+
+class OpenEventCommand(BaseModel):
+    model_config = ConfigDict(extra="forbid")
+    type: Literal["OPEN_EVENT"] = "OPEN_EVENT"
+    event_id: str = Field(..., min_length=1, max_length=64)
+
+
+class OpenFindingCommand(BaseModel):
+    model_config = ConfigDict(extra="forbid")
+    type: Literal["OPEN_FINDING"] = "OPEN_FINDING"
+    finding_id: str = Field(..., min_length=1, max_length=64)
+
+
+class FindSimilarCommand(BaseModel):
+    model_config = ConfigDict(extra="forbid")
+    type: Literal["FIND_SIMILAR"] = "FIND_SIMILAR"
+    event_id: Optional[str] = Field(None, max_length=64)
+    finding_id: Optional[str] = Field(None, max_length=64)
+
+
+class RunTemplateCommand(BaseModel):
+    model_config = ConfigDict(extra="forbid")
+    type: Literal["RUN_TEMPLATE"] = "RUN_TEMPLATE"
+    template_id: str = Field(..., min_length=1, max_length=64)
+    region_id: Optional[str] = Field(None, max_length=64)
+
+
+class CreateMonitorCommand(BaseModel):
+    model_config = ConfigDict(extra="forbid")
+    type: Literal["CREATE_MONITOR"] = "CREATE_MONITOR"
+    name: str = Field(..., min_length=1, max_length=128)
+    region_id: Optional[str] = Field(None, max_length=64)
+    condition_text: Optional[str] = Field(None, max_length=500)
+
+
+class ShowAnomaliesCommand(BaseModel):
+    model_config = ConfigDict(extra="forbid")
+    type: Literal["SHOW_ANOMALIES"] = "SHOW_ANOMALIES"
+    region_id: Optional[str] = Field(None, max_length=64)
+    min_score: Optional[float] = Field(0.5, ge=0.0, le=1.0)
+
+
+class ShowHotspotsCommand(BaseModel):
+    model_config = ConfigDict(extra="forbid")
+    type: Literal["SHOW_HOTSPOTS"] = "SHOW_HOTSPOTS"
+    region_id: Optional[str] = Field(None, max_length=64)
+
+
+# --- Phase 8: Analyst Command Center Commands ---
+
+class OpenWorkspaceCommand(BaseModel):
+    model_config = ConfigDict(extra="forbid")
+    type: Literal["OPEN_WORKSPACE"] = "OPEN_WORKSPACE"
+    workspace_id: str = Field(..., max_length=64)
+    tab: Optional[str] = Field(None, max_length=32)
+
+
+class CreateWorkspaceCommand(BaseModel):
+    model_config = ConfigDict(extra="forbid")
+    type: Literal["CREATE_WORKSPACE"] = "CREATE_WORKSPACE"
+    name: str = Field(..., min_length=2, max_length=120)
+    description: Optional[str] = Field(None, max_length=500)
+
+
+class PinToEvidenceBoardCommand(BaseModel):
+    model_config = ConfigDict(extra="forbid")
+    type: Literal["PIN_TO_BOARD"] = "PIN_TO_BOARD"
+    item_type: str = Field(..., max_length=32)
+    source_id: str = Field(..., max_length=64)
+    title: Optional[str] = Field(None, max_length=120)
+
+
+class RunInvestigationPlanCommand(BaseModel):
+    model_config = ConfigDict(extra="forbid")
+    type: Literal["RUN_INVESTIGATION_PLAN"] = "RUN_INVESTIGATION_PLAN"
+    plan_id: str = Field(..., max_length=64)
+
+
+class ExportReportCommand(BaseModel):
+    model_config = ConfigDict(extra="forbid")
+    type: Literal["EXPORT_REPORT"] = "EXPORT_REPORT"
+    report_id: str = Field(..., max_length=64)
+    format: Optional[str] = Field("ZIP", max_length=16)
+
+
 ExploreCommand = Annotated[
     Union[
         FlyToCommand,
@@ -205,6 +336,24 @@ ExploreCommand = Annotated[
         RunAnalysisCommand,
         FocusFindingCommand,
         ShowEvidenceCommand,
+        RunInvestigationCommand,
+        FocusEvidenceCommand,
+        ShowTimelineCommand,
+        TrackObjectCommand,
+        CompareRegionsCommand,
+        SearchIntelligenceCommand,
+        OpenEventCommand,
+        OpenFindingCommand,
+        FindSimilarCommand,
+        RunTemplateCommand,
+        CreateMonitorCommand,
+        ShowAnomaliesCommand,
+        ShowHotspotsCommand,
+        OpenWorkspaceCommand,
+        CreateWorkspaceCommand,
+        PinToEvidenceBoardCommand,
+        RunInvestigationPlanCommand,
+        ExportReportCommand,
     ],
     Field(discriminator="type"),
 ]
@@ -274,6 +423,20 @@ class ExploreStatePatch(BaseModel):
     comparison: Optional[Dict[str, Any]] = None
     active_finding_id: Optional[str] = None
     analysis: Optional[Dict[str, Any]] = None
+    investigation: Optional[Dict[str, Any]] = None
+    focused_evidence_id: Optional[str] = None
+    timeline_active: Optional[bool] = None
+    object_tracking: Optional[Dict[str, Any]] = None
+    active_event_id: Optional[str] = None
+    intelligence_search: Optional[Dict[str, Any]] = None
+    intelligence_tab: Optional[str] = None
+    active_monitor_id: Optional[str] = None
+    anomalies_active: Optional[bool] = None
+    hotspots_active: Optional[bool] = None
+    active_workspace_id: Optional[str] = None
+    active_workspace_tab: Optional[str] = None
+    evidence_board_active: Optional[bool] = None
+    active_plan_id: Optional[str] = None
 
 
 

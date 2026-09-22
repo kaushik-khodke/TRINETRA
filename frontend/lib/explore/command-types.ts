@@ -34,6 +34,10 @@ export interface AIStatePatch {
   visible_layer_ids?: string[] | null
   layer_opacities?: Record<string, number> | null
   active_dataset_id?: string | null
+  investigation?: Record<string, any> | null
+  focused_evidence_id?: string | null
+  timeline_active?: boolean | null
+  object_tracking?: Record<string, any> | null
 }
 
 export interface AIQueryResponse {

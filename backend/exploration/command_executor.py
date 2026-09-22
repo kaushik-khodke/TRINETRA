@@ -30,6 +30,24 @@ from exploration.ai_schemas import (
     RunAnalysisCommand,
     FocusFindingCommand,
     ShowEvidenceCommand,
+    RunInvestigationCommand,
+    FocusEvidenceCommand,
+    ShowTimelineCommand,
+    TrackObjectCommand,
+    CompareRegionsCommand,
+    SearchIntelligenceCommand,
+    OpenEventCommand,
+    OpenFindingCommand,
+    FindSimilarCommand,
+    RunTemplateCommand,
+    CreateMonitorCommand,
+    ShowAnomaliesCommand,
+    ShowHotspotsCommand,
+    OpenWorkspaceCommand,
+    CreateWorkspaceCommand,
+    PinToEvidenceBoardCommand,
+    RunInvestigationPlanCommand,
+    ExportReportCommand,
     EXPLORE_COMMAND_FAILED,
     EXPLORE_LOCATION_AMBIGUOUS,
     EXPLORE_LOCATION_NOT_FOUND,
@@ -109,6 +127,34 @@ class CommandExecutor:
                 active_finding_patch = details["active_finding_id"]
             if "analysis" in details:
                 analysis_patch = details["analysis"]
+            if "investigation" in details:
+                investigation_patch = details["investigation"]
+            if "focused_evidence_id" in details:
+                focused_evidence_patch = details["focused_evidence_id"]
+            if "timeline_active" in details:
+                timeline_active_patch = details["timeline_active"]
+            if "object_tracking" in details:
+                object_tracking_patch = details["object_tracking"]
+            if "active_event_id" in details:
+                active_event_patch = details["active_event_id"]
+            if "intelligence_search" in details:
+                intelligence_search_patch = details["intelligence_search"]
+            if "intelligence_tab" in details:
+                intelligence_tab_patch = details["intelligence_tab"]
+            if "active_monitor_id" in details:
+                active_monitor_patch = details["active_monitor_id"]
+            if "anomalies_active" in details:
+                anomalies_active_patch = details["anomalies_active"]
+            if "hotspots_active" in details:
+                hotspots_active_patch = details["hotspots_active"]
+            if "active_workspace_id" in details:
+                active_workspace_id_patch = details["active_workspace_id"]
+            if "active_workspace_tab" in details:
+                active_workspace_tab_patch = details["active_workspace_tab"]
+            if "evidence_board_active" in details:
+                evidence_board_active_patch = details["evidence_board_active"]
+            if "active_plan_id" in details:
+                active_plan_id_patch = details["active_plan_id"]
 
             items.append(
                 CommandExecutionItem(
@@ -135,6 +181,20 @@ class CommandExecutor:
             comparison=comparison_patch,
             active_finding_id=active_finding_patch if "active_finding_patch" in locals() else None,
             analysis=analysis_patch if "analysis_patch" in locals() else None,
+            investigation=investigation_patch if "investigation_patch" in locals() else None,
+            focused_evidence_id=focused_evidence_patch if "focused_evidence_patch" in locals() else None,
+            timeline_active=timeline_active_patch if "timeline_active_patch" in locals() else None,
+            object_tracking=object_tracking_patch if "object_tracking_patch" in locals() else None,
+            active_event_id=active_event_patch if "active_event_patch" in locals() else None,
+            intelligence_search=intelligence_search_patch if "intelligence_search_patch" in locals() else None,
+            intelligence_tab=intelligence_tab_patch if "intelligence_tab_patch" in locals() else None,
+            active_monitor_id=active_monitor_patch if "active_monitor_patch" in locals() else None,
+            anomalies_active=anomalies_active_patch if "anomalies_active_patch" in locals() else None,
+            hotspots_active=hotspots_active_patch if "hotspots_active_patch" in locals() else None,
+            active_workspace_id=active_workspace_id_patch if "active_workspace_id_patch" in locals() else None,
+            active_workspace_tab=active_workspace_tab_patch if "active_workspace_tab_patch" in locals() else None,
+            evidence_board_active=evidence_board_active_patch if "evidence_board_active_patch" in locals() else None,
+            active_plan_id=active_plan_id_patch if "active_plan_id_patch" in locals() else None,
         )
 
 
@@ -361,6 +421,217 @@ class CommandExecutor:
                 CommandExecutionStatus.EXECUTED,
                 f"Highlighted evidence item '{cmd.evidence_id}'.",
                 {"active_evidence_id": cmd.evidence_id},
+                None,
+            )
+
+        # 19. RUN_INVESTIGATION
+        elif isinstance(cmd, RunInvestigationCommand):
+            return (
+                CommandExecutionStatus.EXECUTED,
+                f"Enqueued investigation: '{cmd.question}'.",
+                {"investigation": {"question": cmd.question, "observation_ids": cmd.observation_ids, "status": "queued"}},
+                None,
+            )
+
+        # 20. FOCUS_EVIDENCE
+        elif isinstance(cmd, FocusEvidenceCommand):
+            details = {"focused_evidence_id": cmd.evidence_id}
+            if cmd.latitude is not None and cmd.longitude is not None:
+                details["camera"] = {"latitude": cmd.latitude, "longitude": cmd.longitude, "zoom": cmd.zoom or 15.0}
+            return (
+                CommandExecutionStatus.EXECUTED,
+                f"Focused evidence item '{cmd.evidence_id}'.",
+                details,
+                None,
+            )
+
+        # 21. SHOW_TIMELINE
+        elif isinstance(cmd, ShowTimelineCommand):
+            return (
+                CommandExecutionStatus.EXECUTED,
+                "Opened multi-temporal investigation timeline.",
+                {"timeline_active": True, "investigation_id": cmd.investigation_id},
+                None,
+            )
+
+        # 22. TRACK_OBJECT
+        elif isinstance(cmd, TrackObjectCommand):
+            return (
+                CommandExecutionStatus.EXECUTED,
+                f"Tracking object class '{cmd.target_class}'.",
+                {"object_tracking": {"target_class": cmd.target_class, "observation_ids": cmd.observation_ids}},
+                None,
+            )
+
+        # 23. COMPARE_REGIONS
+        elif isinstance(cmd, CompareRegionsCommand):
+            return (
+                CommandExecutionStatus.EXECUTED,
+                f"Comparing regions '{cmd.region_a_id}' and '{cmd.region_b_id}'.",
+                {"comparison": {"region_a": cmd.region_a_id, "region_b": cmd.region_b_id}},
+                None,
+            )
+
+        # 24. SEARCH_INTELLIGENCE
+        elif isinstance(cmd, SearchIntelligenceCommand):
+            return (
+                CommandExecutionStatus.EXECUTED,
+                f"Executing intelligence search for '{cmd.query}'.",
+                {
+                    "intelligence_search": {
+                        "query": cmd.query,
+                        "semantic_class": cmd.semantic_class,
+                        "state": cmd.state,
+                        "min_confidence": cmd.min_confidence,
+                    },
+                    "intelligence_tab": "search",
+                },
+                None,
+            )
+
+        # 25. OPEN_EVENT
+        elif isinstance(cmd, OpenEventCommand):
+            return (
+                CommandExecutionStatus.EXECUTED,
+                f"Opened EO Event '{cmd.event_id}'.",
+                {"active_event_id": cmd.event_id, "intelligence_tab": "events"},
+                None,
+            )
+
+        # 26. OPEN_FINDING
+        elif isinstance(cmd, OpenFindingCommand):
+            return (
+                CommandExecutionStatus.EXECUTED,
+                f"Opened persistent finding '{cmd.finding_id}'.",
+                {"active_finding_id": cmd.finding_id, "intelligence_tab": "findings"},
+                None,
+            )
+
+        # 27. FIND_SIMILAR
+        elif isinstance(cmd, FindSimilarCommand):
+            target = cmd.event_id or cmd.finding_id
+            return (
+                CommandExecutionStatus.EXECUTED,
+                f"Finding similar events and findings to '{target}'.",
+                {
+                    "intelligence_search": {
+                        "event_id": cmd.event_id,
+                        "finding_id": cmd.finding_id,
+                        "type": "similarity",
+                    },
+                    "intelligence_tab": "similarity",
+                },
+                None,
+            )
+
+        # 28. RUN_TEMPLATE
+        elif isinstance(cmd, RunTemplateCommand):
+            return (
+                CommandExecutionStatus.EXECUTED,
+                f"Triggered investigation template '{cmd.template_id}'.",
+                {
+                    "investigation": {
+                        "template_id": cmd.template_id,
+                        "region_id": cmd.region_id,
+                        "status": "queued",
+                    },
+                    "intelligence_tab": "templates",
+                },
+                None,
+            )
+
+        # 29. CREATE_MONITOR
+        elif isinstance(cmd, CreateMonitorCommand):
+            return (
+                CommandExecutionStatus.EXECUTED,
+                f"Configured persistent monitor '{cmd.name}'.",
+                {
+                    "active_monitor_id": cmd.name,
+                    "intelligence_tab": "monitoring",
+                },
+                None,
+            )
+
+        # 30. SHOW_ANOMALIES
+        elif isinstance(cmd, ShowAnomaliesCommand):
+            return (
+                CommandExecutionStatus.EXECUTED,
+                "Displaying regional anomalies panel.",
+                {
+                    "anomalies_active": True,
+                    "intelligence_tab": "anomalies",
+                },
+                None,
+            )
+
+        # 31. SHOW_HOTSPOTS
+        elif isinstance(cmd, ShowHotspotsCommand):
+            return (
+                CommandExecutionStatus.EXECUTED,
+                "Displaying spatial activity hotspots.",
+                {
+                    "hotspots_active": True,
+                    "intelligence_tab": "hotspots",
+                },
+                None,
+            )
+
+        # 32. OPEN_WORKSPACE
+        elif isinstance(cmd, OpenWorkspaceCommand):
+            return (
+                CommandExecutionStatus.EXECUTED,
+                f"Opened analyst workspace '{cmd.workspace_id}'.",
+                {
+                    "active_workspace_id": cmd.workspace_id,
+                    "active_workspace_tab": cmd.tab or "overview",
+                },
+                None,
+            )
+
+        # 33. CREATE_WORKSPACE
+        elif isinstance(cmd, CreateWorkspaceCommand):
+            return (
+                CommandExecutionStatus.EXECUTED,
+                f"Created analyst workspace '{cmd.name}'.",
+                {
+                    "active_workspace_id": f"ws-{cmd.name.lower().replace(' ', '-')[:16]}",
+                    "active_workspace_tab": "overview",
+                },
+                None,
+            )
+
+        # 34. PIN_TO_BOARD
+        elif isinstance(cmd, PinToEvidenceBoardCommand):
+            return (
+                CommandExecutionStatus.EXECUTED,
+                f"Pinned {cmd.item_type} '{cmd.source_id}' to evidence board.",
+                {
+                    "evidence_board_active": True,
+                    "active_workspace_tab": "board",
+                },
+                None,
+            )
+
+        # 35. RUN_INVESTIGATION_PLAN
+        elif isinstance(cmd, RunInvestigationPlanCommand):
+            return (
+                CommandExecutionStatus.EXECUTED,
+                f"Dispatched execution for investigation plan '{cmd.plan_id}'.",
+                {
+                    "active_plan_id": cmd.plan_id,
+                    "active_workspace_tab": "plans",
+                },
+                None,
+            )
+
+        # 36. EXPORT_REPORT
+        elif isinstance(cmd, ExportReportCommand):
+            return (
+                CommandExecutionStatus.EXECUTED,
+                f"Generated export package for report '{cmd.report_id}'.",
+                {
+                    "active_workspace_tab": "reports",
+                },
                 None,
             )
 

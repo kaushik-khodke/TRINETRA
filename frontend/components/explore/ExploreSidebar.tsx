@@ -7,7 +7,7 @@
  */
 
 import React, { useState } from "react"
-import { BrainCircuit, Calendar, Compass, Database, GitCompare, Layers, MapPin, Navigation, Satellite } from "lucide-react"
+import { BrainCircuit, Briefcase, Calendar, Compass, Database, GitCompare, Layers, MapPin, Navigation, Satellite, Sparkles } from "lucide-react"
 import { globeCommandBus } from "@/lib/explore/globe-command-bus"
 import { useGlobeState } from "@/lib/explore/globe-state"
 import { DEFAULT_CAMERA_STATE, ISRO_HQ_LOCATION } from "@/lib/explore/constants"
@@ -21,6 +21,9 @@ import { ObservationCard } from "./ObservationCard"
 import { ObservationDetails } from "./ObservationDetails"
 import { ComparisonPanel } from "./ComparisonPanel"
 import { AnalysisPanel } from "./AnalysisPanel"
+import { InvestigationPanel } from "./InvestigationPanel"
+import { IntelligenceWorkspace } from "./IntelligenceWorkspace"
+import { WorkspaceShell } from "@/components/workspace/WorkspaceShell"
 import { useTemporalState } from "@/lib/explore/temporal-state"
 import { useComparisonState } from "@/lib/explore/comparison-state"
 import { useAOIState } from "@/lib/explore/aoi-state"
@@ -30,7 +33,7 @@ export function ExploreSidebar() {
   const { observations, selectedObservation } = useTemporalState()
   const comparisonState = useComparisonState()
   const { activeAOI } = useAOIState()
-  const [activeTab, setActiveTab] = useState<"catalog" | "temporal" | "compare" | "analysis" | "layers" | "waypoints">("catalog")
+  const [activeTab, setActiveTab] = useState<"catalog" | "temporal" | "compare" | "analysis" | "investigate" | "intelligence" | "workspace" | "layers" | "waypoints">("catalog")
 
   const handleFlyTo = (target: typeof DEFAULT_CAMERA_STATE) => {
     globeCommandBus.dispatch({
@@ -100,6 +103,30 @@ export function ExploreSidebar() {
           <span>Analysis</span>
         </button>
         <button
+          className={`tab-btn ${activeTab === "investigate" ? "active" : ""}`}
+          onClick={() => setActiveTab("investigate")}
+          title="Semantic EO Intelligence & Evidence Fusion"
+        >
+          <Sparkles size={12} />
+          <span>Investigate</span>
+        </button>
+        <button
+          className={`tab-btn ${activeTab === "intelligence" ? "active" : ""}`}
+          onClick={() => setActiveTab("intelligence")}
+          title="Persistent EO Intelligence, Semantic Search & Monitoring"
+        >
+          <Database size={12} />
+          <span>Intel</span>
+        </button>
+        <button
+          className={`tab-btn ${activeTab === "workspace" ? "active" : ""}`}
+          onClick={() => setActiveTab("workspace")}
+          title="Analyst Command Center & Multi-Region Workflows"
+        >
+          <Briefcase size={12} />
+          <span>Workspace</span>
+        </button>
+        <button
           className={`tab-btn ${activeTab === "layers" ? "active" : ""}`}
           onClick={() => setActiveTab("layers")}
           title="Active Layers"
@@ -160,6 +187,29 @@ export function ExploreSidebar() {
               comparisonObservationB={comparisonState.observationB}
               aoiGeometry={activeAOI?.geometry}
             />
+          </div>
+        )}
+
+        {activeTab === "investigate" && (
+          <div className="investigation-tab-pane h-full">
+            <InvestigationPanel
+              availableObservationIds={observations.map((o) => o.id)}
+              aoiGeometry={activeAOI?.geometry}
+            />
+          </div>
+        )}
+
+        {activeTab === "intelligence" && (
+          <div className="intelligence-tab-pane h-full">
+            <IntelligenceWorkspace
+              availableObservationIds={observations.map((o) => o.id)}
+            />
+          </div>
+        )}
+
+        {activeTab === "workspace" && (
+          <div className="workspace-tab-pane h-full">
+            <WorkspaceShell />
           </div>
         )}
 

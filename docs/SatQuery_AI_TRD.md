@@ -2040,5 +2040,266 @@ backend/analysis_engine/
 - **End-to-End Pipeline Scripts**: All 6 verification gates passed (`scripts/test_explore_analysis_flow.py`, `scripts/test_change_pipeline.py`, `scripts/test_sar_optical_pipeline.py`, `scripts/test_single_image_pipeline.py`).
 - **Frontend Architecture**: TypeScript strict validation clean (**0 errors**), Turbopack build optimized (**0 warnings**).
 
+---
+
+## 50. Phase 6: Semantic EO Intelligence & Evidence Fusion Architecture
+
+### 50.1 High-Level Objective & Evolution
+Phase 6 connects individual specialist model outputs (bi-temporal change maps, optical-SAR backscatter deltas, single-image groundings, spectral indices) into a higher-level reasoning and evidence fusion architecture. TRINETRA transitions from point-wise visual task execution into an AI-assisted Earth-Observation Investigation System.
+
+```text
+MULTIPLE OBSERVATIONS
+        +
+MULTIPLE SPECIALISTS (Optical, SAR, Spectral, Grounding)
+        +
+GEOSPATIAL EVIDENCE (Bounding Boxes, Polygons, Coordinates)
+        +
+TEMPORAL EVIDENCE (Timelines, Trajectories, Recurrence)
+        +
+OBJECT EVIDENCE (Detected Objects, Spatial Overlaps, IoU Tracks)
+        ↓
+   EVIDENCE FUSION ENGINE
+        ↓
+SEMANTIC EVENT HYPOTHESES (Categorized, Composite Scored, Ranked)
+        ↓
+EVIDENCE CONFLICT VALIDATION (Optical vs SAR Discrepancies Preserved)
+        ↓
+ANALYST REASONING & NOTES (Persistent Storage, Export)
+        ↓
+INVESTIGATION REPORT (HTML + JSON Artifacts)
+```
+
+### 50.2 Core Architectural Principles
+
+1. **Empirical Findings vs. Semantic Hypotheses**:
+   - **Empirical Findings**: Factual observations directly measured from sensor data (e.g. "Cluster C1 contains 14.8 hectares of optical reflectance change"). Every finding strictly references valid evidence token IDs (`supporting_evidence_ids`).
+   - **Semantic Hypotheses**: High-level semantic interpretations (e.g. `BUILT_UP_EXPANSION`, `VEGETATION_LOSS`) scored with composite confidence, accompanied by alternative runner-up interpretations.
+
+2. **Strict Non-Causal Attribution Boundary**:
+   - The engine operates strictly within physical land-cover and reflectance reality.
+   - It **NEVER** speculates on commercial motives, contractor identities, illegal activity, or property ownership without ground truth.
+
+3. **Explicit Conflict Preservation**:
+   - When sensors disagree (e.g., optical reflectance reveals clearing while SAR shows zero backscatter delta), the engine refuses to average out the discrepancy.
+   - It surfaces an explicit `OPTICAL_SAR_DISCREPANCY` conflict, recording conflicting token IDs and explaining physical reasons (e.g. low-profile clearing without vertical structure).
+
+4. **Multi-Observation Object Lifecycle Tracking**:
+   - Cross-observation object matching via 2D bounding-box Intersection-over-Union (IoU).
+   - Lifecycle classification: `NEW`, `PERSISTENT`, `VANISHED`, `MODIFIED`.
+
+5. **Multi-Dimensional Non-Averaged Evidence Scoring**:
+   - Transparent composite formula:
+     $$\text{Composite} = 0.30 \cdot C_{\text{model}} + 0.20 \cdot Q_{\text{evidence}} + 0.20 \cdot S_{\text{spatial}} + 0.15 \cdot T_{\text{temporal}} + 0.15 \cdot X_{\text{cross-modal}} - 0.25 \cdot P_{\text{contradiction}}$$
+   - Bounded in $[0.05, 1.00]$, with qualitative ratings `HIGH`, `MEDIUM`, `LOW` and human-readable narrative explanation.
+
+### 50.3 Subsystem Directory Layout
+```text
+backend/investigation/
+├── __init__.py
+├── models.py                  # Investigation, InvestigationProgress, InvestigationArtifact, InvestigationStatus
+├── schemas.py                 # StructuredFinding, SemanticHypothesis, EvidenceConflict, InvestigationRequest
+├── errors.py                  # Structured investigation error hierarchy
+├── context.py                 # Investigation numerical context decoupled from prompt text
+├── provenance.py              # SHA-256 computation across inputs, specialist versions, and graph state
+├── planner.py                 # Intent classification (BUILT_UP_CHANGE, VEGETATION_LOSS, etc.) & specialist selection
+├── executor.py                # Concurrent specialist execution with ThreadPoolExecutor
+├── service.py                 # InvestigationService coordinator with concurrency limiting & async semaphore
+├── notes.py                   # AnalystNoteStore (JSON persistence)
+├── evidence/                  # EvidenceItem, EvidenceGraph, EvidenceClusterer, EvidenceScorer, ConflictValidator, FusionEngine
+├── semantics/                 # SemanticTaxonomy, SemanticClassifier, EventSemanticsEngine, ConfidenceExplainer
+├── temporal/                  # TemporalTrajectoryAnalyzer, PersistenceEvaluator, RecurrenceDetector, LandCoverTransitionEngine
+├── objects/                   # DetectedObject, ObjectMatcher (IoU), ObjectChangeDetector, ObjectTracker
+├── reports/                   # HTML & JSON investigation report generators, evidence cards, timeline builder
+└── graph/                      # Compiled LangGraph investigation workflow (build_investigation_graph)
+```
+
+### 50.4 Quality Assurance & Performance Metrics
+- **Pytest Suite**: 22 unit & integration tests passing 100% across 7 test suites (`backend/tests/investigation/`).
+- **Full Graph Execution**: End-to-end LangGraph state machine validated in under 1.5 seconds.
+- **Frontend Architecture**: Next.js production build (`npm run build`) completed with 0 errors, TypeScript strict type-checking passing with 0 errors.
+
+---
+
+# 51. Persistent EO Intelligence, Semantic Search & Anomaly Discovery (Phase 7)
+
+```text
+OBSERVATIONS ──> ANALYSES ──> INVESTIGATIONS ──> FINDINGS ──> EVENTS ──> INTELLIGENCE STORE ──> SEARCH / DISCOVERY / MONITORING
+```
+
+### 51.1 Architectural Overview
+Phase 7 elevates TRINETRA from isolated, per-session analytical runs into a cumulative, longitudinal intelligence engine. Every completed investigation automatically indexes its spatial findings, builds canonical Earth Observation events, constructs regional activity baselines, detects statistical anomalies, and provides automated continuous monitoring against incoming satellite passes.
+
+### 51.2 Database Engine & Storage Layer
+- **Storage Substrate**: Embedded SQLite repository (`IntelligenceRepository`) configured with Write-Ahead Logging (`PRAGMA journal_mode=WAL;`) and synchronized shared in-memory anchor connections for testing.
+- **Data Model Schema**:
+  1. `investigations`: Canonical records of analyst enquiries and spatial footprints.
+  2. `findings`: Persistent findings with 2D geometries, bounding boxes, sensor metrics, and cryptographic SHA-256 fingerprints.
+  3. `events`: Deduplicated canonical EO events with multi-dimensional confidence (`evidence_strength`, `temporal_persistence`, `spatial_consistency`, `cross_modal_support`, `model_quality`, `contradiction_penalty`).
+  4. `regions`: Canonical geographic cluster envelopes computed through spatial clustering and IoU.
+  5. `event_relationships`: Graph edges capturing split and merge lineage (`MERGED_FROM`, `SPLIT_FROM`, `CAUSAL_SEQUENCE`, `CORROBORATING`).
+  6. `baselines`: Historical statistical distributions containing sample count, empirical mean, standard deviation, median, Median Absolute Deviation (MAD), and 90th percentile values.
+  7. `anomalies`: Flagged statistical outliers exceeding $\pm 2.0\sigma$ deviations from historical baseline with deterministic plain-language explanations.
+  8. `monitor_definitions`: Configured scheduled watchers with polygon AOIs, target collections, and schema-defined predicate condition trees.
+  9. `monitor_runs` & `monitor_alerts`: Run execution telemetry and duplicate-suppressed analyst alerts.
+  10. `investigation_templates`: Standardized audit patterns for repeatable multi-temporal workflows.
+
+### 51.3 Canonical Event State Machine
+Events progress through a deterministic, strictly enforced state transition graph:
+```text
+CANDIDATE  ──[Single observation / unverified finding]──>  OBSERVED
+    │                                                          │
+    │                                          [Multi-evidence / cross-modal]
+    │                                                          ↓
+    └──────────────────────────────────────────────>  CORROBORATED
+                                                               │
+                                               [3+ epochs / >60 days persistent]
+                                                               ↓
+                                                          PERSISTENT
+                                                               │
+                                               [Reversal / resolved / split / merged]
+                                                               ↓
+                                                           RESOLVED
+```
+- **Splitting**: When divergent spatial or semantic change occurs, `EventSplitter` marks the parent event as `RESOLVED` and instantiates lineage-linked child events.
+- **Merging**: When overlapping adjacent events represent a singular physical phenomenon, `EventMerger` expands the bounding envelope, inherits findings, and archives the secondary event.
+
+### 51.4 Natural Language Semantic Search & Fingerprint Similarity
+- **Deterministic Fast-Path Parser**: `SearchQueryParser` safely extracts semantic targets, lifecycle states, confidence thresholds, and temporal windows without LLM hallucination risks.
+- **Hybrid Search Ranking**: Multi-factor scoring:
+  $$\text{Score} = 0.35 \cdot S_{\text{semantic}} + 0.25 \cdot S_{\text{text}} + 0.20 \cdot S_{\text{confidence}} + 0.10 \cdot S_{\text{persistence}} + 0.10 \cdot S_{\text{spatial\_overlap}}$$
+- **Mathematical Fingerprinting**: Each finding and event maps to an explainable 5D normalized feature vector:
+  $$\mathbf{v} = \left[ \frac{\log_{10}(\text{Area} + 1)}{3}, \frac{\text{AspectRatio}}{5}, \frac{\min(1.0, \text{Magnitude})}{20}, \text{Confidence}, \text{Persistence} \right]$$
+- **Similarity Scoring**: `SimilarityScorer` evaluates cosine similarity combined with semantic taxonomy alignment, generating transparent match factors.
+
+### 51.5 Statistical Anomaly Detection & Non-Causal Explanation
+- Requires at least 4 historical acquisitions to construct a valid statistical baseline.
+- Evaluates both parametric standard deviation ($Z$-score) and robust non-parametric MAD.
+- Flags anomalies when $|Z| \ge 2.0\sigma$ or $|Z_{\text{robust}}| \ge 2.5\text{MAD}$.
+- **Non-Causal Diagnostic Explanation**: Automatically contextualizes observed deviations relative to historical ranges while strictly avoiding speculation regarding motive, ownership, or human intent.
+
+### 51.6 Continuous Monitoring & Duplicate Alert Suppression
+- Evaluates new satellite acquisitions against registered spatial bounding boxes.
+- Evaluates condition trees safely without arbitrary code execution.
+- Computes deterministic SHA-256 alert fingerprints over `(monitor_id, event_id, semantic_class, date)`:
+  - If a matching fingerprint already exists within the configured cooldown window, duplicate notifications are automatically suppressed.
+  - New alerts are dispatched to the analyst workspace with acknowledgement tracking.
+
+---
+
+# 52. Phase 8 — Analyst Command Center, Multi-Region Workflows & Evidence Reporting Architecture
+
+Phase 8 elevates TRINETRA from discrete image-by-image evaluation into a full-fledged **Analyst Command Center**. It organizes investigations around persistent analytical questions, multi-sensor Directed Acyclic Graphs (DAGs), multi-region comparisons with area normalization and sensitivity analysis, structured claim-grounded evidence dossiers, and tamper-evident cryptographic exports.
+
+```text
+DISCOVER ──► INVESTIGATE ──► COMPARE ──► SYNTHESIZE ──► VERIFY ──► BUILD EVIDENCE PACKAGE ──► EXPORT / SHARE
+```
+
+---
+
+### 52.1 Core Architectural Principles
+1. **Workspace-Centric Analytical Scaffolding**: Every investigation is bound to an isolated `Workspace` session preserving active AOIs, selected observations, events, findings, DAG plans, evidence board items, notes, and dossier reports.
+2. **Deterministic DAG Execution**: Multi-step workflows are structured as Directed Acyclic Graphs with Kahn's algorithm cycle detection, topological ordering, and automated tiered concurrency scheduling.
+3. **Rigorous Comparative Intelligence**: Multi-region and multi-event comparisons enforce spatial normalization (metrics scaled per 100 km²), evaluate detection stability curves across varied thresholds, and trigger automated disparity warnings (cloud cover disparity, resolution ratio, sensor modality mismatch, area scale ratio).
+4. **Claim-Grounded Evidence Reporting & Non-Causal Attribution**: Every analytical report claim must be grounded in verified evidence IDs. The system enforces strict non-causal attribution rules, rejecting speculative statements regarding human intent, hostile motives, or criminal sabotage.
+5. **Cryptographic Tamper-Evident Dossiers**: Dossiers generate deterministic standalone SVG vector maps (zero headless browser dependency), compute comprehensive SHA-256 manifests across report sections and embedded files, and package standalone HTML briefs and JSON artifacts into validated ZIP archives.
+6. **Unified Priority Task Scheduling**: High-throughput and long-running operations are coordinated through a thread-safe task queue with priority tiers (`INTERACTIVE > NORMAL > BACKGROUND`), SHA-256 idempotency key deduplication, and stage cancellation.
+
+---
+
+### 52.2 Database Schema & Durable Storage
+All Phase 8 data is persisted in a thread-safe SQLite engine (`workspace.db`) configured with Write-Ahead Logging (`WAL`) mode and busy timeout handling:
+
+| Table | Primary Key | Key Attributes & Foreign References |
+|---|---|---|
+| `workspaces` | `workspace_id` | `name`, `description`, `status` (`CREATED`, `ACTIVE`, `PAUSED`, `COMPLETED`, `ARCHIVED`), `current_aoi_json`, timestamps |
+| `workspace_contexts` | `workspace_id` | Active AOI, `active_regions`, `selected_observations`, `selected_events`, `selected_findings`, active pointers |
+| `workspace_activities` | `activity_id` | `workspace_id`, `activity_type`, `entity_type`, `entity_id`, `details_json`, `timestamp` |
+| `investigation_plans` | `plan_id` | `workspace_id`, `title`, `question`, `steps_json`, `constraints_json`, `status` (`DRAFT`, `READY`, `RUNNING`, `COMPLETED`, `FAILED`) |
+| `investigation_plan_runs` | `run_id` | `plan_id`, `execution_index`, `status`, `step_results_json`, `started_at`, `completed_at` |
+| `batch_jobs` | `batch_id` | `workspace_id`, `template_id`, `targets_json`, `status`, `concurrency`, `results_json` |
+| `region_comparisons` | `comparison_id` | `workspace_id`, `region_a_id`, `region_b_id`, `period`, `metrics_json`, `differences_json`, `warnings_json` |
+| `evidence_board_items` | `item_id` | `workspace_id`, `type` (`OBSERVATION`, `FINDING`, `EVENT`, `MAP_LAYER`, `NOTE`), `source_id`, `position_json`, `title`, `annotation` |
+| `evidence_board_relations`| `relation_id` | `workspace_id`, `source_item_id`, `target_item_id`, `relation_type` (`supports`, `contradicts`, `related_to`, `follow_up`), metadata |
+| `workspace_annotations`| `annotation_id` | `workspace_id`, `geometry_json`, `text`, `type`, `linked_entity_type`, `linked_entity_id` |
+| `workspace_reviews` | `review_id` | `workspace_id`, `entity_type`, `entity_id`, `status` (`UNREVIEWED`, `REVIEWED`, `NEEDS_FOLLOWUP`, `RESOLVED_BY_ANALYST`), `analyst_id`, `note` |
+| `workspace_follow_ups` | `follow_up_id` | `workspace_id`, `linked_entity_type`, `linked_entity_id`, `note`, `status` (`OPEN`, `RESOLVED`) |
+| `workspace_reports` | `report_id` | `workspace_id`, `title`, `status` (`DRAFT`, `VALIDATED`, `FINAL`), `sections_json`, `version`, `manifest_sha256` |
+| `workspace_tasks` | `task_id` | `workspace_id`, `type`, `priority` (`INTERACTIVE`, `NORMAL`, `BACKGROUND`), `status`, `progress`, `stage`, `result_json`, `error` |
+| `workspace_snapshots` | `snapshot_id` | `workspace_id`, `snapshot_name`, `state_json`, `created_at` |
+
+---
+
+### 52.3 DAG Investigation Task Graph
+`TaskGraph` handles multi-step dependency resolution for analytical plans:
+- **Cycle Detection**: Kahn's algorithm calculates vertex in-degrees. If the topological visited count does not match total step count, a `CycleDetectedError` is raised identifying the cycle.
+- **Invalid Dependency Guard**: Validates that all items in `depends_on` exist in the plan; otherwise raises `InvalidDependencyError`.
+- **Concurrent Execution Tiers**: `get_execution_batches()` groups independent nodes into parallel layers:
+  $$\text{Layer } 0 \implies \{ v \mid \text{in-degree}(v) = 0 \}$$
+  $$\text{Layer } k+1 \implies \{ v \mid \text{dependencies satisfied by } \bigcup_{i=0}^k \text{Layer } i \}$$
+
+---
+
+### 52.4 Resource Limits & Batch Enforcer
+`BatchLimitsEnforcer` enforces safe computation bounds:
+- **Target Quota**: $1 \le N \le 50$ targets per batch job.
+- **Pixel Budget**: Total estimated workload $\le 50{,}000{,}000$ pixels.
+- **Concurrency Clamping**: Automatic clamping to $C \le 4$ parallel workers.
+- **Aggregate Synthesis**: Cross-regional summary calculating average change %, max/min change %, average confidence, and total findings.
+
+---
+
+### 52.5 Comparative Metrics & Sensitivity Analysis
+The comparative engine ensures equitable cross-geographic evaluations:
+1. **Area Normalization**: Raw counts scaled per 100 $\text{km}^2$:
+   $$\text{Metric}_{\text{norm}} = \frac{\text{Metric}_{\text{raw}}}{\text{Area}_{\text{km}^2}} \times 100$$
+2. **Coverage Disparity Warnings**:
+   - Cloud cover difference $> 15\%$.
+   - Resolution ratio $\ge 2.0\times$.
+   - Modality mismatch (e.g. SAR vs Optical).
+   - Geographic area ratio $\ge 3.0\times$.
+3. **Stability Sensitivity Curves**: Detection thresholds evaluated at $[0.10, 0.15, \dots, 0.40]$:
+   $$\text{Area}(t) = \text{BaseArea} \cdot e^{-\lambda (t - t_0)}$$
+   $$\text{Rate of Change} = \frac{\Delta \text{Area}}{\Delta t}$$
+   - $|\text{RoC}| \le 15 \implies \text{STABLE}$
+   - $15 < |\text{RoC}| \le 30 \implies \text{MODERATELY\_SENSITIVE}$
+   - $|\text{RoC}| > 30 \implies \text{HYPERSENSITIVE}$
+
+---
+
+### 52.6 Report Dossier Pipeline & Cryptographic Manifest
+1. **Claim Grounding Validator**:
+   - Every `ReportClaim` must reference at least one valid evidence item ID (`evidence_ids`).
+   - Rejects ungrounded claims with `ClaimEvidenceError`.
+2. **Non-Causal Attribution Guard**:
+   - Inspects section narratives and claim text for speculative intent phrases (`deliberately`, `intentional sabotage`, `malicious intent`, `hostile operation`).
+   - Flags policy violations to preserve objective Earth Observation reporting standards.
+3. **Deterministic Vector Map Snapshot**:
+   - Standalone SVG generator computes Mercator bounding box coordinate transformations, drawing grid lines, geographic scale bars, north arrows, and polygon boundary paths without external web dependencies.
+4. **Cryptographic SHA-256 Manifest**:
+   - Generates deterministic hash over each individual section payload:
+     $$H_{\text{sec}} = \text{SHA-256}(\text{JSON}(\text{section}))$$
+   - Calculates overall dossier hash over all sections, map SVGs, and exported files:
+     $$H_{\text{overall}} = \text{SHA-256}(\text{JSON}(H_{\text{sec\_1}}, H_{\text{sec\_2}}, \dots, H_{\text{files}}))$$
+5. **Tamper-Evident ZIP Package Export**:
+   - Emits self-contained ZIP archive containing `report.html` (presentation view), `report.json`, `map_snapshot.svg`, and `manifest.json`.
+
+---
+
+### 52.7 REST API Endpoints (`/api/v1/workspace`)
+The workspace router exposes 44 typed endpoints:
+- **Workspaces**: `POST /`, `GET /`, `GET /{id}`, `PATCH /{id}`, `DELETE /{id}`, `POST /{id}/snapshot`, `GET /{id}/snapshots`
+- **Context**: `GET /{id}/context`, `PATCH /{id}/context`
+- **Evidence Board**: `GET /{id}/board/items`, `POST /{id}/board/items`, `DELETE /{id}/board/items/{item_id}`, `GET /{id}/board/relations`, `POST /{id}/board/relations`, `DELETE /{id}/board/relations/{rel_id}`
+- **Planning**: `GET /{id}/plans`, `POST /{id}/plans`, `GET /{id}/plans/{p_id}`, `POST /{id}/plans/{p_id}/execute`, `GET /{id}/plans/{p_id}/runs`
+- **Comparison**: `POST /{id}/compare/regions`, `GET /{id}/compare/regions`, `POST /{id}/compare/events`, `POST /{id}/compare/findings`
+- **Batch**: `POST /{id}/batch`, `GET /{id}/batch`, `GET /{id}/batch/{batch_id}`
+- **Synthesis**: `POST /{id}/synthesis`
+- **Annotations & Reviews**: `GET /{id}/annotations`, `POST /{id}/annotations`, `DELETE /{id}/annotations/{a_id}`, `GET /{id}/reviews`, `POST /{id}/reviews`, `GET /{id}/follow-ups`, `POST /{id}/follow-ups`, `PATCH /{id}/follow-ups/{f_id}`
+- **Reports**: `GET /{id}/reports`, `POST /{id}/reports`, `GET /{id}/reports/{r_id}`, `GET /{id}/reports/{r_id}/presentation`, `GET /{id}/reports/{r_id}/manifest`, `GET /{id}/reports/{r_id}/export`
+- **Task Queue**: `GET /{id}/tasks`, `POST /{id}/tasks`, `GET /{id}/tasks/{t_id}`, `POST /{id}/tasks/{t_id}/cancel`
+- **Activity**: `GET /{id}/activities`
+
+
+
 
 

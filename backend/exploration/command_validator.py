@@ -55,6 +55,24 @@ ALLOWED_COMMAND_TYPES = {
     "RUN_ANALYSIS",
     "FOCUS_FINDING",
     "SHOW_EVIDENCE",
+    "RUN_INVESTIGATION",
+    "FOCUS_EVIDENCE",
+    "SHOW_TIMELINE",
+    "TRACK_OBJECT",
+    "COMPARE_REGIONS",
+    "SEARCH_INTELLIGENCE",
+    "OPEN_EVENT",
+    "OPEN_FINDING",
+    "FIND_SIMILAR",
+    "RUN_TEMPLATE",
+    "CREATE_MONITOR",
+    "SHOW_ANOMALIES",
+    "SHOW_HOTSPOTS",
+    "OPEN_WORKSPACE",
+    "CREATE_WORKSPACE",
+    "PIN_TO_BOARD",
+    "RUN_INVESTIGATION_PLAN",
+    "EXPORT_REPORT",
 }
 
 
@@ -216,6 +234,68 @@ class CommandValidator:
             evidence_id = getattr(cmd, "evidence_id", None) if not isinstance(cmd, dict) else cmd.get("evidence_id")
             if not evidence_id or not isinstance(evidence_id, str):
                 return False, EXPLORE_COMMAND_REJECTED, "SHOW_EVIDENCE requires a valid evidence_id."
+            return True, None, None
+
+        elif cmd_type == "RUN_INVESTIGATION":
+            q = getattr(cmd, "question", None) if not isinstance(cmd, dict) else cmd.get("question")
+            if not q or len(str(q).strip()) < 3:
+                return False, EXPLORE_COMMAND_REJECTED, "RUN_INVESTIGATION requires question with at least 3 characters."
+            return True, None, None
+
+        elif cmd_type == "FOCUS_EVIDENCE":
+            ev_id = getattr(cmd, "evidence_id", None) if not isinstance(cmd, dict) else cmd.get("evidence_id")
+            if not ev_id:
+                return False, EXPLORE_COMMAND_REJECTED, "FOCUS_EVIDENCE requires evidence_id."
+            return True, None, None
+
+        elif cmd_type in ("SHOW_TIMELINE", "TRACK_OBJECT", "COMPARE_REGIONS"):
+            return True, None, None
+
+        # Phase 7 Commands
+        elif cmd_type == "SEARCH_INTELLIGENCE":
+            q = getattr(cmd, "query", None) if not isinstance(cmd, dict) else cmd.get("query")
+            if not q or len(str(q).strip()) == 0:
+                return False, EXPLORE_COMMAND_REJECTED, "SEARCH_INTELLIGENCE requires a non-empty query string."
+            return True, None, None
+
+        elif cmd_type == "OPEN_EVENT":
+            ev_id = getattr(cmd, "event_id", None) if not isinstance(cmd, dict) else cmd.get("event_id")
+            if not ev_id:
+                return False, EXPLORE_COMMAND_REJECTED, "OPEN_EVENT requires event_id."
+            return True, None, None
+
+        elif cmd_type == "OPEN_FINDING":
+            f_id = getattr(cmd, "finding_id", None) if not isinstance(cmd, dict) else cmd.get("finding_id")
+            if not f_id:
+                return False, EXPLORE_COMMAND_REJECTED, "OPEN_FINDING requires finding_id."
+            return True, None, None
+
+        elif cmd_type == "FIND_SIMILAR":
+            e_id = getattr(cmd, "event_id", None) if not isinstance(cmd, dict) else cmd.get("event_id")
+            f_id = getattr(cmd, "finding_id", None) if not isinstance(cmd, dict) else cmd.get("finding_id")
+            if not e_id and not f_id:
+                return False, EXPLORE_COMMAND_REJECTED, "FIND_SIMILAR requires either event_id or finding_id."
+            return True, None, None
+
+        elif cmd_type == "RUN_TEMPLATE":
+            t_id = getattr(cmd, "template_id", None) if not isinstance(cmd, dict) else cmd.get("template_id")
+            if not t_id:
+                return False, EXPLORE_COMMAND_REJECTED, "RUN_TEMPLATE requires template_id."
+            return True, None, None
+
+        elif cmd_type == "CREATE_MONITOR":
+            m_name = getattr(cmd, "name", None) if not isinstance(cmd, dict) else cmd.get("name")
+            if not m_name or len(str(m_name).strip()) == 0:
+                return False, EXPLORE_COMMAND_REJECTED, "CREATE_MONITOR requires a monitor name."
+            return True, None, None
+
+        elif cmd_type == "SHOW_ANOMALIES":
+            score = getattr(cmd, "min_score", None) if not isinstance(cmd, dict) else cmd.get("min_score")
+            if score is not None and (score < 0.0 or score > 1.0):
+                return False, EXPLORE_COMMAND_REJECTED, "SHOW_ANOMALIES min_score must be between 0.0 and 1.0."
+            return True, None, None
+
+        elif cmd_type == "SHOW_HOTSPOTS":
             return True, None, None
 
         return False, EXPLORE_COMMAND_REJECTED, f"Unsupported command '{cmd_type}'."

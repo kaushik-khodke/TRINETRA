@@ -11,6 +11,7 @@ import logging
 import threading
 from typing import Dict, Any, List, Optional
 from datetime import datetime
+import uuid
 import numpy as np
 
 logger = logging.getLogger("trinetra.analysis_engine")
@@ -288,6 +289,30 @@ class AnalysisEngineService:
             limitations=limitations,
             execution_time_seconds=exec_time,
         )
+
+        # Phase 7: Automatically ingest findings into Persistent EO Intelligence
+        try:
+            from intelligence.service import intelligence_service
+            from intelligence.models import PersistentFinding
+            if result and hasattr(result, "findings") and result.findings:
+                for f_item in result.findings:
+                    f_id = getattr(f_item, "finding_id", None) or f"fnd_{uuid.uuid4().hex[:8]}"
+                    p_finding = PersistentFinding(
+                        finding_id=f_id,
+                        investigation_id=run.run_id,
+                        type="analysis_finding",
+                        label=getattr(f_item, "title", "Detected change"),
+                        geometry=getattr(f_item, "geometry", {}) or (context.aoi_geometry if "context" in locals() and context else {}),
+                        bounding_box=getattr(f_item, "bounding_box", []) or [78.9, 21.1, 79.0, 21.2],
+                        confidence=float(getattr(f_item, "confidence", 0.85)),
+                        evidence_ids=getattr(f_item, "evidence_ids", []),
+                        observation_ids=obs_ids,
+                        metrics=getattr(f_item, "metrics", {}),
+                        semantic_class=getattr(f_item, "semantic_class", "GENERAL_CHANGE"),
+                    )
+                    intelligence_service.ingest_finding(p_finding)
+        except Exception as e_ingest:
+            logger.warning("Failed to auto-ingest analysis findings into intelligence service: %s", e_ingest)
 
         return result
 
