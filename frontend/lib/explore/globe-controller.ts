@@ -42,6 +42,7 @@ export class GlobeController {
     heading?: number
     pitch?: number
     duration?: number
+    bounds?: [number, number, number, number]
   }): void {
     const adapter = this.getActiveAdapter()
     if (adapter) {
@@ -102,6 +103,14 @@ export class GlobeController {
     this.adapters.forEach((adapter) => {
       if (adapter.clearAOI) {
         adapter.clearAOI()
+      }
+    })
+  }
+
+  setBasemap(basemapId: string, tileUrl?: string): void {
+    this.adapters.forEach((adapter) => {
+      if (adapter.setBasemap) {
+        adapter.setBasemap(basemapId, tileUrl)
       }
     })
   }

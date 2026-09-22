@@ -109,6 +109,49 @@ OFFLINE_GAZETTEER: Dict[str, Dict[str, Any]] = {
         "lon": 77.2090,
         "bbox": [77.10, 28.50, 77.35, 28.75],
     },
+    # Landmark & Geopolitical Aliases
+    "capital of india": {
+        "name": "New Delhi (Capital of India)",
+        "lat": 28.6139,
+        "lon": 77.2090,
+        "bbox": [77.10, 28.50, 77.35, 28.75],
+    },
+    "capital of bharat": {
+        "name": "New Delhi (Capital of India)",
+        "lat": 28.6139,
+        "lon": 77.2090,
+        "bbox": [77.10, 28.50, 77.35, 28.75],
+    },
+    "national capital": {
+        "name": "New Delhi (National Capital Region)",
+        "lat": 28.6139,
+        "lon": 77.2090,
+        "bbox": [77.10, 28.50, 77.35, 28.75],
+    },
+    "financial capital of india": {
+        "name": "Mumbai (Financial Capital of India)",
+        "lat": 19.0760,
+        "lon": 72.8777,
+        "bbox": [72.75, 18.89, 73.00, 19.28],
+    },
+    "space city of india": {
+        "name": "Bengaluru (Space City / ISRO HQ)",
+        "lat": 12.9716,
+        "lon": 77.5946,
+        "bbox": [77.45, 12.85, 77.75, 13.15],
+    },
+    "silicon valley of india": {
+        "name": "Bengaluru (Silicon Valley of India)",
+        "lat": 12.9716,
+        "lon": 77.5946,
+        "bbox": [77.45, 12.85, 77.75, 13.15],
+    },
+    "taj mahal": {
+        "name": "Taj Mahal, Agra, India",
+        "lat": 27.1751,
+        "lon": 78.0421,
+        "bbox": [78.02, 27.15, 78.06, 27.19],
+    },
     "bengaluru": {
         "name": "Bengaluru, Karnataka, India",
         "lat": 12.9716,
@@ -222,6 +265,10 @@ class GeoResolver:
         clean = query.strip()
         clean_lower = clean.lower()
 
+        # Multi-clause / compound sentences are not single geographic location entities
+        if any(conj in clean_lower for conj in [" and ", " then ", " but ", " with "]):
+            return None
+
         # 1. Deterministic coordinate parser
         coord_target = DeterministicCoordinateParser.parse(clean)
         if coord_target:
@@ -247,8 +294,10 @@ class GeoResolver:
             return target
 
         # 4. Gazetteer lookup
-        if clean_lower in OFFLINE_GAZETTEER:
-            entry = OFFLINE_GAZETTEER[clean_lower]
+        clean_norm = re.sub(r"^(?:the|to|at|in)\s+", "", clean_lower).strip()
+        lookup_key = clean_lower if clean_lower in OFFLINE_GAZETTEER else (clean_norm if clean_norm in OFFLINE_GAZETTEER else None)
+        if lookup_key:
+            entry = OFFLINE_GAZETTEER[lookup_key]
             target = GeographicTarget(
                 name=entry["name"],
                 latitude=entry["lat"],
@@ -263,7 +312,7 @@ class GeoResolver:
 
         # 5. Substring / prefix match in gazetteer
         for key, entry in OFFLINE_GAZETTEER.items():
-            if key in clean_lower or clean_lower in key:
+            if key in clean_lower or clean_lower in key or (clean_norm and (key in clean_norm or clean_norm in key)):
                 target = GeographicTarget(
                     name=entry["name"],
                     latitude=entry["lat"],

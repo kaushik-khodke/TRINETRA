@@ -7,7 +7,7 @@
  */
 
 import React from "react"
-import { Eye, EyeOff, Layers, ShieldCheck, Sparkles } from "lucide-react"
+import { Eye, EyeOff, Globe, Layers, ShieldCheck, Sparkles } from "lucide-react"
 import { globeCommandBus } from "@/lib/explore/globe-command-bus"
 import { useGlobeState } from "@/lib/explore/globe-state"
 import { layerRegistry } from "@/lib/explore/layer-registry"
@@ -20,6 +20,16 @@ export function LayerPanel() {
   const handleToggle = (layer: ExploreLayerDefinition) => {
     if (!layer.userControllable) return
     globeCommandBus.dispatch({ type: "TOGGLE_LAYER", layerId: layer.id })
+  }
+
+  const handleMakeBasemap = (layer: ExploreLayerDefinition) => {
+    if (!layer.tileTemplate) return
+    globeCommandBus.dispatch({
+      type: "SET_BASEMAP",
+      basemapId: layer.id,
+      tileUrl: layer.tileTemplate,
+      label: layer.label,
+    })
   }
 
   const baseLayers = layers.filter((l: ExploreLayerDefinition) => l.category === "base")
@@ -44,16 +54,30 @@ export function LayerPanel() {
           </span>
         </div>
 
-        <button
-          type="button"
-          disabled={isFuture}
-          onClick={() => handleToggle(layer)}
-          className={`layer-toggle-btn ${isVisible ? "active" : ""}`}
-          aria-label={`${isVisible ? "Hide" : "Show"} ${layer.label}`}
-          title={isFuture ? "Available in Phase 2" : isVisible ? "Hide Layer" : "Show Layer"}
-        >
-          {isVisible ? <Eye size={15} /> : <EyeOff size={15} />}
-        </button>
+        <div style={{ display: "flex", alignItems: "center", gap: 6 }}>
+          {layer.tileTemplate && (
+            <button
+              type="button"
+              onClick={() => handleMakeBasemap(layer)}
+              className="layer-toggle-btn"
+              aria-label={`Set ${layer.label} as Basemap`}
+              title="Replace globe basemap with this dataset"
+            >
+              <Globe size={13} />
+            </button>
+          )}
+
+          <button
+            type="button"
+            disabled={isFuture}
+            onClick={() => handleToggle(layer)}
+            className={`layer-toggle-btn ${isVisible ? "active" : ""}`}
+            aria-label={`${isVisible ? "Hide" : "Show"} ${layer.label}`}
+            title={isFuture ? "Available in Phase 2" : isVisible ? "Hide Layer" : "Show Layer"}
+          >
+            {isVisible ? <Eye size={15} /> : <EyeOff size={15} />}
+          </button>
+        </div>
       </div>
     )
   }

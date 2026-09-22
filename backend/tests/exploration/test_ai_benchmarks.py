@@ -61,7 +61,7 @@ def test_ai_performance_benchmarks():
         summary="Fly to Nagpur and show Sentinel-2",
         commands=[
             FlyToCommand(location_query="Nagpur"),
-            ShowLayerCommand(layer_id="layer-local_sentinel2_nagpur_truecolor"),
+            ShowLayerCommand(layer_id="layer-sentinel2-cloudless"),
         ],
     )
 

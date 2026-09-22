@@ -68,6 +68,7 @@ export interface ExploreState {
   catalogProvider: "all" | "local" | "copernicus"
   rendererStatus: "idle" | "loading" | "ready" | "error"
   webglSupported: boolean
+  activeBasemap: string
   errorMessage?: string | null
 }
 
@@ -140,6 +141,12 @@ export type GlobeCommand =
       longitude?: number
       zoom?: number
     }
+  | {
+      type: "SET_BASEMAP"
+      basemapId: string
+      tileUrl?: string
+      label?: string
+    }
 
 
 export interface AOIValidationResult {
@@ -194,7 +201,7 @@ export interface PerformanceMetrics {
 }
 
 export interface RendererAdapter {
-  flyTo(target: { latitude: number; longitude: number; zoom?: number; heading?: number; pitch?: number; duration?: number }): void
+  flyTo(target: { latitude: number; longitude: number; zoom?: number; heading?: number; pitch?: number; duration?: number; bounds?: [number, number, number, number] }): void
   resetView(): void
   setLayerVisibility(layerId: string, visible: boolean): void
   setLayerOpacity?(layerId: string, opacity: number): void
@@ -202,6 +209,7 @@ export interface RendererAdapter {
   removeLayerSource?(layerId: string): void
   setAOI?(geometry: any): void
   clearAOI?(): void
+  setBasemap?(basemapId: string, tileUrl?: string): void
   setObservationLayer?(slot: "primary" | "compare_a" | "compare_b", observation: ObservationSummary, opacity?: number): void
   getCameraState(): GlobeCameraState
   destroy(): void

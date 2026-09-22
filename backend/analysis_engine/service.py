@@ -318,11 +318,14 @@ class AnalysisEngineService:
 
     def _update_progress(self, run: AnalysisRun, stage: AnalysisProgressStage, message: str, step: int):
         with self._lock:
+            percent = int(min(100, round((step / 7.0) * 100)))
             run.progress = AnalysisProgress(
                 stage=stage,
                 message=message,
                 step_number=step,
+                step_index=step,
                 total_steps=7,
+                percent=percent,
             )
 
 

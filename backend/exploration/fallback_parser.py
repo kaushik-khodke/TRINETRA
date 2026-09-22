@@ -27,18 +27,24 @@ LAYER_ALIASES = {
     "borders": "layer-borders",
     "political boundaries": "layer-borders",
     # Sentinel-2 optical imagery
-    "sentinel 2": "layer-local_sentinel2_nagpur_truecolor",
-    "sentinel-2": "layer-local_sentinel2_nagpur_truecolor",
-    "s2": "layer-local_sentinel2_nagpur_truecolor",
-    "optical": "layer-local_sentinel2_nagpur_truecolor",
-    "optical satellite": "layer-local_sentinel2_nagpur_truecolor",
-    "satellite layer": "layer-local_sentinel2_nagpur_truecolor",
+    "sentinel 2": "layer-sentinel2-cloudless",
+    "sentinel-2": "layer-sentinel2-cloudless",
+    "s2": "layer-sentinel2-cloudless",
+    "optical": "layer-sentinel2-cloudless",
+    "optical satellite": "layer-sentinel2-cloudless",
+    "satellite layer": "layer-sentinel2-cloudless",
     # Sentinel-1 SAR imagery
-    "sentinel 1": "layer-local_sentinel1_mumbai_sar",
-    "sentinel-1": "layer-local_sentinel1_mumbai_sar",
-    "s1": "layer-local_sentinel1_mumbai_sar",
-    "sar": "layer-local_sentinel1_mumbai_sar",
-    "radar": "layer-local_sentinel1_mumbai_sar",
+    "sentinel 1": "layer-sentinel1-radar",
+    "sentinel-1": "layer-sentinel1-radar",
+    "s1": "layer-sentinel1-radar",
+    "sar": "layer-sentinel1-radar",
+    "radar": "layer-sentinel1-radar",
+    # NASA VIIRS
+    "viirs": "layer-nasa-viirs",
+    "nasa": "layer-nasa-viirs",
+    # OSM
+    "osm": "layer-osm",
+    "street": "layer-osm",
 }
 
 RESET_REGEX = re.compile(
@@ -63,6 +69,16 @@ HIDE_LAYER_REGEX = re.compile(
 )
 
 
+CLEAR_AOI_REGEX = re.compile(
+    r"^(?:clear|remove|delete|reset)\s+(?:the\s+)?(?:aoi|boundary|selection|polygon|box)$",
+    re.IGNORECASE,
+)
+NAV_REGEX = re.compile(
+    r"^(?:focus\s+(?:on|in)?|fly\s+to|go\s+to|zoom\s+to|navigate\s+to|look\s+at|show\s+me|find|center\s+(?:on)?|let(?:'s)?\s+(?:get|go)\s+to|take\s+me\s+to|bring\s+me\s+to|head\s+to|travel\s+to|visit|draw\s+(?:boundaries?|box|square|aoi|region)\s+(?:around|of|for|in)?|show\s+(?:boundaries?|box|square|aoi|region)\s+(?:around|of|for|in)?|highlight)\s+(.+)$",
+    re.IGNORECASE,
+)
+
+
 class FallbackParser:
     """Instantaneous deterministic parser for predictable commands."""
 
@@ -79,15 +95,33 @@ class FallbackParser:
         if not clean:
             return None
 
+        # Defer compound multi-clause or complex dataset search queries to the AI planner
+        is_compound = any(
+            conj in clean for conj in [" and ", " then ", " with ", " also ", " but "]
+        ) or any(
+            kw in clean for kw in ["imagery", "observation", "transparent", "opacity", "where is", "find satellite", "cloud cover"]
+        )
+        if is_compound:
+            return None
+
         # 1. Reset View
         if RESET_REGEX.match(clean):
             return ExploreCommandPlan(
                 intent="reset",
-                summary="Reset Shanetra globe to default perspective.",
+                summary="Reset TRINETRA globe to default perspective.",
                 commands=[ResetViewCommand()],
             )
 
-        # 2. Zoom In
+        # 2. Clear AOI
+        if CLEAR_AOI_REGEX.match(clean):
+            from exploration.ai_schemas import ClearAOICommand
+            return ExploreCommandPlan(
+                intent="aoi_selection",
+                summary="Cleared active Area of Interest.",
+                commands=[ClearAOICommand()],
+            )
+
+        # 3. Zoom In
         if ZOOM_IN_REGEX.match(clean):
             return ExploreCommandPlan(
                 intent="view_control",
@@ -95,7 +129,7 @@ class FallbackParser:
                 commands=[ZoomInCommand(step=1.0)],
             )
 
-        # 3. Zoom Out
+        # 4. Zoom Out
         if ZOOM_OUT_REGEX.match(clean):
             return ExploreCommandPlan(
                 intent="view_control",
@@ -103,7 +137,71 @@ class FallbackParser:
                 commands=[ZoomOutCommand(step=1.0)],
             )
 
-        # 4. Show Layer
+        # 5. Direct Coordinate Entry ("28.6139, 77.2090" or "lat: 28.61, lon: 77.20")
+        from exploration.geo_resolver import DeterministicCoordinateParser, GeoResolver
+        coord_target = DeterministicCoordinateParser.parse(clean)
+        if coord_target:
+            from exploration.ai_schemas import FlyToCommand, SetAOICommand
+            bbox = [coord_target.longitude - 0.08, coord_target.latitude - 0.06, coord_target.longitude + 0.08, coord_target.latitude + 0.06]
+            return ExploreCommandPlan(
+                intent="navigation",
+                summary=f"Navigated to coordinates {coord_target.name} and highlighted region.",
+                commands=[
+                    FlyToCommand(
+                        location_query=coord_target.name,
+                        latitude=coord_target.latitude,
+                        longitude=coord_target.longitude,
+                        zoom=12.0,
+                        pitch=-50.0,
+                    ),
+                    SetAOICommand(bbox=bbox),
+                ],
+            )
+
+        # 6. Navigation Command ("Focus on New Delhi", "Fly to Mumbai", "Go to Bangalore", "Go to delhi")
+        nav_match = NAV_REGEX.match(clean)
+        target_loc_name = nav_match.group(1).strip() if nav_match else None
+        if target_loc_name:
+            geo_target = GeoResolver.resolve(target_loc_name)
+            if geo_target:
+                from exploration.ai_schemas import FlyToCommand, SetAOICommand
+                bbox = geo_target.bbox or [geo_target.longitude - 0.08, geo_target.latitude - 0.06, geo_target.longitude + 0.08, geo_target.latitude + 0.06]
+                return ExploreCommandPlan(
+                    intent="navigation",
+                    summary=f"Navigating to {geo_target.name} and highlighting region.",
+                    commands=[
+                        FlyToCommand(
+                            location_query=geo_target.name,
+                            latitude=geo_target.latitude,
+                            longitude=geo_target.longitude,
+                            zoom=11.5,
+                            pitch=-50.0,
+                        ),
+                        SetAOICommand(bbox=bbox),
+                    ],
+                )
+
+        # 7. Direct City / Location Name ("New Delhi", "Mumbai", "Sriharikota", "Delhi")
+        direct_geo = GeoResolver.resolve(clean)
+        if direct_geo and direct_geo.confidence >= 0.9:
+            from exploration.ai_schemas import FlyToCommand, SetAOICommand
+            bbox = direct_geo.bbox or [direct_geo.longitude - 0.08, direct_geo.latitude - 0.06, direct_geo.longitude + 0.08, direct_geo.latitude + 0.06]
+            return ExploreCommandPlan(
+                intent="navigation",
+                summary=f"Navigating to {direct_geo.name} and highlighting region.",
+                commands=[
+                    FlyToCommand(
+                        location_query=direct_geo.name,
+                        latitude=direct_geo.latitude,
+                        longitude=direct_geo.longitude,
+                        zoom=11.5,
+                        pitch=-50.0,
+                    ),
+                    SetAOICommand(bbox=bbox),
+                ],
+            )
+
+        # 8. Show Layer
         show_match = SHOW_LAYER_REGEX.match(clean)
         if show_match:
             raw_target = show_match.group(1).strip()
@@ -115,7 +213,7 @@ class FallbackParser:
                     commands=[ShowLayerCommand(layer_id=layer_id)],
                 )
 
-        # 5. Hide Layer
+        # 9. Hide Layer
         hide_match = HIDE_LAYER_REGEX.match(clean)
         if hide_match:
             raw_target = hide_match.group(1).strip()

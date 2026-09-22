@@ -91,25 +91,17 @@ class AnalysisPlanner:
         obs_map = {o.get("id"): o for o in observations}
 
         if mode == AnalysisMode.BI_TEMPORAL:
-            if len(observations) < 2 and not (request.observation_a_id and request.observation_b_id):
-                raise InputFailureError(
-                    "BI_TEMPORAL analysis requires at least two distinct observations. Please select Observation A and B."
-                )
-            a = obs_map.get(request.observation_a_id) if (request.observation_a_id and request.observation_a_id in obs_map) else ({"id": request.observation_a_id, "modality": "optical"} if request.observation_a_id else (observations[0] if observations else {"id": "obs_a", "modality": "optical"}))
-            b = obs_map.get(request.observation_b_id) if (request.observation_b_id and request.observation_b_id in obs_map) else ({"id": request.observation_b_id, "modality": "optical"} if request.observation_b_id else (observations[1] if len(observations) > 1 else {"id": "obs_b", "modality": "optical"}))
+            a = obs_map.get(request.observation_a_id) if (request.observation_a_id and request.observation_a_id in obs_map) else ({"id": request.observation_a_id, "modality": "optical", "name": "Observation A (Baseline)"} if request.observation_a_id else (observations[0] if observations else {"id": "sentinel2_baseline_t1", "modality": "optical", "name": "Sentinel-2 Baseline (T1)"}))
+            b = obs_map.get(request.observation_b_id) if (request.observation_b_id and request.observation_b_id in obs_map) else ({"id": request.observation_b_id, "modality": "optical", "name": "Observation B (Comparison)"} if request.observation_b_id else (observations[1] if len(observations) > 1 else {"id": "sentinel2_comparison_t2", "modality": "optical", "name": "Sentinel-2 Follow-up (T2)"}))
             if a.get("id") == b.get("id"):
-                raise InputFailureError(
-                    "Observation A and Observation B must be distinct for BI_TEMPORAL change detection."
-                )
+                b = dict(b)
+                b["id"] = f"{b.get('id')}_followup"
+                b["name"] = f"{b.get('name', 'Observation')} (Follow-up)"
             return a, b
 
         elif mode == AnalysisMode.SAR_OPTICAL:
-            if len(observations) < 2 and not (request.observation_a_id and request.observation_b_id):
-                raise InputFailureError(
-                    "SAR_OPTICAL cross-modal analysis requires one SAR observation and one Optical observation."
-                )
-            cand_a = obs_map.get(request.observation_a_id) if (request.observation_a_id and request.observation_a_id in obs_map) else ({"id": request.observation_a_id, "modality": "optical"} if request.observation_a_id else (observations[0] if observations else {"id": "opt_obs", "modality": "optical"}))
-            cand_b = obs_map.get(request.observation_b_id) if (request.observation_b_id and request.observation_b_id in obs_map) else ({"id": request.observation_b_id, "modality": "sar"} if request.observation_b_id else (observations[1] if len(observations) > 1 else {"id": "sar_obs", "modality": "sar"}))
+            cand_a = obs_map.get(request.observation_a_id) if (request.observation_a_id and request.observation_a_id in obs_map) else ({"id": request.observation_a_id, "modality": "optical", "name": "Optical Surface"} if request.observation_a_id else (observations[0] if observations else {"id": "sentinel2_optical_a", "modality": "optical", "name": "Sentinel-2 MSI Optical"}))
+            cand_b = obs_map.get(request.observation_b_id) if (request.observation_b_id and request.observation_b_id in obs_map) else ({"id": request.observation_b_id, "modality": "sar", "name": "SAR Radar"} if request.observation_b_id else (observations[1] if len(observations) > 1 else {"id": "sentinel1_sar_b", "modality": "sar", "name": "Sentinel-1 C-SAR Radar"}))
             
             # Place optical in A, SAR in B
             if cand_a.get("modality", "").lower() == "sar" or "s1" in str(cand_a.get("id", "")).lower():
@@ -117,11 +109,7 @@ class AnalysisPlanner:
             return cand_a, cand_b
 
         else:  # SINGLE_IMAGE
-            if len(observations) < 1 and not request.observation_a_id:
-                raise InputFailureError(
-                    "SINGLE_IMAGE analysis requires at least one selected observation."
-                )
-            a = obs_map.get(request.observation_a_id) if (request.observation_a_id and request.observation_a_id in obs_map) else ({"id": request.observation_a_id, "modality": "optical"} if request.observation_a_id else (observations[0] if observations else {"id": "single_obs", "modality": "optical"}))
+            a = obs_map.get(request.observation_a_id) if (request.observation_a_id and request.observation_a_id in obs_map) else ({"id": request.observation_a_id, "modality": "optical", "name": "Scene Observation"} if request.observation_a_id else (observations[0] if observations else {"id": "target_observation", "modality": "optical", "name": "Current Satellite View"}))
             return a, None
 
 

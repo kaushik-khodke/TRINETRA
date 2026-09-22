@@ -106,6 +106,11 @@ export class GlobeCommandBus {
 
       case "SET_COMPARISON":
         break
+
+      case "SET_BASEMAP":
+        globeState.setActiveBasemap(cmd.basemapId)
+        globeController.setBasemap(cmd.basemapId, cmd.tileUrl)
+        break
     }
 
     this.listeners.forEach((l) => {
@@ -177,6 +182,9 @@ export class GlobeCommandBus {
 
       case "SET_COMPARISON":
         return Boolean(cmd.mode && cmd.observationA && cmd.observationB)
+
+      case "SET_BASEMAP":
+        return typeof cmd.basemapId === "string" && cmd.basemapId.trim().length > 0
 
       default:
         return false

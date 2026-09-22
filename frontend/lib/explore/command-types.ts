@@ -38,6 +38,7 @@ export interface AIStatePatch {
   focused_evidence_id?: string | null
   timeline_active?: boolean | null
   object_tracking?: Record<string, any> | null
+  aoi?: any | null
 }
 
 export interface AIQueryResponse {

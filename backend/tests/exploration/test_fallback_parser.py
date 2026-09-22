@@ -41,11 +41,11 @@ def test_fallback_parser_layers():
 def test_fallback_parser_satellite_aliases():
     plan_s2 = FallbackParser.parse("turn on s2")
     assert plan_s2 is not None
-    assert plan_s2.commands[0].layer_id == "layer-local_sentinel2_nagpur_truecolor"
+    assert plan_s2.commands[0].layer_id == "layer-sentinel2-cloudless"
 
     plan_sar = FallbackParser.parse("show radar")
     assert plan_sar is not None
-    assert plan_sar.commands[0].layer_id == "layer-local_sentinel1_mumbai_sar"
+    assert plan_sar.commands[0].layer_id == "layer-sentinel1-radar"
 
 
 def test_fallback_parser_returns_none_for_complex_queries():

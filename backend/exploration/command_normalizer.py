@@ -8,6 +8,7 @@ Deterministic normalization of command synonyms, layer aliases, numeric percenta
 import re
 from typing import Any, Dict, List, Optional
 from exploration.fallback_parser import LAYER_ALIASES
+from exploration.ai_schemas import SetAOICommand
 
 
 PERCENTAGE_REGEX = re.compile(r"(\d+(?:\.\d+)?)\s*(?:%|percent)", re.IGNORECASE)
@@ -53,3 +54,42 @@ class CommandNormalizer:
                 seen_keys.add(key)
                 deduped.append(cmd)
         return deduped
+
+    @classmethod
+    def sanitize_and_enrich_commands(cls, commands: List[Any]) -> List[Any]:
+        """
+        Deduplicates commands and repairs common LLM structural omissions:
+        - If SET_AOI has no bbox or geometry, derives bbox from accompanying FLY_TO coordinates.
+        - If SET_AOI has no accompanying FLY_TO and no bbox/geometry, safely drops the malformed command.
+        """
+        deduped = cls.deduplicate_commands(commands)
+        fly_target = None
+        for cmd in deduped:
+            cmd_type = getattr(cmd, "type", None) or (cmd.get("type") if isinstance(cmd, dict) else None)
+            if cmd_type == "FLY_TO":
+                lat = getattr(cmd, "latitude", None) or (cmd.get("latitude") if isinstance(cmd, dict) else None)
+                lon = getattr(cmd, "longitude", None) or (cmd.get("longitude") if isinstance(cmd, dict) else None)
+                if lat is not None and lon is not None:
+                    fly_target = (float(lat), float(lon))
+                    break
+
+        repaired = []
+        for cmd in deduped:
+            cmd_type = getattr(cmd, "type", None) or (cmd.get("type") if isinstance(cmd, dict) else None)
+            if cmd_type == "SET_AOI":
+                geom = getattr(cmd, "geometry", None) or (cmd.get("geometry") if isinstance(cmd, dict) else None)
+                bbox = getattr(cmd, "bbox", None) or (cmd.get("bbox") if isinstance(cmd, dict) else None)
+                if not geom and not bbox:
+                    if fly_target:
+                        lat, lon = fly_target
+                        derived_bbox = [round(lon - 0.1, 4), round(lat - 0.1, 4), round(lon + 0.1, 4), round(lat + 0.1, 4)]
+                        if isinstance(cmd, dict):
+                            cmd["bbox"] = derived_bbox
+                            repaired.append(cmd)
+                        else:
+                            repaired.append(SetAOICommand(bbox=derived_bbox))
+                        continue
+                    else:
+                        continue
+            repaired.append(cmd)
+        return repaired

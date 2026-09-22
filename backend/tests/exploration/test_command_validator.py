@@ -22,7 +22,7 @@ def test_validator_accepts_valid_plan():
         summary="Fly to Nagpur",
         commands=[
             FlyToCommand(location_query="Nagpur"),
-            ShowLayerCommand(layer_id="layer-local_sentinel2_nagpur_truecolor"),
+            ShowLayerCommand(layer_id="layer-sentinel2-cloudless"),
         ],
     )
     is_valid, err_code, err_msg = CommandValidator.validate_plan(plan)
@@ -62,8 +62,8 @@ def test_validator_rejects_unknown_layer():
 
 
 def test_validator_rejects_non_ai_controllable_layer():
-    # Base dark layer has ai_controllable=False in the registry
-    cmd = ShowLayerCommand(layer_id="layer-base-dark")
+    # Base satellite layer has ai_controllable=False in the registry
+    cmd = ShowLayerCommand(layer_id="layer-base-satellite")
     is_valid, err_code, err_msg = CommandValidator.validate_command(cmd)
     assert is_valid is False
     assert err_code == EXPLORE_LAYER_NOT_ALLOWED
@@ -71,7 +71,7 @@ def test_validator_rejects_non_ai_controllable_layer():
 
 
 def test_validator_rejects_out_of_bounds_opacity():
-    fake_cmd = {"type": "SET_LAYER_OPACITY", "layer_id": "layer-local_sentinel2_nagpur_truecolor", "opacity": 1.5}
+    fake_cmd = {"type": "SET_LAYER_OPACITY", "layer_id": "layer-sentinel2-cloudless", "opacity": 1.5}
     is_valid, err_code, err_msg = CommandValidator.validate_command(fake_cmd)
     assert is_valid is False
     assert err_code == EXPLORE_COMMAND_REJECTED

@@ -39,14 +39,18 @@ STRICT CONSTRAINTS & SECURITY POLICIES:
    - HIDE_LAYER
    - SET_LAYER_OPACITY
    - REMOVE_LAYER
+   - SET_AOI
+   - CLEAR_AOI
    - SEARCH_DATASETS
    - ADD_DATASET_LAYER
-2. NEVER invent or fabricate latitude/longitude coordinates! Instead, put the place name in 'location_query'. The backend's GeoResolver will resolve coordinates.
-3. NEVER invent dataset IDs or observation hashes! Use 'SEARCH_DATASETS' with collection names (e.g. 'Sentinel-2').
-4. You may ONLY reference layer IDs present in the ALLOWED LAYERS list. Do NOT invent new layer IDs.
-5. You may NOT create URLs, file paths, or execute scripts.
-6. Maximum commands in a plan is 6.
-7. Return ONLY the structured JSON command plan."""
+2. NEVER output commands like CREATE_WORKSPACE, SHOW_TIMELINE, FIND_SIMILAR, RUN_ANALYSIS, or custom tool names. They do NOT exist in this exploration schema and will be rejected.
+3. When the user asks about landmarks, capitals, geographical features, or places (e.g. 'capital of India', 'financial capital', 'Silicon Valley of India', 'Eiffel tower'), resolve it to the specific city or location name, put it in 'location_query' (e.g. 'New Delhi'), and emit a FLY_TO command.
+4. NEVER invent or fabricate latitude/longitude coordinates! Instead, put the place name in 'location_query'. The backend's GeoResolver will resolve coordinates.
+5. NEVER invent dataset IDs or observation hashes! Use 'SEARCH_DATASETS' with collection names (e.g. 'Sentinel-2').
+6. You may ONLY reference layer IDs present in the ALLOWED LAYERS list. Do NOT invent new layer IDs.
+7. You may NOT create URLs, file paths, or execute scripts.
+8. Maximum commands in a plan is 6.
+9. Return ONLY the structured JSON command plan."""
 
 
 def build_intent_prompt(query: str, current_view: Optional[Dict[str, Any]] = None) -> str:

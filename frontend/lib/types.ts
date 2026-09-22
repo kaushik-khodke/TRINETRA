@@ -827,14 +827,14 @@ export const navItems = [
 ]
 
 /**
- * Constructs a secure, validated exploration URL for TRINETRA / Shatnetra 3D Earth Globe.
- * Uses NEXT_PUBLIC_TRINETRA_URL (defaulting to http://localhost:4173 in development).
+ * Constructs a secure, validated exploration URL for TRINETRA's native 3D Earth Globe (/explore).
+ * Uses NEXT_PUBLIC_TRINETRA_URL (defaulting to /explore in TRINETRA).
  */
 export function buildTrinetraUrl(geo?: GeographicLocation, label?: string): string {
   if (!geo || !geo.has_location || typeof geo.lat !== "number" || typeof geo.lng !== "number") {
-    return ""
+    return "/explore"
   }
-  const baseUrl = (typeof process !== "undefined" && process.env?.NEXT_PUBLIC_TRINETRA_URL) || "http://localhost:4173"
+  const baseUrl = (typeof process !== "undefined" && process.env?.NEXT_PUBLIC_TRINETRA_URL) || "/explore"
   const params = new URLSearchParams()
   params.set("lat", geo.lat.toFixed(5))
   params.set("lng", geo.lng.toFixed(5))
@@ -846,5 +846,6 @@ export function buildTrinetraUrl(geo?: GeographicLocation, label?: string): stri
   if (geo.bounds && geo.bounds.length === 4) {
     params.set("bbox", geo.bounds.map((b: number) => b.toFixed(4)).join(","))
   }
-  return `${baseUrl}/?${params.toString()}`
+  const separator = baseUrl.includes("?") ? "&" : "?"
+  return `${baseUrl}${separator}${params.toString()}`
 }

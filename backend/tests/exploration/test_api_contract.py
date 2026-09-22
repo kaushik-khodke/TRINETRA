@@ -32,7 +32,7 @@ def test_api_layers():
     assert resp.status_code == 200
     layers = resp.json()
     assert isinstance(layers, list)
-    assert any(l["id"] == "layer-base-dark" for l in layers)
+    assert any(l["id"] == "layer-base-satellite" for l in layers)
 
 
 def test_api_raster_metadata():

@@ -79,6 +79,14 @@ export function ExploreSidebar() {
           <span>Catalog</span>
         </button>
         <button
+          className={`tab-btn ${activeTab === "layers" ? "active" : ""}`}
+          onClick={() => setActiveTab("layers")}
+          title="Active Layers & Basemaps"
+        >
+          <Layers size={12} />
+          <span>Layers</span>
+        </button>
+        <button
           className={`tab-btn ${activeTab === "temporal" ? "active" : ""}`}
           onClick={() => setActiveTab("temporal")}
           title="Temporal Observations"
@@ -125,14 +133,6 @@ export function ExploreSidebar() {
         >
           <Briefcase size={12} />
           <span>Workspace</span>
-        </button>
-        <button
-          className={`tab-btn ${activeTab === "layers" ? "active" : ""}`}
-          onClick={() => setActiveTab("layers")}
-          title="Active Layers"
-        >
-          <Layers size={12} />
-          <span>Layers</span>
         </button>
         <button
           className={`tab-btn ${activeTab === "waypoints" ? "active" : ""}`}

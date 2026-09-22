@@ -32,7 +32,9 @@ class AnalysisProgress(BaseModel):
     stage: AnalysisProgressStage = Field(default=AnalysisProgressStage.VALIDATING)
     message: str = Field(default="Initializing analysis pipeline...")
     step_number: int = Field(default=1, description="Current stage index (1-7)")
+    step_index: int = Field(default=1, description="Current stage index (1-7)")
     total_steps: int = Field(default=7, description="Total stages in pipeline")
+    percent: int = Field(default=0, description="Completion percentage (0-100)")
     updated_at: str = Field(default_factory=lambda: datetime.utcnow().isoformat())
 
 

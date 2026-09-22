@@ -215,8 +215,9 @@ class CommandExecutor:
         if isinstance(cmd, FlyToCommand):
             lat = cmd.latitude
             lon = cmd.longitude
-            zoom = cmd.zoom or 10.0
+            zoom = cmd.zoom or 11.5
             name = cmd.location_query or "Target location"
+            bbox = None
 
             if lat is None or lon is None:
                 if not cmd.location_query:
@@ -238,16 +239,54 @@ class CommandExecutor:
                 lat = target.latitude
                 lon = target.longitude
                 name = target.name
+                bbox = getattr(target, "bbox", None)
+            else:
+                if cmd.location_query:
+                    target = GeoResolver.resolve(cmd.location_query)
+                    if target and getattr(target, "bbox", None):
+                        bbox = target.bbox
+
+            # If bbox is missing, generate an appropriate bounding box around the target coordinates
+            if not bbox and lat is not None and lon is not None:
+                d_lat = 0.08
+                d_lon = 0.08
+                bbox = [lon - d_lon, lat - d_lat, lon + d_lon, lat + d_lat]
+
+            aoi_geom = None
+            if bbox:
+                min_lon, min_lat, max_lon, max_lat = bbox
+                aoi_geom = {
+                    "type": "Polygon",
+                    "coordinates": [
+                        [
+                            [round(min_lon, 5), round(min_lat, 5)],
+                            [round(max_lon, 5), round(min_lat, 5)],
+                            [round(max_lon, 5), round(max_lat, 5)],
+                            [round(min_lon, 5), round(max_lat, 5)],
+                            [round(min_lon, 5), round(min_lat, 5)],
+                        ]
+                    ],
+                }
+
+            pitch_val = cmd.pitch if (cmd.pitch is not None and -90.0 <= cmd.pitch <= -20.0) else -50.0
 
             cam = {
                 "latitude": lat,
                 "longitude": lon,
                 "zoom": zoom,
                 "heading": cmd.heading or 0.0,
-                "pitch": cmd.pitch or 0.0,
+                "pitch": pitch_val,
                 "duration": cmd.duration or 1.5,
             }
-            return CommandExecutionStatus.EXECUTED, f"Centered map on {name}.", {"camera": cam}, None
+            details: Dict[str, Any] = {
+                "camera": cam,
+                "target_name": name,
+            }
+            if aoi_geom:
+                details["aoi"] = aoi_geom
+                details["bbox"] = bbox
+
+            return CommandExecutionStatus.EXECUTED, f"Centered map on {name} and delineated target region.", details, None
 
         # 2. ZOOM_IN
         elif isinstance(cmd, ZoomInCommand):
@@ -263,7 +302,7 @@ class CommandExecutor:
 
         # 4. RESET_VIEW
         elif isinstance(cmd, ResetViewCommand):
-            cam = {"latitude": 20.5937, "longitude": 78.9629, "zoom": 4.5, "heading": 0.0, "pitch": 0.0}
+            cam = {"latitude": 20.5937, "longitude": 78.9629, "zoom": 4.5, "heading": 0.0, "pitch": -90.0}
             return CommandExecutionStatus.EXECUTED, "Reset Shanetra camera to overview.", {"camera": cam}, None
 
         # 5. SHOW_LAYER (Idempotent)

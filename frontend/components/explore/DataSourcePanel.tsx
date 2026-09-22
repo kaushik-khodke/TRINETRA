@@ -12,14 +12,16 @@ import { exploreApi } from "@/lib/explore/api"
 
 export default function DataSourcePanel() {
   const { catalogProvider, camera, catalogLoading } = useGlobeState()
-  const [provider, setProvider] = useState<"all" | "local" | "copernicus">(catalogProvider)
+  const [provider, setProvider] = useState<"all" | "copernicus">(
+    catalogProvider === "local" ? "copernicus" : (catalogProvider as "all" | "copernicus")
+  )
 
-  // Initial load of local samples on component mount
+  // Initial load of satellite discovery on component mount
   useEffect(() => {
-    handleSearch("local")
+    handleSearch("copernicus")
   }, [])
 
-  const handleSearch = async (selectedProvider = provider) => {
+  const handleSearch = async (selectedProvider: "all" | "copernicus" = provider) => {
     globeState.setCatalogLoading(true)
     globeState.setCatalogProvider(selectedProvider)
 
@@ -34,7 +36,7 @@ export default function DataSourcePanel() {
       ]
 
       const items = await exploreApi.searchDatasets({
-        bbox: selectedProvider === "local" ? undefined : bbox,
+        bbox,
         provider: selectedProvider,
         limit: 15,
       })
@@ -47,26 +49,8 @@ export default function DataSourcePanel() {
 
   return (
     <div className="datasource-panel">
-      <div className="section-label">DATA SOURCE</div>
+      <div className="section-label">EO SATELLITE CATALOG</div>
       <div className="provider-toggle-group">
-        <button
-          className={`provider-btn ${provider === "all" ? "active" : ""}`}
-          onClick={() => {
-            setProvider("all")
-            handleSearch("all")
-          }}
-        >
-          ALL
-        </button>
-        <button
-          className={`provider-btn ${provider === "local" ? "active" : ""}`}
-          onClick={() => {
-            setProvider("local")
-            handleSearch("local")
-          }}
-        >
-          LOCAL
-        </button>
         <button
           className={`provider-btn ${provider === "copernicus" ? "active" : ""}`}
           onClick={() => {
@@ -74,7 +58,16 @@ export default function DataSourcePanel() {
             handleSearch("copernicus")
           }}
         >
-          COPERNICUS
+          COPERNICUS STAC
+        </button>
+        <button
+          className={`provider-btn ${provider === "all" ? "active" : ""}`}
+          onClick={() => {
+            setProvider("all")
+            handleSearch("all")
+          }}
+        >
+          GLOBAL SENSORS
         </button>
       </div>
 

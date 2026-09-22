@@ -63,7 +63,7 @@ class FlyToCommand(BaseModel):
     longitude: Optional[float] = Field(None, ge=-180.0, le=180.0)
     zoom: Optional[float] = Field(None, ge=0.0, le=24.0)
     heading: Optional[float] = Field(0.0, ge=0.0, le=360.0)
-    pitch: Optional[float] = Field(0.0, ge=-90.0, le=90.0)
+    pitch: Optional[float] = Field(-50.0, ge=-90.0, le=90.0)
     duration: Optional[float] = Field(1.5, ge=0.1, le=10.0)
 
 

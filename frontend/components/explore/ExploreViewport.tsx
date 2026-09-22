@@ -17,6 +17,7 @@ import { ViewStatePanel } from "./ViewStatePanel"
 import { AOIToolbar } from "./AOIToolbar"
 import { Timeline } from "./Timeline"
 import { SplitView } from "./SplitView"
+import { CoordinateHUD } from "./CoordinateHUD"
 import { useComparisonState } from "@/lib/explore/comparison-state"
 
 // Dynamic client-side only renderer loading with zero SSR overhead
@@ -88,8 +89,8 @@ export function ExploreViewport() {
         <Timeline />
       </div>
 
-      {/* Live Geospatial Telemetry Panel */}
-      <ViewStatePanel />
+      {/* Live Geospatial Coordinate & Telemetry HUD */}
+      <CoordinateHUD />
     </main>
   )
 }

@@ -15,11 +15,12 @@ class GlobeStateManager {
     sidebarOpen: true,
     camera: { ...DEFAULT_CAMERA_STATE },
     selectedLayerIds: layerRegistry.getDefaultVisibleIds(),
-    layerOpacities: { "layer-base-dark": 1.0, "layer-borders": 0.8 },
+    layerOpacities: { "layer-base-satellite": 1.0, "layer-borders": 0.8 },
     activeDatasetId: null,
+    activeBasemap: "satellite",
     catalogItems: [],
     catalogLoading: false,
-    catalogProvider: "all",
+    catalogProvider: "copernicus",
     rendererStatus: "idle",
     webglSupported: true,
     errorMessage: null,
@@ -94,6 +95,10 @@ class GlobeStateManager {
 
   setActiveDataset(activeDatasetId: string | null): void {
     this.setState({ activeDatasetId })
+  }
+
+  setActiveBasemap(activeBasemap: string): void {
+    this.setState({ activeBasemap })
   }
 
   setCatalogItems(catalogItems: ExploreDataset[]): void {

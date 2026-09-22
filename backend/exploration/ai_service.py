@@ -9,7 +9,10 @@ multi-tier policy validation, and sequential command execution.
 import time
 import uuid
 import socket
+import logging
 from typing import Any, Dict, List, Optional
+
+logger = logging.getLogger(__name__)
 from exploration.ai_schemas import (
     ExploreAIQueryRequest,
     ExploreAIQueryResponse,
@@ -40,6 +43,7 @@ from exploration.prompts import (
 from exploration.service import explore_service
 from llm.model_registry import LocalModelRegistry
 from llm.ollama_provider import OllamaProvider
+from llm.llm_gateway import UnifiedLLMGateway
 
 
 class ExploreAIService:
@@ -49,7 +53,18 @@ class ExploreAIService:
         pass
 
     def get_status(self) -> ExploreAIStatusResponse:
-        """Returns the operational status of local LLMs and structured generation capability."""
+        """Returns the operational status of active LLM runtime (Cloud API or Local Ollama)."""
+        status_info = UnifiedLLMGateway.get_status_info()
+        if status_info["mode"] == "cloud":
+            return ExploreAIStatusResponse(
+                available=True,
+                model=f"cloud:{status_info['model']}",
+                router_model=f"cloud:{status_info['model']}",
+                planner_model=f"cloud:{status_info['model']}",
+                structured_output=True,
+                offline_fallback_active=False,
+            )
+
         online = LocalModelRegistry.is_ollama_online()
         router_tag, router_avail = LocalModelRegistry.resolve_model_for_role("fast_router")
         planner_tag, planner_avail = LocalModelRegistry.resolve_model_for_role("planner")
@@ -118,8 +133,9 @@ class ExploreAIService:
                     latency_ms=round(latency, 2),
                 )
 
-        # 3. AI PATH: Verify local Ollama availability
-        if not LocalModelRegistry.is_ollama_online():
+        # 3. AI PATH: Verify LLM runtime availability (Cloud API or Local Ollama)
+        llm_status = UnifiedLLMGateway.get_status_info()
+        if not llm_status["available"]:
             return ExploreAIQueryResponse(
                 request_id=req_id,
                 status="rejected",
@@ -134,32 +150,45 @@ class ExploreAIService:
 
         # 4. Stage A: Fast Intent Classification (role: fast_router)
         intent_prompt = build_intent_prompt(raw_query, current_camera)
+        intent_obj: Optional[ExploreIntent] = None
         try:
-            intent_obj: Optional[ExploreIntent] = OllamaProvider.generate_structured_native(
+            intent_obj = UnifiedLLMGateway.generate_structured(
                 prompt=intent_prompt,
                 schema=ExploreIntent,
                 role="fast_router",
                 system_prompt=INTENT_CLASSIFIER_SYSTEM_PROMPT,
-                timeout=12.0,
+                timeout=25.0,
                 temperature=0.0,
             )
         except (socket.timeout, TimeoutError):
             return self._build_error_response(
                 req_id=req_id,
                 error_code=EXPLORE_LLM_TIMEOUT,
-                summary="Intent classification timed out.",
+                summary="Exploration AI query timed out. Please try again or use simpler commands.",
                 t0=t0,
             )
-        except Exception:
+        except Exception as e_llm:
+            logger.warning(f"LLM intent generation error: {e_llm}")
             intent_obj = None
 
         if not intent_obj:
-            return self._build_error_response(
-                req_id=req_id,
-                error_code=EXPLORE_LLM_INVALID_OUTPUT,
-                summary="Failed to classify exploration intent. Please rephrase or use simple controls.",
-                t0=t0,
-            )
+            # Fallback heuristic: check if query contains any known location in GeoResolver
+            from exploration.geo_resolver import GeoResolver
+            geo_match = GeoResolver.resolve(raw_query)
+            if geo_match:
+                intent_obj = ExploreIntent(
+                    intent=ExploreIntentType.NAVIGATION,
+                    confidence=0.85,
+                    location_query=geo_match.name,
+                    requested_actions=["fly_to"],
+                )
+            else:
+                return self._build_error_response(
+                    req_id=req_id,
+                    error_code=EXPLORE_LLM_INVALID_OUTPUT,
+                    summary="Failed to classify exploration intent. Try: 'Focus on New Delhi', 'Show radar imagery', or 'Reset globe'.",
+                    t0=t0,
+                )
 
         # 5. Guardrail: Defer deep scientific analysis requests (VQA, change detection, NDVI, flooding)
         if intent_obj.intent == ExploreIntentType.UNSUPPORTED:
@@ -194,7 +223,7 @@ class ExploreAIService:
         )
 
         try:
-            plan: Optional[ExploreCommandPlan] = OllamaProvider.generate_structured_native(
+            plan: Optional[ExploreCommandPlan] = UnifiedLLMGateway.generate_structured(
                 prompt=planner_prompt,
                 schema=ExploreCommandPlan,
                 role="planner",
@@ -220,8 +249,8 @@ class ExploreAIService:
                 t0=t0,
             )
 
-        # Deduplicate commands if normalizer finds repeats
-        plan.commands = CommandNormalizer.deduplicate_commands(plan.commands)
+        # Deduplicate commands and enrich incomplete structures (e.g. AOI bounding boxes)
+        plan.commands = CommandNormalizer.sanitize_and_enrich_commands(plan.commands)
 
         # 7. Command Validation Pipeline
         valid, val_err_code, val_err_msg = CommandValidator.validate_plan(plan, active_layer_ids)

@@ -9,7 +9,7 @@
 import React, { useEffect, useRef } from "react"
 import maplibregl, { Map as MapLibreMap } from "maplibre-gl"
 import "maplibre-gl/dist/maplibre-gl.css"
-import { DEFAULT_2D_BASEMAP_STYLE, DEFAULT_CAMERA_STATE } from "@/lib/explore/constants"
+import { BASEMAP_PRESETS, DEFAULT_2D_BASEMAP_STYLE, DEFAULT_CAMERA_STATE } from "@/lib/explore/constants"
 import { globeController } from "@/lib/explore/globe-controller"
 import { globeState } from "@/lib/explore/globe-state"
 import { performanceMonitor } from "@/lib/explore/performance"
@@ -211,8 +211,11 @@ export default function MapView({ viewId = "view-a" }: MapViewProps) {
         },
         setLayerVisibility: (layerId, visible) => {
           if (!mapRef.current) return
-          if (layerId === "layer-base-dark" && mapRef.current.getLayer("esri-dark-layer")) {
-            mapRef.current.setLayoutProperty("esri-dark-layer", "visibility", visible ? "visible" : "none")
+          if (
+            (layerId === "layer-base-satellite" || layerId === "layer-base-dark") &&
+            mapRef.current.getLayer("esri-satellite-layer")
+          ) {
+            mapRef.current.setLayoutProperty("esri-satellite-layer", "visibility", visible ? "visible" : "none")
             return
           }
           if (mapRef.current.getLayer(layerId)) {
@@ -221,12 +224,49 @@ export default function MapView({ viewId = "view-a" }: MapViewProps) {
         },
         setLayerOpacity: (layerId, opacity) => {
           if (!mapRef.current) return
-          if (layerId === "layer-base-dark" && mapRef.current.getLayer("esri-dark-layer")) {
-            mapRef.current.setPaintProperty("esri-dark-layer", "raster-opacity", opacity)
+          if (
+            (layerId === "layer-base-satellite" || layerId === "layer-base-dark") &&
+            mapRef.current.getLayer("esri-satellite-layer")
+          ) {
+            mapRef.current.setPaintProperty("esri-satellite-layer", "raster-opacity", opacity)
             return
           }
           if (mapRef.current.getLayer(layerId)) {
             mapRef.current.setPaintProperty(layerId, "raster-opacity", opacity)
+          }
+        },
+        setBasemap: (basemapId: string, tileUrl?: string) => {
+          if (!mapRef.current) return
+          const m = mapRef.current
+          const preset = BASEMAP_PRESETS[basemapId]
+          const resolvedUrl = tileUrl || preset?.tileUrl || BASEMAP_PRESETS.satellite.tileUrl
+          const layerId = "esri-satellite-layer"
+          const sourceId = "esri-satellite"
+
+          try {
+            if (m.getLayer(layerId)) m.removeLayer(layerId)
+            if (m.getSource(sourceId)) m.removeSource(sourceId)
+
+            m.addSource(sourceId, {
+              type: "raster",
+              tiles: [resolvedUrl],
+              tileSize: 256,
+              attribution: preset?.attribution || "TRINETRA Earth Observation",
+            })
+
+            const firstLayerId = m.getStyle().layers?.[0]?.id
+            m.addLayer(
+              {
+                id: layerId,
+                type: "raster",
+                source: sourceId,
+                minzoom: 0,
+                maxzoom: 20,
+              },
+              firstLayerId
+            )
+          } catch (err) {
+            console.warn("[MapView] Failed to switch basemap:", err)
           }
         },
         addLayerSource: (layerDef) => {
@@ -312,6 +352,8 @@ export default function MapView({ viewId = "view-a" }: MapViewProps) {
               { padding: 50, maxZoom: 17, duration: 1000 }
             )
           }
+        } else if (cmd.type === "SET_BASEMAP") {
+          adapter.setBasemap?.(cmd.basemapId, cmd.tileUrl)
         }
       })
 

@@ -27,6 +27,13 @@ export const AnalysisProgress: React.FC<Props> = ({ progress, status, onCancel }
   const isFailed = status === "failed"
   const isCancelled = status === "cancelled"
 
+  const safeProgress = progress || {}
+  const stepIndex = safeProgress.step_index ?? (safeProgress as any).step_number ?? 1
+  const totalSteps = safeProgress.total_steps || 7
+  const percent = typeof safeProgress.percent === "number"
+    ? safeProgress.percent
+    : Math.min(100, Math.round((stepIndex / totalSteps) * 100))
+
   return (
     <div className="p-3 bg-slate-900/80 border border-slate-800 rounded-lg space-y-3">
       <div className="flex items-center justify-between text-xs">
@@ -38,9 +45,9 @@ export const AnalysisProgress: React.FC<Props> = ({ progress, status, onCancel }
           ) : (
             <CheckCircle2 className="w-3.5 h-3.5 text-emerald-400" />
           )}
-          Pipeline: Stage {progress.step_index} / {progress.total_steps || 7}
+          Pipeline: Stage {stepIndex} / {totalSteps}
         </span>
-        <span className="font-mono text-cyan-400 font-bold">{progress.percent}%</span>
+        <span className="font-mono text-cyan-400 font-bold">{percent}%</span>
       </div>
 
       {/* Progress Bar */}
@@ -49,15 +56,15 @@ export const AnalysisProgress: React.FC<Props> = ({ progress, status, onCancel }
           className={`h-full transition-all duration-300 ${
             isFailed ? "bg-rose-500" : isCancelled ? "bg-amber-500" : "bg-gradient-to-r from-cyan-500 to-emerald-400"
           }`}
-          style={{ width: `${progress.percent}%` }}
+          style={{ width: `${percent}%` }}
         />
       </div>
 
       {/* Stage Dots */}
       <div className="grid grid-cols-7 gap-1 text-[9px] font-mono text-center">
         {STAGES.map((s, idx) => {
-          const isDone = progress.step_index > idx + 1 || (progress.step_index === idx + 1 && progress.percent === 100)
-          const isCurrent = progress.step_index === idx + 1 && progress.percent < 100
+          const isDone = stepIndex > idx + 1 || (stepIndex === idx + 1 && percent === 100)
+          const isCurrent = stepIndex === idx + 1 && percent < 100
           return (
             <div key={s.key} className="flex flex-col items-center gap-0.5">
               <div

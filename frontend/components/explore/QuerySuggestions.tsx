@@ -18,8 +18,8 @@ interface QuerySuggestionsProps {
 export function QuerySuggestions({ onSelectSuggestion }: QuerySuggestionsProps) {
   const { selectedLayerIds } = useGlobeState()
 
-  const hasSentinel2 = selectedLayerIds.includes("layer-local_sentinel2_nagpur_truecolor")
-  const hasRadar = selectedLayerIds.includes("layer-local_sentinel1_mumbai_sar")
+  const hasSentinel2 = selectedLayerIds.includes("layer-sentinel2-cloudless")
+  const hasRadar = selectedLayerIds.includes("layer-sentinel1-radar")
   const hasBorders = selectedLayerIds.includes("layer-borders")
 
   const getSuggestions = (): string[] => {

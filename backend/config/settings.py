@@ -153,6 +153,15 @@ class Settings(BaseSettings):
     workspace_max_board_items: int = Field(default=200, description="Max items on a single evidence board")
     workspace_max_report_size_mb: int = Field(default=50, description="Max report package export size in MB")
 
+    # -------------------------------------------------------------------------
+    # 12. Dual LLM Architecture (Cloud API with Local Ollama Fallback)
+    # -------------------------------------------------------------------------
+    llm_api_key: Optional[str] = Field(default=None, description="Cloud LLM API key (OpenAI, Groq, Gemini, OpenRouter). Leave empty for local Ollama.")
+    llm_provider: str = Field(default="auto", description="LLM provider: auto | openai | groq | gemini | openrouter | ollama")
+    llm_model: str = Field(default="gpt-4o-mini", description="Cloud LLM model identifier")
+    llm_base_url: Optional[str] = Field(default=None, description="Custom base URL for OpenAI-compatible endpoint")
+    llm_timeout: float = Field(default=25.0, description="Cloud LLM request timeout in seconds")
+
     def get_config_hash(self) -> str:
         """
         Computes a deterministic SHA-256 hash of all runtime configurations.
