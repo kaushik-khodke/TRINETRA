@@ -11,7 +11,7 @@ export const TemporalToolbar: React.FC = () => {
   const { cloudCoverMax, collections, loading, observations } = useTemporalState()
 
   return (
-    <div className="flex flex-wrap items-center justify-between gap-3 bg-[#121620]/90 backdrop-blur-md border border-cyan-500/20 rounded-lg p-2.5 shadow-xl text-xs">
+    <div className="flex flex-wrap items-center justify-between gap-3 bg-[#121620]/90 backdrop-blur-md border border-orange-500/20 rounded-lg p-2.5 shadow-xl text-xs">
       <div className="flex flex-wrap items-center gap-3">
         {/* Date Range */}
         <DateRangePicker />
@@ -19,7 +19,7 @@ export const TemporalToolbar: React.FC = () => {
         {/* Cloud Cover Slider */}
         <div className="flex items-center gap-2 bg-black/40 border border-white/10 rounded px-2.5 py-1">
           <span className="text-slate-400 text-[10px] uppercase font-mono">
-            Cloud Max: <span className="text-cyan-300 font-bold">{cloudCoverMax}%</span>
+            Cloud Max: <span className="text-orange-300 font-bold">{cloudCoverMax}%</span>
           </span>
           <input
             type="range"
@@ -30,7 +30,7 @@ export const TemporalToolbar: React.FC = () => {
             onChange={(e) =>
               temporalStateManager.setCloudCoverMax(Number(e.target.value))
             }
-            className="w-16 h-1 bg-white/10 rounded-lg appearance-none cursor-pointer accent-cyan-400"
+            className="w-16 h-1 bg-white/10 rounded-lg appearance-none cursor-pointer accent-orange-400"
           />
         </div>
 
@@ -40,12 +40,12 @@ export const TemporalToolbar: React.FC = () => {
           <select
             value={collections[0] || "sentinel-2-l2a"}
             onChange={(e) => temporalStateManager.setCollections([e.target.value])}
-            className="bg-transparent text-cyan-200 text-xs focus:outline-none cursor-pointer font-mono"
+            className="bg-transparent text-orange-200 text-xs focus:outline-none cursor-pointer font-mono"
           >
-            <option value="sentinel-2-l2a" className="bg-[#121620] text-cyan-200">
+            <option value="sentinel-2-l2a" className="bg-[#121620] text-orange-200">
               Sentinel-2 (Optical L2A)
             </option>
-            <option value="sentinel-1-grd" className="bg-[#121620] text-cyan-200">
+            <option value="sentinel-1-grd" className="bg-[#121620] text-orange-200">
               Sentinel-1 (Radar SAR)
             </option>
           </select>
@@ -56,14 +56,14 @@ export const TemporalToolbar: React.FC = () => {
       <div className="flex items-center gap-3">
         {observations.length > 0 && (
           <span className="text-slate-400 font-mono text-[11px]">
-            <strong className="text-cyan-300">{observations.length}</strong> acquisitions
+            <strong className="text-orange-300">{observations.length}</strong> acquisitions
           </span>
         )}
 
         <button
           onClick={() => temporalStateManager.search()}
           disabled={loading}
-          className="px-3 py-1.5 rounded-md bg-gradient-to-r from-cyan-500 to-blue-600 hover:from-cyan-400 hover:to-blue-500 text-black font-semibold tracking-wide transition shadow-lg shadow-cyan-500/20 disabled:opacity-50 flex items-center gap-1.5"
+          className="px-3 py-1.5 rounded-md bg-gradient-to-r from-orange-500 to-blue-600 hover:from-orange-400 hover:to-blue-500 text-black font-semibold tracking-wide transition shadow-lg shadow-orange-500/20 disabled:opacity-50 flex items-center gap-1.5"
         >
           {loading ? (
             <>

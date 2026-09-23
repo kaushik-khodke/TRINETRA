@@ -32,8 +32,8 @@ export const EvidencePanel: React.FC<Props> = ({ evidence, query }) => {
   return (
     <div className="space-y-3">
       {/* Evidence Banner */}
-      <div className="p-2.5 bg-cyan-950/20 border border-cyan-500/30 rounded-lg flex items-start gap-2 text-xs">
-        <Binary className="w-4 h-4 text-cyan-400 shrink-0 mt-0.5" />
+      <div className="p-2.5 bg-orange-950/20 border border-orange-500/30 rounded-lg flex items-start gap-2 text-xs">
+        <Binary className="w-4 h-4 text-orange-400 shrink-0 mt-0.5" />
         <div className="space-y-0.5">
           <p className="text-slate-200 font-semibold leading-tight">
             Verifiable Numerical Evidence

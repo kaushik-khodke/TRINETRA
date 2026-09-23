@@ -20,7 +20,7 @@ interface Props {
 
 export const ConfidenceBreakdown: React.FC<Props> = ({ compositeScore, breakdown }) => {
   const factors = [
-    { label: "Model Confidence (30%)", value: breakdown?.model_confidence ?? 0.88, color: "bg-cyan-400" },
+    { label: "Model Confidence (30%)", value: breakdown?.model_confidence ?? 0.88, color: "bg-orange-400" },
     { label: "Evidence Quality (20%)", value: breakdown?.evidence_quality ?? 0.92, color: "bg-emerald-400" },
     { label: "Spatial Consistency (20%)", value: breakdown?.spatial_consistency ?? 0.86, color: "bg-indigo-400" },
     { label: "Temporal Consistency (15%)", value: breakdown?.temporal_consistency ?? 0.88, color: "bg-amber-400" },
@@ -33,12 +33,12 @@ export const ConfidenceBreakdown: React.FC<Props> = ({ compositeScore, breakdown
     <div className="bg-slate-900/80 border border-slate-800 rounded-lg p-3 space-y-2.5">
       <div className="flex items-center justify-between">
         <div className="flex items-center gap-1.5">
-          <ShieldCheck className="w-4 h-4 text-cyan-400" />
+          <ShieldCheck className="w-4 h-4 text-orange-400" />
           <h4 className="text-xs font-bold text-slate-200 uppercase tracking-wide">
             Composite Confidence Evaluation
           </h4>
         </div>
-        <span className="font-mono text-sm font-bold text-cyan-400">
+        <span className="font-mono text-sm font-bold text-orange-400">
           {Math.round(compositeScore * 100)}%
         </span>
       </div>

@@ -19,7 +19,7 @@ export const HypothesisCard: React.FC<Props> = ({ hypothesis, isPrimary = false 
     <div
       className={`rounded-lg border p-4 transition-all ${
         isPrimary
-          ? "bg-gradient-to-b from-cyan-950/40 to-slate-900/90 border-cyan-500/60 shadow-lg shadow-cyan-950/30"
+          ? "bg-gradient-to-b from-orange-950/40 to-slate-900/90 border-orange-500/60 shadow-lg shadow-orange-950/30"
           : "bg-slate-900/80 border-slate-800"
       }`}
     >
@@ -27,14 +27,14 @@ export const HypothesisCard: React.FC<Props> = ({ hypothesis, isPrimary = false 
         <div className="flex items-center gap-2">
           <div
             className={`p-1.5 rounded-md ${
-              isPrimary ? "bg-cyan-500/20 text-cyan-400" : "bg-slate-800 text-slate-400"
+              isPrimary ? "bg-orange-500/20 text-orange-400" : "bg-slate-800 text-slate-400"
             }`}
           >
             <Sparkles className="w-4 h-4" />
           </div>
           <div>
             <div className="flex items-center gap-1.5">
-              <span className="text-[10px] font-mono uppercase tracking-wider text-cyan-400 font-bold">
+              <span className="text-[10px] font-mono uppercase tracking-wider text-orange-400 font-bold">
                 {isPrimary ? "Primary Hypothesis" : "Alternative Hypothesis"}
               </span>
               {isPrimary && (
@@ -50,7 +50,7 @@ export const HypothesisCard: React.FC<Props> = ({ hypothesis, isPrimary = false 
         </div>
 
         <div className="flex flex-col items-end">
-          <span className="text-base font-bold font-mono text-cyan-400">{confPct}%</span>
+          <span className="text-base font-bold font-mono text-orange-400">{confPct}%</span>
           <span className="text-[9px] text-slate-500">Posterior</span>
         </div>
       </div>

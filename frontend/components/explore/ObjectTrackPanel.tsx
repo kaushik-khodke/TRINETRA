@@ -50,7 +50,7 @@ export const ObjectTrackPanel: React.FC<Props> = ({ tracksData, onFocusTrack }) 
       case "REMOVAL_CANDIDATE":
         return "bg-rose-950 text-rose-300 border-rose-800"
       case "EXPANDED":
-        return "bg-cyan-950 text-cyan-300 border-cyan-800"
+        return "bg-orange-950 text-orange-300 border-orange-800"
       default:
         return "bg-slate-800 text-slate-300 border-slate-700"
     }
@@ -77,7 +77,7 @@ export const ObjectTrackPanel: React.FC<Props> = ({ tracksData, onFocusTrack }) 
           >
             <div className="flex items-center justify-between">
               <div className="flex items-center gap-2">
-                <span className="font-mono text-xs font-bold text-cyan-400">{trk.track_id}</span>
+                <span className="font-mono text-xs font-bold text-orange-400">{trk.track_id}</span>
                 <span
                   className={`px-1.5 py-0.5 rounded text-[10px] font-mono uppercase font-semibold border ${getStatusBadge(
                     trk.status

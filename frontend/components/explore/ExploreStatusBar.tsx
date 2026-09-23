@@ -45,7 +45,7 @@ export function ExploreStatusBar() {
       {/* Right: Telemetry & Air-Gapped Status */}
       <div style={{ display: "flex", alignItems: "center", gap: 16 }}>
         <div style={{ display: "flex", alignItems: "center", gap: 6 }}>
-          <Activity size={12} color="#38bdf8" />
+          <Activity size={12} color="#ff6b2b" />
           <span>FPS: {perf.estimatedFps} | INIT: {perf.initTimeMs}ms</span>
         </div>
 

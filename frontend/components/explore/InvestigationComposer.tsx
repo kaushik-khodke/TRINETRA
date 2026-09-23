@@ -60,7 +60,7 @@ export const InvestigationComposer: React.FC<Props> = ({
   return (
     <form onSubmit={handleSubmit} className="space-y-3 bg-slate-900/90 border border-slate-800 rounded-lg p-3.5">
       <div className="flex items-center gap-1.5 text-xs text-slate-200 font-bold font-mono">
-        <Sparkles className="w-4 h-4 text-cyan-400" />
+        <Sparkles className="w-4 h-4 text-orange-400" />
         <span>Semantic Earth-Observation Investigation</span>
       </div>
 
@@ -69,7 +69,7 @@ export const InvestigationComposer: React.FC<Props> = ({
         onChange={(e) => handleTextChange(e.target.value)}
         placeholder="Ask a scientific investigation enquiry (e.g. 'What happened in this area? Was the change related to built-up expansion?')"
         rows={3}
-        className="w-full bg-slate-950 border border-slate-800 rounded-md p-2.5 text-xs text-slate-100 placeholder-slate-500 focus:outline-none focus:border-cyan-500 font-sans resize-none"
+        className="w-full bg-slate-950 border border-slate-800 rounded-md p-2.5 text-xs text-slate-100 placeholder-slate-500 focus:outline-none focus:border-orange-500 font-sans resize-none"
       />
 
       {/* Preset enquiry templates */}
@@ -79,7 +79,7 @@ export const InvestigationComposer: React.FC<Props> = ({
             type="button"
             key={q}
             onClick={() => handleTextChange(q)}
-            className="px-2 py-1 rounded-full text-[10px] bg-slate-950 hover:bg-cyan-950 border border-slate-800 hover:border-cyan-700 text-slate-400 hover:text-cyan-300 font-sans transition-all text-left truncate max-w-[280px]"
+            className="px-2 py-1 rounded-full text-[10px] bg-slate-950 hover:bg-orange-950 border border-slate-800 hover:border-orange-700 text-slate-400 hover:text-orange-300 font-sans transition-all text-left truncate max-w-[280px]"
           >
             {q}
           </button>
@@ -102,7 +102,7 @@ export const InvestigationComposer: React.FC<Props> = ({
                   onClick={() => handleToggleObs(oid)}
                   className={`px-2 py-0.5 rounded text-[10px] font-mono transition-all ${
                     isChecked
-                      ? "bg-cyan-950 text-cyan-300 border border-cyan-700 font-semibold"
+                      ? "bg-orange-950 text-orange-300 border border-orange-700 font-semibold"
                       : "bg-slate-950 text-slate-500 border border-slate-800"
                   }`}
                 >
@@ -118,7 +118,7 @@ export const InvestigationComposer: React.FC<Props> = ({
       {validation && (
         <div className="p-2 rounded bg-slate-950/80 border border-slate-800 text-[11px] font-mono flex items-center justify-between">
           <div className="flex items-center gap-1.5 text-slate-300">
-            <Clock className="w-3.5 h-3.5 text-cyan-400" />
+            <Clock className="w-3.5 h-3.5 text-orange-400" />
             <span>Est: ~{validation.estimated_runtime_seconds}s</span>
             <span className="text-slate-600">|</span>
             <span
@@ -134,7 +134,7 @@ export const InvestigationComposer: React.FC<Props> = ({
             </span>
           </div>
 
-          <div className="text-[10px] text-cyan-400">
+          <div className="text-[10px] text-orange-400">
             {validation.planned_specialists.length} specialists planned
           </div>
         </div>
@@ -143,7 +143,7 @@ export const InvestigationComposer: React.FC<Props> = ({
       <button
         type="submit"
         disabled={!question.trim() || isSubmitting}
-        className="w-full flex items-center justify-center gap-2 py-2 bg-gradient-to-r from-cyan-500 to-blue-600 hover:from-cyan-400 hover:to-blue-500 disabled:opacity-50 text-slate-950 font-bold rounded-md text-xs transition-all shadow-md shadow-cyan-500/20"
+        className="w-full flex items-center justify-center gap-2 py-2 bg-gradient-to-r from-orange-500 to-blue-600 hover:from-orange-400 hover:to-blue-500 disabled:opacity-50 text-slate-950 font-bold rounded-md text-xs transition-all shadow-md shadow-orange-500/20"
       >
         <Play className="w-3.5 h-3.5 fill-current" />
         <span>{isSubmitting ? "Initiating Investigation..." : "Launch Investigation"}</span>

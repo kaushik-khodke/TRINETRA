@@ -25,7 +25,7 @@ export const AnalysisModeBadge: React.FC<Props> = ({ mode, className = "" }) => 
     case "SAR_OPTICAL":
       return (
         <span
-          className={`inline-flex items-center gap-1.5 px-2 py-0.5 rounded text-[11px] font-mono font-medium bg-cyan-500/10 text-cyan-400 border border-cyan-500/30 ${className}`}
+          className={`inline-flex items-center gap-1.5 px-2 py-0.5 rounded text-[11px] font-mono font-medium bg-orange-500/10 text-orange-400 border border-orange-500/30 ${className}`}
         >
           <Radio className="w-3 h-3" />
           SAR + OPTICAL

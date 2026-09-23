@@ -25,7 +25,7 @@ export const ProvenancePanel: React.FC<Props> = ({
   return (
     <div className="bg-slate-900/80 border border-slate-800 rounded-lg p-3 space-y-3">
       <div className="flex items-center gap-1.5">
-        <Hash className="w-4 h-4 text-cyan-400" />
+        <Hash className="w-4 h-4 text-orange-400" />
         <h4 className="text-xs font-bold text-slate-200 uppercase tracking-wide">
           Provenance & Integrity Verification
         </h4>
@@ -40,7 +40,7 @@ export const ProvenancePanel: React.FC<Props> = ({
             Verified
           </span>
         </div>
-        <div className="font-mono text-[10px] text-cyan-300 break-all select-all">{hash}</div>
+        <div className="font-mono text-[10px] text-orange-300 break-all select-all">{hash}</div>
       </div>
 
       {/* Artifact Export Links */}
@@ -53,9 +53,9 @@ export const ProvenancePanel: React.FC<Props> = ({
             href={`${BACKEND_URL}/api/v1/explore/investigations/${investigationId}/artifacts/report_json`}
             target="_blank"
             rel="noreferrer"
-            className="flex items-center gap-1.5 p-2 rounded bg-slate-950 border border-slate-800 hover:border-cyan-700 text-xs font-mono text-slate-300 hover:text-cyan-300 transition-colors"
+            className="flex items-center gap-1.5 p-2 rounded bg-slate-950 border border-slate-800 hover:border-orange-700 text-xs font-mono text-slate-300 hover:text-orange-300 transition-colors"
           >
-            <FileCode className="w-3.5 h-3.5 text-cyan-400 shrink-0" />
+            <FileCode className="w-3.5 h-3.5 text-orange-400 shrink-0" />
             <span className="truncate">Report JSON</span>
             <Download className="w-3 h-3 ml-auto opacity-60" />
           </a>
@@ -64,7 +64,7 @@ export const ProvenancePanel: React.FC<Props> = ({
             href={`${BACKEND_URL}/api/v1/explore/investigations/${investigationId}/artifacts/report_html`}
             target="_blank"
             rel="noreferrer"
-            className="flex items-center gap-1.5 p-2 rounded bg-slate-950 border border-slate-800 hover:border-cyan-700 text-xs font-mono text-slate-300 hover:text-cyan-300 transition-colors"
+            className="flex items-center gap-1.5 p-2 rounded bg-slate-950 border border-slate-800 hover:border-orange-700 text-xs font-mono text-slate-300 hover:text-orange-300 transition-colors"
           >
             <FileText className="w-3.5 h-3.5 text-indigo-400 shrink-0" />
             <span className="truncate">Report HTML</span>
@@ -75,7 +75,7 @@ export const ProvenancePanel: React.FC<Props> = ({
             href={`${BACKEND_URL}/api/v1/explore/investigations/${investigationId}/artifacts/evidence_geojson`}
             target="_blank"
             rel="noreferrer"
-            className="flex items-center gap-1.5 p-2 rounded bg-slate-950 border border-slate-800 hover:border-cyan-700 text-xs font-mono text-slate-300 hover:text-cyan-300 transition-colors"
+            className="flex items-center gap-1.5 p-2 rounded bg-slate-950 border border-slate-800 hover:border-orange-700 text-xs font-mono text-slate-300 hover:text-orange-300 transition-colors"
           >
             <FileCode className="w-3.5 h-3.5 text-emerald-400 shrink-0" />
             <span className="truncate">Evidence GeoJSON</span>
@@ -86,7 +86,7 @@ export const ProvenancePanel: React.FC<Props> = ({
             href={`${BACKEND_URL}/api/v1/explore/investigations/${investigationId}/artifacts/manifest`}
             target="_blank"
             rel="noreferrer"
-            className="flex items-center gap-1.5 p-2 rounded bg-slate-950 border border-slate-800 hover:border-cyan-700 text-xs font-mono text-slate-300 hover:text-cyan-300 transition-colors"
+            className="flex items-center gap-1.5 p-2 rounded bg-slate-950 border border-slate-800 hover:border-orange-700 text-xs font-mono text-slate-300 hover:text-orange-300 transition-colors"
           >
             <Hash className="w-3.5 h-3.5 text-amber-400 shrink-0" />
             <span className="truncate">Run Manifest</span>

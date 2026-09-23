@@ -48,14 +48,14 @@ export const ContradictionPanel: React.FC<Props> = ({ conflicts, onSelectEvidenc
             <div className="flex items-center gap-2 text-[10px] font-mono text-slate-400 pt-1 border-t border-slate-800">
               <span
                 onClick={() => onSelectEvidence?.(c.evidence_a_id)}
-                className="text-cyan-400 hover:underline cursor-pointer"
+                className="text-orange-400 hover:underline cursor-pointer"
               >
                 {c.evidence_a_id}
               </span>
               <span className="text-slate-600">vs</span>
               <span
                 onClick={() => onSelectEvidence?.(c.evidence_b_id)}
-                className="text-cyan-400 hover:underline cursor-pointer"
+                className="text-orange-400 hover:underline cursor-pointer"
               >
                 {c.evidence_b_id}
               </span>

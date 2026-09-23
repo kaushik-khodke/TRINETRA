@@ -39,17 +39,17 @@ export const CoordinateHUD: React.FC = () => {
 
   return (
     <div
-      className="absolute bottom-3 right-3 z-20 flex items-center gap-2.5 px-3 py-1.5 rounded-lg bg-[#0b0f19]/85 backdrop-blur-md border border-cyan-500/25 shadow-2xl font-mono text-[11px] text-slate-300 pointer-events-auto select-none transition-all hover:border-cyan-500/50 hover:bg-[#0b0f19]/95"
+      className="absolute bottom-3 right-3 z-20 flex items-center gap-2.5 px-3 py-1.5 rounded-lg bg-[#0b0f19]/85 backdrop-blur-md border border-orange-500/25 shadow-2xl font-mono text-[11px] text-slate-300 pointer-events-auto select-none transition-all hover:border-orange-500/50 hover:bg-[#0b0f19]/95"
       style={{ letterSpacing: "0.02em" }}
       title="Active Camera Center Coordinates & Telemetry"
     >
       {/* Target indicator icon */}
-      <div className="flex items-center gap-1.5 text-cyan-400">
+      <div className="flex items-center gap-1.5 text-orange-400">
         <Navigation
           className="w-3.5 h-3.5 transition-transform duration-300"
           style={{ transform: `rotate(${heading}deg)` }}
         />
-        <span className="font-bold text-[10px] text-cyan-400/80 uppercase">GEO</span>
+        <span className="font-bold text-[10px] text-orange-400/80 uppercase">GEO</span>
       </div>
 
       {/* Lat / Lon */}
@@ -61,9 +61,9 @@ export const CoordinateHUD: React.FC = () => {
 
       {/* Altitude & Zoom */}
       <div className="hidden sm:flex items-center gap-2 border-l border-white/10 pl-2 text-slate-400">
-        <span>ALT <strong className="text-cyan-300 font-medium">{formattedAlt}</strong></span>
+        <span>ALT <strong className="text-orange-300 font-medium">{formattedAlt}</strong></span>
         <span className="text-slate-600">·</span>
-        <span>Z <strong className="text-cyan-300 font-medium">{zoom.toFixed(1)}</strong></span>
+        <span>Z <strong className="text-orange-300 font-medium">{zoom.toFixed(1)}</strong></span>
       </div>
 
       {/* 3D Attitude (Pitch / Heading) */}
@@ -78,7 +78,7 @@ export const CoordinateHUD: React.FC = () => {
       {/* Quick Copy Coordinates Button */}
       <button
         onClick={handleCopy}
-        className="ml-1 p-1 rounded hover:bg-white/10 text-slate-400 hover:text-cyan-300 transition-colors flex items-center"
+        className="ml-1 p-1 rounded hover:bg-white/10 text-slate-400 hover:text-orange-300 transition-colors flex items-center"
         title="Copy coordinates (lat, lon) to clipboard"
       >
         {copied ? (

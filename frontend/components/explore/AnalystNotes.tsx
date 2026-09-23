@@ -39,7 +39,7 @@ export const AnalystNotes: React.FC<Props> = ({ notes, onAddNote, onDeleteNote }
       {/* Input composer */}
       <form onSubmit={handleSubmit} className="bg-slate-900/90 border border-slate-800 rounded-lg p-3 space-y-2">
         <div className="flex items-center gap-1.5 text-xs text-slate-300 font-semibold">
-          <StickyNote className="w-3.5 h-3.5 text-cyan-400" />
+          <StickyNote className="w-3.5 h-3.5 text-orange-400" />
           <span>Add Analyst Note / Ground Truth Annotation</span>
         </div>
 
@@ -48,7 +48,7 @@ export const AnalystNotes: React.FC<Props> = ({ notes, onAddNote, onDeleteNote }
           onChange={(e) => setNoteText(e.target.value)}
           placeholder="Record human analyst observations, field notes, or ground-truth verification..."
           rows={2}
-          className="w-full bg-slate-950/80 border border-slate-800 rounded p-2 text-xs text-slate-200 placeholder-slate-600 focus:outline-none focus:border-cyan-500 resize-none font-sans"
+          className="w-full bg-slate-950/80 border border-slate-800 rounded p-2 text-xs text-slate-200 placeholder-slate-600 focus:outline-none focus:border-orange-500 resize-none font-sans"
         />
 
         <div className="flex items-center justify-between gap-2">
@@ -59,14 +59,14 @@ export const AnalystNotes: React.FC<Props> = ({ notes, onAddNote, onDeleteNote }
               value={tagId}
               onChange={(e) => setTagId(e.target.value)}
               placeholder="Tag Finding/Evidence ID (optional)"
-              className="w-full bg-slate-950/80 border border-slate-800 rounded px-2 py-1 text-[11px] font-mono text-slate-300 placeholder-slate-600 focus:outline-none focus:border-cyan-500"
+              className="w-full bg-slate-950/80 border border-slate-800 rounded px-2 py-1 text-[11px] font-mono text-slate-300 placeholder-slate-600 focus:outline-none focus:border-orange-500"
             />
           </div>
 
           <button
             type="submit"
             disabled={!noteText.trim() || isSubmitting}
-            className="inline-flex items-center gap-1 px-3 py-1 bg-cyan-600 hover:bg-cyan-500 disabled:opacity-50 text-slate-950 font-bold rounded text-xs transition-colors"
+            className="inline-flex items-center gap-1 px-3 py-1 bg-orange-600 hover:bg-orange-500 disabled:opacity-50 text-slate-950 font-bold rounded text-xs transition-colors"
           >
             <span>Save</span>
             <Send className="w-3 h-3" />
@@ -88,7 +88,7 @@ export const AnalystNotes: React.FC<Props> = ({ notes, onAddNote, onDeleteNote }
             >
               <div className="flex items-center justify-between text-[10px] font-mono text-slate-500">
                 <span className="flex items-center gap-1">
-                  <User className="w-3 h-3 text-cyan-400" />
+                  <User className="w-3 h-3 text-orange-400" />
                   Analyst Annotation
                 </span>
                 <div className="flex items-center gap-2">
@@ -110,7 +110,7 @@ export const AnalystNotes: React.FC<Props> = ({ notes, onAddNote, onDeleteNote }
               <p className="text-slate-200 leading-relaxed font-sans">{n.text}</p>
 
               {n.attachment_id && (
-                <div className="pt-1 flex items-center gap-1 text-[10px] font-mono text-cyan-400">
+                <div className="pt-1 flex items-center gap-1 text-[10px] font-mono text-orange-400">
                   <Tag className="w-2.5 h-2.5" />
                   <span>Bound to: {n.attachment_id}</span>
                 </div>

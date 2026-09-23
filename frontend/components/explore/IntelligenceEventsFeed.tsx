@@ -66,7 +66,7 @@ export const IntelligenceEventsFeed: React.FC<Props> = ({
               onClick={() => onFilterStateChange(s.id)}
               className={`px-1.5 py-0.5 rounded text-[10px] whitespace-nowrap transition-colors ${
                 filterState === s.id
-                  ? "bg-cyan-500/20 text-cyan-300 border border-cyan-500/50"
+                  ? "bg-orange-500/20 text-orange-300 border border-orange-500/50"
                   : "bg-slate-900/60 text-slate-400 border border-slate-800 hover:text-slate-200"
               }`}
             >
@@ -79,14 +79,14 @@ export const IntelligenceEventsFeed: React.FC<Props> = ({
           onClick={onRefresh}
           disabled={isLoading}
           title="Reload Events"
-          className="p-1 rounded text-slate-400 hover:text-cyan-300 hover:bg-slate-800 transition-colors"
+          className="p-1 rounded text-slate-400 hover:text-orange-300 hover:bg-slate-800 transition-colors"
         >
-          <RefreshCw className={`w-3.5 h-3.5 ${isLoading ? "animate-spin text-cyan-400" : ""}`} />
+          <RefreshCw className={`w-3.5 h-3.5 ${isLoading ? "animate-spin text-orange-400" : ""}`} />
         </button>
       </div>
 
       {/* Events List */}
-      <div className="space-y-2 max-h-[500px] overflow-y-auto pr-1 scrollbar-thin scrollbar-thumb-cyan-500/20">
+      <div className="space-y-2 max-h-[500px] overflow-y-auto pr-1 scrollbar-thin scrollbar-thumb-orange-500/20">
         {events.length === 0 && !isLoading && (
           <div className="text-center py-8 text-slate-500 text-xs">
             <Database className="w-8 h-8 mx-auto mb-2 text-slate-600" />
@@ -107,7 +107,7 @@ export const IntelligenceEventsFeed: React.FC<Props> = ({
               onClick={() => onSelectEvent(evt)}
               className={`p-2.5 rounded-lg border transition-all cursor-pointer flex flex-col gap-1.5 ${
                 isSelected
-                  ? "bg-slate-900 border-cyan-500/70 shadow-md shadow-cyan-950/40"
+                  ? "bg-slate-900 border-orange-500/70 shadow-md shadow-orange-950/40"
                   : "bg-slate-950/60 border-slate-800/80 hover:bg-slate-900/80 hover:border-slate-700"
               }`}
             >
@@ -119,7 +119,7 @@ export const IntelligenceEventsFeed: React.FC<Props> = ({
                     >
                       {evt.state}
                     </span>
-                    <span className="text-[9px] text-cyan-400 bg-cyan-950/60 border border-cyan-800/60 px-1 py-0.5 rounded">
+                    <span className="text-[9px] text-orange-400 bg-orange-950/60 border border-orange-800/60 px-1 py-0.5 rounded">
                       {evt.semantic_class}
                     </span>
                   </div>

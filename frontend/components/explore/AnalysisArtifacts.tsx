@@ -49,7 +49,7 @@ export const AnalysisArtifacts: React.FC<Props> = ({ artifacts, runId }) => {
                 {isGeoJson ? (
                   <FileCode2 className="w-4 h-4 text-emerald-400 shrink-0" />
                 ) : isImage ? (
-                  <ImageIcon className="w-4 h-4 text-cyan-400 shrink-0" />
+                  <ImageIcon className="w-4 h-4 text-orange-400 shrink-0" />
                 ) : (
                   <FileText className="w-4 h-4 text-purple-400 shrink-0" />
                 )}
@@ -80,7 +80,7 @@ export const AnalysisArtifacts: React.FC<Props> = ({ artifacts, runId }) => {
                   target="_blank"
                   rel="noreferrer"
                   title="Download Artifact"
-                  className="p-1.5 bg-cyan-600/20 hover:bg-cyan-600/30 text-cyan-300 border border-cyan-500/30 rounded transition-colors"
+                  className="p-1.5 bg-orange-600/20 hover:bg-orange-600/30 text-orange-300 border border-orange-500/30 rounded transition-colors"
                 >
                   <Download className="w-3.5 h-3.5" />
                 </a>

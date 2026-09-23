@@ -37,7 +37,7 @@ export const EvidenceCard: React.FC<Props> = ({ evidence, isSelected, onSelect }
       case "CHANGE":
         return <Binary className="w-3.5 h-3.5 text-rose-400" />
       default:
-        return <Satellite className="w-3.5 h-3.5 text-cyan-400" />
+        return <Satellite className="w-3.5 h-3.5 text-orange-400" />
     }
   }
 
@@ -53,7 +53,7 @@ export const EvidenceCard: React.FC<Props> = ({ evidence, isSelected, onSelect }
       case "CHANGE":
         return "bg-rose-950 text-rose-300 border-rose-800"
       default:
-        return "bg-cyan-950 text-cyan-300 border-cyan-800"
+        return "bg-orange-950 text-orange-300 border-orange-800"
     }
   }
 
@@ -62,7 +62,7 @@ export const EvidenceCard: React.FC<Props> = ({ evidence, isSelected, onSelect }
       onClick={() => onSelect(evidence.id)}
       className={`p-3 rounded-lg border transition-all cursor-pointer ${
         isSelected
-          ? "bg-cyan-950/40 border-cyan-500 shadow-[0_0_15px_rgba(6,182,212,0.15)] ring-1 ring-cyan-500/50"
+          ? "bg-orange-950/40 border-orange-500 shadow-[0_0_15px_rgba(6,182,212,0.15)] ring-1 ring-orange-500/50"
           : "bg-slate-900/60 border-slate-800 hover:border-slate-700 hover:bg-slate-900/90"
       }`}
     >
@@ -90,7 +90,7 @@ export const EvidenceCard: React.FC<Props> = ({ evidence, isSelected, onSelect }
               <AlertCircle className="w-3 h-3" />
             </span>
           )}
-          <span className="font-mono text-xs text-cyan-400 font-semibold">
+          <span className="font-mono text-xs text-orange-400 font-semibold">
             {Math.round(evidence.confidence * 100)}%
           </span>
         </div>
@@ -109,7 +109,7 @@ export const EvidenceCard: React.FC<Props> = ({ evidence, isSelected, onSelect }
               .map(([k, v]) => (
                 <div key={k} className="flex items-center justify-between gap-2">
                   <span className="text-slate-500 text-[10px] truncate">{k.replace(/_/g, " ")}:</span>
-                  <span className="text-cyan-300 font-bold truncate">{String(v)}</span>
+                  <span className="text-orange-300 font-bold truncate">{String(v)}</span>
                 </div>
               ))
           ) : (
@@ -127,12 +127,12 @@ export const EvidenceCard: React.FC<Props> = ({ evidence, isSelected, onSelect }
 
         {evidence.relationship_count > 0 && (
           <span className="flex items-center gap-1 text-slate-400">
-            <Share2 className="w-3 h-3 text-cyan-500" />
+            <Share2 className="w-3 h-3 text-orange-500" />
             {evidence.relationship_count} link{evidence.relationship_count > 1 ? "s" : ""}
           </span>
         )}
 
-        <span className="flex items-center gap-0.5 text-cyan-400 font-semibold">
+        <span className="flex items-center gap-0.5 text-orange-400 font-semibold">
           Focus
           <ChevronRight className="w-3 h-3" />
         </span>

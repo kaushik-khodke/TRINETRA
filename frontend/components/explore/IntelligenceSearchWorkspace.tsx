@@ -82,13 +82,13 @@ export const IntelligenceSearchWorkspace: React.FC<Props> = ({
             placeholder="Search EO intelligence (e.g. 'vegetation loss in AOI')..."
             value={searchQuery}
             onChange={(e) => onQueryChange(e.target.value)}
-            className="w-full bg-slate-950 border border-slate-700/80 rounded-lg pl-8 pr-16 py-2 text-xs text-slate-100 placeholder:text-slate-500 focus:outline-none focus:border-cyan-500"
+            className="w-full bg-slate-950 border border-slate-700/80 rounded-lg pl-8 pr-16 py-2 text-xs text-slate-100 placeholder:text-slate-500 focus:outline-none focus:border-orange-500"
           />
           <Search className="w-4 h-4 text-slate-400 absolute left-2.5 top-2.5" />
           <button
             type="submit"
             disabled={isLoading}
-            className="absolute right-1.5 top-1.5 px-2.5 py-1 bg-cyan-600 hover:bg-cyan-500 disabled:opacity-50 text-slate-950 font-bold rounded text-[10px] transition-colors"
+            className="absolute right-1.5 top-1.5 px-2.5 py-1 bg-orange-600 hover:bg-orange-500 disabled:opacity-50 text-slate-950 font-bold rounded text-[10px] transition-colors"
           >
             {isLoading ? "..." : "Search"}
           </button>
@@ -102,7 +102,7 @@ export const IntelligenceSearchWorkspace: React.FC<Props> = ({
               key={eq}
               type="button"
               onClick={() => handleExampleClick(eq)}
-              className="text-[10px] whitespace-nowrap bg-slate-900 hover:bg-slate-800 border border-slate-800 text-cyan-400/90 px-2 py-0.5 rounded-full transition-colors"
+              className="text-[10px] whitespace-nowrap bg-slate-900 hover:bg-slate-800 border border-slate-800 text-orange-400/90 px-2 py-0.5 rounded-full transition-colors"
             >
               {eq}
             </button>
@@ -114,7 +114,7 @@ export const IntelligenceSearchWorkspace: React.FC<Props> = ({
       {totalResults > 0 && (
         <div className="flex items-center justify-between text-[11px] text-slate-400 px-1">
           <span>
-            Found <strong className="text-cyan-300">{totalResults}</strong> matching entities
+            Found <strong className="text-orange-300">{totalResults}</strong> matching entities
           </span>
           <span className="text-[10px] text-slate-500">Ranked by relevance</span>
         </div>
@@ -166,7 +166,7 @@ export const IntelligenceSearchWorkspace: React.FC<Props> = ({
                     <button
                       onClick={() => onFocusOnMap(item.bounding_box)}
                       title="Fly to match"
-                      className="p-1 rounded bg-slate-800 hover:bg-slate-700 text-cyan-300"
+                      className="p-1 rounded bg-slate-800 hover:bg-slate-700 text-orange-300"
                     >
                       <Compass className="w-3 h-3" />
                     </button>
@@ -179,7 +179,7 @@ export const IntelligenceSearchWorkspace: React.FC<Props> = ({
       )}
 
       {/* Results List */}
-      <div className="space-y-2 max-h-[480px] overflow-y-auto pr-1 scrollbar-thin scrollbar-thumb-cyan-500/20">
+      <div className="space-y-2 max-h-[480px] overflow-y-auto pr-1 scrollbar-thin scrollbar-thumb-orange-500/20">
         {results.length === 0 && !isLoading && (
           <div className="text-center py-8 text-slate-500 text-xs">
             <Sparkles className="w-8 h-8 mx-auto mb-2 text-slate-600" />
@@ -198,7 +198,7 @@ export const IntelligenceSearchWorkspace: React.FC<Props> = ({
                   <span className="text-[9px] uppercase px-1.5 py-0.5 rounded bg-slate-900 border border-slate-700 text-slate-300 font-bold">
                     {item.type}
                   </span>
-                  <span className="text-[9px] text-cyan-400 bg-cyan-950/60 border border-cyan-800/60 px-1 py-0.5 rounded">
+                  <span className="text-[9px] text-orange-400 bg-orange-950/60 border border-orange-800/60 px-1 py-0.5 rounded">
                     {item.semantic_class}
                   </span>
                   <span className="text-[9px] text-emerald-400 font-bold">
@@ -214,7 +214,7 @@ export const IntelligenceSearchWorkspace: React.FC<Props> = ({
                   <button
                     onClick={() => onFocusOnMap(item.bounding_box)}
                     title="Center on Map"
-                    className="p-1.5 rounded bg-slate-900 hover:bg-slate-800 border border-slate-700 text-cyan-300 transition-colors"
+                    className="p-1.5 rounded bg-slate-900 hover:bg-slate-800 border border-slate-700 text-orange-300 transition-colors"
                   >
                     <MapPin className="w-3 h-3" />
                   </button>

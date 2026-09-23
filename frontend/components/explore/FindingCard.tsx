@@ -20,13 +20,13 @@ export const FindingCard: React.FC<Props> = ({ finding, isSelected, onSelect }) 
       onClick={() => onSelect(finding.finding_id)}
       className={`p-3 rounded-lg border transition-all cursor-pointer ${
         isSelected
-          ? "bg-cyan-950/40 border-cyan-500 shadow-[0_0_15px_rgba(6,182,212,0.15)] ring-1 ring-cyan-500/50"
+          ? "bg-orange-950/40 border-orange-500 shadow-[0_0_15px_rgba(6,182,212,0.15)] ring-1 ring-orange-500/50"
           : "bg-slate-900/60 border-slate-800 hover:border-slate-700 hover:bg-slate-900/90"
       }`}
     >
       <div className="flex items-start justify-between gap-2 mb-2">
         <div className="flex flex-col gap-0.5">
-          <span className="text-[10px] font-mono text-cyan-400 uppercase tracking-wider font-semibold">
+          <span className="text-[10px] font-mono text-orange-400 uppercase tracking-wider font-semibold">
             {finding.category || "OBSERVATION"}
           </span>
           <h4 className="text-sm font-semibold text-slate-100 leading-tight">
@@ -49,10 +49,10 @@ export const FindingCard: React.FC<Props> = ({ finding, isSelected, onSelect }) 
 
       <div className="flex items-center justify-between text-[11px] text-slate-400 pt-1 border-t border-slate-800/60 font-mono">
         <span className="flex items-center gap-1 text-slate-400">
-          <MapPin className="w-3 h-3 text-cyan-400" />
+          <MapPin className="w-3 h-3 text-orange-400" />
           {finding.bounding_box ? "Geo-referenced" : "Scene Level"}
         </span>
-        <span className="flex items-center gap-0.5 text-cyan-400 hover:text-cyan-300 font-semibold">
+        <span className="flex items-center gap-0.5 text-orange-400 hover:text-orange-300 font-semibold">
           Focus on Map
           <ChevronRight className="w-3 h-3" />
         </span>

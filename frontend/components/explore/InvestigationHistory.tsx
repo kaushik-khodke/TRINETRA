@@ -30,7 +30,7 @@ export const InvestigationHistory: React.FC<Props> = ({
       case "completed":
         return <CheckCircle2 className="w-3.5 h-3.5 text-emerald-400" />
       case "running":
-        return <Clock className="w-3.5 h-3.5 text-cyan-400 animate-pulse" />
+        return <Clock className="w-3.5 h-3.5 text-orange-400 animate-pulse" />
       case "cancelled":
         return <XCircle className="w-3.5 h-3.5 text-amber-400" />
       default:
@@ -41,7 +41,7 @@ export const InvestigationHistory: React.FC<Props> = ({
   return (
     <div className="space-y-2">
       <div className="flex items-center gap-1.5 text-xs text-slate-300 font-semibold font-mono">
-        <History className="w-3.5 h-3.5 text-cyan-400" />
+        <History className="w-3.5 h-3.5 text-orange-400" />
         <span>Recent Investigations ({history.length})</span>
       </div>
 
@@ -54,14 +54,14 @@ export const InvestigationHistory: React.FC<Props> = ({
               onClick={() => onSelectInvestigation(item.investigation_id)}
               className={`p-2.5 rounded-lg border transition-all cursor-pointer flex items-center justify-between gap-2 ${
                 isActive
-                  ? "bg-cyan-950/40 border-cyan-500 ring-1 ring-cyan-500/50"
+                  ? "bg-orange-950/40 border-orange-500 ring-1 ring-orange-500/50"
                   : "bg-slate-900/60 border-slate-800 hover:border-slate-700 hover:bg-slate-900/90"
               }`}
             >
               <div className="flex flex-col gap-1 truncate">
                 <div className="flex items-center gap-1.5">
                   {getStatusIcon(item.status)}
-                  <span className="font-mono text-[10px] text-cyan-400 font-bold truncate">
+                  <span className="font-mono text-[10px] text-orange-400 font-bold truncate">
                     {item.investigation_id}
                   </span>
                   <span className="text-[10px] font-mono text-slate-500">

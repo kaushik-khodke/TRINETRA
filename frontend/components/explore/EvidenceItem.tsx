@@ -17,7 +17,7 @@ export const EvidenceItem: React.FC<Props> = ({ title, type, data }) => {
     <div className="p-2.5 bg-slate-900/50 border border-slate-800/80 rounded-md text-xs font-mono space-y-1.5 hover:border-slate-700 transition-colors">
       <div className="flex items-center justify-between text-slate-300">
         <span className="font-semibold text-slate-200 flex items-center gap-1.5">
-          {type === "region" && <Globe2 className="w-3.5 h-3.5 text-cyan-400" />}
+          {type === "region" && <Globe2 className="w-3.5 h-3.5 text-orange-400" />}
           {type === "spectral" && <Sigma className="w-3.5 h-3.5 text-purple-400" />}
           {type === "proof" && <CheckCircle2 className="w-3.5 h-3.5 text-emerald-400" />}
           {type === "grounding" && <Hash className="w-3.5 h-3.5 text-amber-400" />}

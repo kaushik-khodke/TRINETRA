@@ -62,7 +62,7 @@ export const HotspotListPanel: React.FC<Props> = ({
         <div className="p-2.5 bg-slate-950 border border-slate-800 rounded-lg space-y-2">
           <div className="flex justify-between items-center text-[11px] font-bold text-slate-200">
             <span>{regionalSummary.name || regionalSummary.region_id}</span>
-            <span className="text-cyan-400 font-mono">{regionalSummary.total_events} events</span>
+            <span className="text-orange-400 font-mono">{regionalSummary.total_events} events</span>
           </div>
           <div className="grid grid-cols-2 gap-1 text-[10px] text-slate-400">
             <div>

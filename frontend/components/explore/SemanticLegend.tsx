@@ -10,7 +10,7 @@ export const SemanticLegend: React.FC = () => {
   const classes = [
     { name: "Built-up Expansion", color: "bg-amber-500", desc: "New structures & foundations" },
     { name: "Vegetation Loss", color: "bg-rose-500", desc: "Canopy clearance or clearing" },
-    { name: "Water Expansion", color: "bg-cyan-500", desc: "Inundation or reservoir fill" },
+    { name: "Water Expansion", color: "bg-orange-500", desc: "Inundation or reservoir fill" },
     { name: "Road Development", color: "bg-purple-500", desc: "Linear transport corridors" },
     { name: "Agricultural Alteration", color: "bg-emerald-500", desc: "Crop cycle / harvest" },
   ]
@@ -25,7 +25,7 @@ export const SemanticLegend: React.FC = () => {
     <div className="bg-slate-900/80 border border-slate-800 rounded-lg p-3 space-y-3 text-xs">
       <div>
         <div className="flex items-center gap-1.5 mb-2">
-          <Palette className="w-3.5 h-3.5 text-cyan-400" />
+          <Palette className="w-3.5 h-3.5 text-orange-400" />
           <span className="font-mono font-bold text-slate-200 uppercase tracking-wide">
             Semantic Land-Cover Taxonomy
           </span>

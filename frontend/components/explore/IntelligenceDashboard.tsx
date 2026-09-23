@@ -51,10 +51,10 @@ export const IntelligenceDashboard: React.FC<Props> = ({
       <div className="flex items-center justify-between">
         <div className="flex items-center gap-2">
           <div className="w-2 h-2 rounded-full bg-emerald-400 animate-pulse" />
-          <span className="text-[11px] font-mono uppercase tracking-wider font-semibold text-cyan-300">
+          <span className="text-[11px] font-mono uppercase tracking-wider font-semibold text-orange-300">
             Persistent EO Intelligence
           </span>
-          <span className="text-[10px] font-mono px-1.5 py-0.5 rounded bg-cyan-950/80 border border-cyan-800/60 text-cyan-400">
+          <span className="text-[10px] font-mono px-1.5 py-0.5 rounded bg-orange-950/80 border border-orange-800/60 text-orange-400">
             Phase 7
           </span>
         </div>
@@ -63,7 +63,7 @@ export const IntelligenceDashboard: React.FC<Props> = ({
           <button
             onClick={onRefreshAll}
             title="Refresh Intelligence Index"
-            className="p-1 rounded text-slate-400 hover:text-cyan-300 hover:bg-slate-800 transition-colors"
+            className="p-1 rounded text-slate-400 hover:text-orange-300 hover:bg-slate-800 transition-colors"
           >
             <RefreshCw className="w-3.5 h-3.5" />
           </button>
@@ -101,16 +101,16 @@ export const IntelligenceDashboard: React.FC<Props> = ({
               onClick={() => onSelectSubTab(tab.id)}
               className={`flex items-center gap-1.5 px-2 py-1 rounded text-[11px] whitespace-nowrap transition-all ${
                 isActive
-                  ? "bg-cyan-500/20 text-cyan-300 border border-cyan-500/40 shadow-sm shadow-cyan-950"
+                  ? "bg-orange-500/20 text-orange-300 border border-orange-500/40 shadow-sm shadow-orange-950"
                   : "bg-slate-950/40 text-slate-400 border border-slate-800/60 hover:text-slate-200 hover:bg-slate-800/60"
               }`}
             >
-              <Icon className={`w-3.5 h-3.5 ${isActive ? "text-cyan-400" : "text-slate-500"}`} />
+              <Icon className={`w-3.5 h-3.5 ${isActive ? "text-orange-400" : "text-slate-500"}`} />
               <span>{tab.label}</span>
               {tab.count !== undefined && (
                 <span
                   className={`text-[9px] px-1 rounded-full ${
-                    isActive ? "bg-cyan-500/30 text-cyan-200" : "bg-slate-800 text-slate-400"
+                    isActive ? "bg-orange-500/30 text-orange-200" : "bg-slate-800 text-slate-400"
                   }`}
                 >
                   {tab.count}

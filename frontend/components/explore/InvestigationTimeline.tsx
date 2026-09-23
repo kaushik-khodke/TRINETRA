@@ -26,11 +26,11 @@ export const InvestigationTimeline: React.FC<Props> = ({ milestones, onSelectEvi
       {milestones.map((m, idx) => (
         <div key={idx} className="relative group">
           {/* Node marker on vertical line */}
-          <div className="absolute -left-[23px] top-1 w-3.5 h-3.5 rounded-full bg-slate-900 border-2 border-cyan-400 group-hover:scale-125 transition-transform" />
+          <div className="absolute -left-[23px] top-1 w-3.5 h-3.5 rounded-full bg-slate-900 border-2 border-orange-400 group-hover:scale-125 transition-transform" />
 
           <div className="bg-slate-900/80 border border-slate-800 rounded-lg p-3 space-y-1.5 hover:border-slate-700 transition-colors">
             <div className="flex items-center justify-between text-xs">
-              <div className="flex items-center gap-1.5 font-mono text-cyan-400 font-bold">
+              <div className="flex items-center gap-1.5 font-mono text-orange-400 font-bold">
                 <Calendar className="w-3.5 h-3.5" />
                 <span>{m.date}</span>
               </div>
@@ -44,7 +44,7 @@ export const InvestigationTimeline: React.FC<Props> = ({ milestones, onSelectEvi
 
             <div className="flex items-center justify-between pt-2 border-t border-slate-800/80 text-[10px] font-mono text-slate-500">
               <span className="flex items-center gap-1 text-slate-400">
-                <Satellite className="w-3 h-3 text-cyan-500" />
+                <Satellite className="w-3 h-3 text-orange-500" />
                 {m.platform}
               </span>
 
@@ -55,7 +55,7 @@ export const InvestigationTimeline: React.FC<Props> = ({ milestones, onSelectEvi
                     <button
                       key={eid}
                       onClick={() => onSelectEvidence?.(eid)}
-                      className="text-cyan-400 hover:underline"
+                      className="text-orange-400 hover:underline"
                     >
                       {eid}
                     </button>

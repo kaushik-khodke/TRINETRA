@@ -119,7 +119,7 @@ export const IntelligenceWorkspace: React.FC<Props> = ({
               ? "bg-emerald-950/80 border-emerald-800/80 text-emerald-300"
               : statusMessage.type === "error"
               ? "bg-rose-950/80 border-rose-800/80 text-rose-300"
-              : "bg-cyan-950/80 border-cyan-800/80 text-cyan-300"
+              : "bg-orange-950/80 border-orange-800/80 text-orange-300"
           }`}
         >
           <div className="flex items-center gap-1.5">

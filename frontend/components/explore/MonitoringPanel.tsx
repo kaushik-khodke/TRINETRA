@@ -101,7 +101,7 @@ export const MonitoringPanel: React.FC<Props> = ({
             onClick={() => setActiveTab("monitors")}
             className={`px-2 py-0.5 rounded text-[11px] font-semibold transition-colors ${
               activeTab === "monitors"
-                ? "bg-cyan-500/20 text-cyan-300 border border-cyan-500/50"
+                ? "bg-orange-500/20 text-orange-300 border border-orange-500/50"
                 : "text-slate-400 hover:text-slate-200"
             }`}
           >
@@ -128,7 +128,7 @@ export const MonitoringPanel: React.FC<Props> = ({
           {activeTab === "monitors" && (
             <button
               onClick={() => setShowCreateModal(true)}
-              className="p-1 rounded bg-slate-800 hover:bg-slate-700 text-cyan-400 transition-colors"
+              className="p-1 rounded bg-slate-800 hover:bg-slate-700 text-orange-400 transition-colors"
               title="Add New Monitor"
             >
               <Plus className="w-3.5 h-3.5" />
@@ -142,7 +142,7 @@ export const MonitoringPanel: React.FC<Props> = ({
           >
             <RefreshCw
               className={`w-3.5 h-3.5 ${
-                isLoadingMonitors || isLoadingAlerts ? "animate-spin text-cyan-400" : ""
+                isLoadingMonitors || isLoadingAlerts ? "animate-spin text-orange-400" : ""
               }`}
             />
           </button>
@@ -151,8 +151,8 @@ export const MonitoringPanel: React.FC<Props> = ({
 
       {/* Create Monitor Modal */}
       {showCreateModal && (
-        <form onSubmit={handleCreateSubmit} className="p-3 bg-slate-950 border border-cyan-800/80 rounded-lg space-y-2.5">
-          <div className="text-[11px] font-bold text-cyan-300 flex items-center gap-1">
+        <form onSubmit={handleCreateSubmit} className="p-3 bg-slate-950 border border-orange-800/80 rounded-lg space-y-2.5">
+          <div className="text-[11px] font-bold text-orange-300 flex items-center gap-1">
             <Radio className="w-3.5 h-3.5" />
             <span>Configure Continuous Monitor</span>
           </div>
@@ -164,7 +164,7 @@ export const MonitoringPanel: React.FC<Props> = ({
               placeholder="e.g. Eastern Ghats Forest Watcher"
               value={monitorName}
               onChange={(e) => setMonitorName(e.target.value)}
-              className="w-full bg-slate-900 border border-slate-700 rounded px-2 py-1 text-slate-200 text-xs focus:outline-none focus:border-cyan-500"
+              className="w-full bg-slate-900 border border-slate-700 rounded px-2 py-1 text-slate-200 text-xs focus:outline-none focus:border-orange-500"
             />
           </div>
 
@@ -207,7 +207,7 @@ export const MonitoringPanel: React.FC<Props> = ({
             <button
               type="submit"
               disabled={!monitorName.trim() || isSubmitting}
-              className="px-2.5 py-1 text-[10px] bg-cyan-600 hover:bg-cyan-500 disabled:opacity-50 font-semibold text-slate-950 rounded"
+              className="px-2.5 py-1 text-[10px] bg-orange-600 hover:bg-orange-500 disabled:opacity-50 font-semibold text-slate-950 rounded"
             >
               {isSubmitting ? "Creating..." : "Save Monitor"}
             </button>
@@ -217,7 +217,7 @@ export const MonitoringPanel: React.FC<Props> = ({
 
       {/* Monitors List Tab */}
       {activeTab === "monitors" && (
-        <div className="space-y-2 max-h-[500px] overflow-y-auto pr-1 scrollbar-thin scrollbar-thumb-cyan-500/20">
+        <div className="space-y-2 max-h-[500px] overflow-y-auto pr-1 scrollbar-thin scrollbar-thumb-orange-500/20">
           {monitors.length === 0 && !isLoadingMonitors && (
             <div className="text-center py-8 text-slate-500 text-xs">
               <Radio className="w-8 h-8 mx-auto mb-2 text-slate-600" />
@@ -318,7 +318,7 @@ export const MonitoringPanel: React.FC<Props> = ({
                   {!al.acknowledged && (
                     <button
                       onClick={() => onAcknowledgeAlert(al.alert_id)}
-                      className="text-[9px] px-1.5 py-0.5 rounded bg-slate-900 hover:bg-slate-800 text-cyan-300 border border-slate-700 flex items-center gap-1 transition-colors"
+                      className="text-[9px] px-1.5 py-0.5 rounded bg-slate-900 hover:bg-slate-800 text-orange-300 border border-slate-700 flex items-center gap-1 transition-colors"
                     >
                       <CheckCircle2 className="w-3 h-3" />
                       <span>Ack</span>

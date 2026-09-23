@@ -154,13 +154,13 @@ export default function ActiveLayers() {
       {/* 1. Basemap Selector Console */}
       <div className="basemap-section bg-slate-900/60 p-3 rounded-lg border border-slate-800">
         <div className="flex items-center justify-between mb-2">
-          <span className="flex items-center gap-1.5 text-xs font-semibold text-cyan-400 tracking-wider uppercase">
+          <span className="flex items-center gap-1.5 text-xs font-semibold text-orange-400 tracking-wider uppercase">
             <Globe size={13} />
             <span>Globe Basemap Data</span>
           </span>
           <button
             onClick={() => setShowKeysModal(true)}
-            className="text-[10px] text-slate-400 hover:text-cyan-300 flex items-center gap-1 px-1.5 py-0.5 rounded bg-slate-800/80 border border-slate-700/60 transition-colors"
+            className="text-[10px] text-slate-400 hover:text-orange-300 flex items-center gap-1 px-1.5 py-0.5 rounded bg-slate-800/80 border border-slate-700/60 transition-colors"
             title="Configure Cesium Ion or Google 3D Credentials"
           >
             <Key size={10} />
@@ -177,7 +177,7 @@ export default function ActiveLayers() {
                 onClick={() => handleSelectBasemap(preset)}
                 className={`flex flex-col items-center justify-center p-2 rounded text-center transition-all border ${
                   isSelected
-                    ? "bg-cyan-950/70 border-cyan-500 text-cyan-300 shadow-[0_0_10px_rgba(6,182,212,0.25)]"
+                    ? "bg-orange-950/70 border-orange-500 text-orange-300 shadow-[0_0_10px_rgba(6,182,212,0.25)]"
                     : "bg-slate-800/50 border-slate-700/60 text-slate-400 hover:text-slate-200 hover:bg-slate-800 hover:border-slate-600"
                 }`}
               >
@@ -196,12 +196,12 @@ export default function ActiveLayers() {
       {/* 2. Layer Operations Toolbar */}
       <div className="flex items-center justify-between px-1">
         <span className="text-[11px] font-semibold tracking-wider uppercase text-slate-300 flex items-center gap-1.5">
-          <Layers size={12} className="text-cyan-400" />
+          <Layers size={12} className="text-orange-400" />
           <span>Active Overlays ({activeLayers.length})</span>
         </span>
         <button
           onClick={() => setShowAddModal(true)}
-          className="text-[10px] flex items-center gap-1 px-2 py-1 rounded bg-cyan-600/20 hover:bg-cyan-600/30 text-cyan-300 border border-cyan-500/30 transition-all font-medium"
+          className="text-[10px] flex items-center gap-1 px-2 py-1 rounded bg-orange-600/20 hover:bg-orange-600/30 text-orange-300 border border-orange-500/30 transition-all font-medium"
         >
           <Plus size={11} />
           <span>Add Layer / URL</span>
@@ -217,9 +217,9 @@ export default function ActiveLayers() {
               <button
                 key={layer.id}
                 onClick={() => handleToggle(layer.id)}
-                className="text-[10px] px-2 py-0.5 rounded-full bg-slate-800/80 hover:bg-slate-700 text-slate-300 border border-slate-700 hover:border-cyan-500/40 transition-colors flex items-center gap-1"
+                className="text-[10px] px-2 py-0.5 rounded-full bg-slate-800/80 hover:bg-slate-700 text-slate-300 border border-slate-700 hover:border-orange-500/40 transition-colors flex items-center gap-1"
               >
-                <Plus size={9} className="text-cyan-400" />
+                <Plus size={9} className="text-orange-400" />
                 <span>{layer.label.split(" (")[0]}</span>
               </button>
             ))}
@@ -249,7 +249,7 @@ export default function ActiveLayers() {
                       type="checkbox"
                       checked={true}
                       onChange={() => handleToggle(layer.id)}
-                      className="rounded bg-slate-800 border-slate-700 text-cyan-500 focus:ring-0 cursor-pointer"
+                      className="rounded bg-slate-800 border-slate-700 text-orange-500 focus:ring-0 cursor-pointer"
                     />
                     <span className="text-xs font-medium text-slate-200">{layer.label}</span>
                   </label>
@@ -258,7 +258,7 @@ export default function ActiveLayers() {
                     {layer.tileTemplate && (
                       <button
                         onClick={() => handleMakeBasemap(layer)}
-                        className="text-[10px] px-1.5 py-0.5 rounded bg-slate-800 hover:bg-cyan-900/60 text-slate-400 hover:text-cyan-300 border border-slate-700/60 transition-colors flex items-center gap-1"
+                        className="text-[10px] px-1.5 py-0.5 rounded bg-slate-800 hover:bg-orange-900/60 text-slate-400 hover:text-orange-300 border border-slate-700/60 transition-colors flex items-center gap-1"
                         title="Replace whole globe basemap with this dataset"
                       >
                         <Globe size={10} />
@@ -287,7 +287,7 @@ export default function ActiveLayers() {
                     max="100"
                     value={Math.round(opacity * 100)}
                     onChange={(e) => handleOpacity(layer.id, Number(e.target.value) / 100)}
-                    className="flex-1 accent-cyan-400 h-1.5 bg-slate-800 rounded-lg cursor-pointer"
+                    className="flex-1 accent-orange-400 h-1.5 bg-slate-800 rounded-lg cursor-pointer"
                   />
                   <span className="w-7 text-right font-mono text-slate-300">{Math.round(opacity * 100)}%</span>
                 </div>
@@ -302,7 +302,7 @@ export default function ActiveLayers() {
         <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/70 backdrop-blur-sm p-4">
           <div className="bg-slate-900 border border-slate-800 rounded-xl p-5 max-w-md w-full shadow-2xl space-y-4">
             <div className="flex items-center justify-between border-b border-slate-800 pb-2">
-              <h3 className="text-sm font-semibold text-cyan-300 flex items-center gap-2">
+              <h3 className="text-sm font-semibold text-orange-300 flex items-center gap-2">
                 <Layers size={15} />
                 <span>Add Custom Satellite / Raster Layer</span>
               </h3>
@@ -323,7 +323,7 @@ export default function ActiveLayers() {
                   placeholder="e.g. Sentinel-2 NDVI Composite"
                   value={customName}
                   onChange={(e) => setCustomName(e.target.value)}
-                  className="w-full text-xs bg-slate-800 border border-slate-700 rounded px-2.5 py-1.5 text-slate-200 focus:outline-none focus:border-cyan-500"
+                  className="w-full text-xs bg-slate-800 border border-slate-700 rounded px-2.5 py-1.5 text-slate-200 focus:outline-none focus:border-orange-500"
                 />
               </div>
 
@@ -335,7 +335,7 @@ export default function ActiveLayers() {
                   placeholder="https://server.com/tiles/{z}/{x}/{y}.png"
                   value={customUrl}
                   onChange={(e) => setCustomUrl(e.target.value)}
-                  className="w-full text-xs font-mono bg-slate-800 border border-slate-700 rounded px-2.5 py-1.5 text-slate-200 focus:outline-none focus:border-cyan-500"
+                  className="w-full text-xs font-mono bg-slate-800 border border-slate-700 rounded px-2.5 py-1.5 text-slate-200 focus:outline-none focus:border-orange-500"
                 />
                 <span className="text-[10px] text-slate-500 mt-1 block">Supports standard `{`{z}`}`, `{`{x}`}`, `{`{y}`}` raster tile servers.</span>
               </div>
@@ -347,7 +347,7 @@ export default function ActiveLayers() {
                   placeholder="e.g. European Space Agency / USGS"
                   value={customAttribution}
                   onChange={(e) => setCustomAttribution(e.target.value)}
-                  className="w-full text-xs bg-slate-800 border border-slate-700 rounded px-2.5 py-1.5 text-slate-200 focus:outline-none focus:border-cyan-500"
+                  className="w-full text-xs bg-slate-800 border border-slate-700 rounded px-2.5 py-1.5 text-slate-200 focus:outline-none focus:border-orange-500"
                 />
               </div>
 
@@ -357,7 +357,7 @@ export default function ActiveLayers() {
                     type="checkbox"
                     checked={customAsBasemap}
                     onChange={(e) => setCustomAsBasemap(e.target.checked)}
-                    className="rounded bg-slate-800 border-slate-700 text-cyan-500 cursor-pointer"
+                    className="rounded bg-slate-800 border-slate-700 text-orange-500 cursor-pointer"
                   />
                   <span className="text-xs text-slate-300">Replace whole globe basemap with this dataset</span>
                 </label>
@@ -373,7 +373,7 @@ export default function ActiveLayers() {
                 </button>
                 <button
                   type="submit"
-                  className="text-xs px-3 py-1.5 rounded bg-cyan-600 hover:bg-cyan-500 text-white font-medium"
+                  className="text-xs px-3 py-1.5 rounded bg-orange-600 hover:bg-orange-500 text-white font-medium"
                 >
                   Add Layer
                 </button>
@@ -388,7 +388,7 @@ export default function ActiveLayers() {
         <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/70 backdrop-blur-sm p-4">
           <div className="bg-slate-900 border border-slate-800 rounded-xl p-5 max-w-md w-full shadow-2xl space-y-4">
             <div className="flex items-center justify-between border-b border-slate-800 pb-2">
-              <h3 className="text-sm font-semibold text-cyan-300 flex items-center gap-2">
+              <h3 className="text-sm font-semibold text-orange-300 flex items-center gap-2">
                 <Key size={15} />
                 <span>Geospatial Provider Credentials</span>
               </h3>
@@ -412,7 +412,7 @@ export default function ActiveLayers() {
                   placeholder="eyJhbGciOi..."
                   value={cesiumTokenInput}
                   onChange={(e) => setCesiumTokenInput(e.target.value)}
-                  className="w-full text-xs font-mono bg-slate-800 border border-slate-700 rounded px-2.5 py-1.5 text-slate-200 focus:outline-none focus:border-cyan-500"
+                  className="w-full text-xs font-mono bg-slate-800 border border-slate-700 rounded px-2.5 py-1.5 text-slate-200 focus:outline-none focus:border-orange-500"
                 />
                 <span className="text-[10px] text-slate-500 mt-0.5 block">Stored locally in your browser.</span>
               </div>
@@ -424,13 +424,13 @@ export default function ActiveLayers() {
                   placeholder="AIzaSy..."
                   value={googleKeyInput}
                   onChange={(e) => setGoogleKeyInput(e.target.value)}
-                  className="w-full text-xs font-mono bg-slate-800 border border-slate-700 rounded px-2.5 py-1.5 text-slate-200 focus:outline-none focus:border-cyan-500"
+                  className="w-full text-xs font-mono bg-slate-800 border border-slate-700 rounded px-2.5 py-1.5 text-slate-200 focus:outline-none focus:border-orange-500"
                 />
                 <span className="text-[10px] text-slate-500 mt-0.5 block">Enables direct Google Photorealistic 3D Tiles.</span>
               </div>
 
               {keysSavedMessage && (
-                <div className="p-2 rounded bg-cyan-950/60 border border-cyan-700 text-cyan-300 text-xs text-center">
+                <div className="p-2 rounded bg-orange-950/60 border border-orange-700 text-orange-300 text-xs text-center">
                   {keysSavedMessage}
                 </div>
               )}
@@ -454,7 +454,7 @@ export default function ActiveLayers() {
                   <button
                     type="button"
                     onClick={handleSaveKeys}
-                    className="text-xs px-3 py-1.5 rounded bg-cyan-600 hover:bg-cyan-500 text-white font-medium flex items-center gap-1"
+                    className="text-xs px-3 py-1.5 rounded bg-orange-600 hover:bg-orange-500 text-white font-medium flex items-center gap-1"
                   >
                     <Check size={12} />
                     <span>Save & Apply</span>

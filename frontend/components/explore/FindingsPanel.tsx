@@ -48,7 +48,7 @@ export const FindingsPanel: React.FC<Props> = ({
               onClick={() => setSelectedCategory(cat)}
               className={`px-2 py-0.5 rounded text-[10px] font-mono whitespace-nowrap transition-colors ${
                 selectedCategory === cat
-                  ? "bg-cyan-500/20 text-cyan-300 border border-cyan-500/40"
+                  ? "bg-orange-500/20 text-orange-300 border border-orange-500/40"
                   : "bg-slate-800/60 text-slate-400 hover:text-slate-200 border border-slate-700/50"
               }`}
             >

@@ -23,7 +23,7 @@ export const ChangeStatistics: React.FC<Props> = ({ statistics }) => {
     <div className="grid grid-cols-2 gap-2 text-xs font-mono">
       <div className="p-2 bg-slate-900/60 border border-slate-800 rounded flex flex-col">
         <span className="text-[10px] text-slate-500 flex items-center gap-1 uppercase">
-          <Layers className="w-3 h-3 text-cyan-400" /> Changed Pixels
+          <Layers className="w-3 h-3 text-orange-400" /> Changed Pixels
         </span>
         <span className="text-slate-100 font-bold text-sm mt-0.5">
           {statistics.changed_pixels?.toLocaleString() || "0"}

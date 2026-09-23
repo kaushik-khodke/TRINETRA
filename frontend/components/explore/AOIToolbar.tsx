@@ -9,11 +9,11 @@ export const AOIToolbar: React.FC = () => {
 
   return (
     <div
-      className="flex items-center gap-2 bg-[#121620]/90 backdrop-blur-md border border-cyan-500/30 rounded-lg px-3 py-1.5 shadow-xl text-xs"
+      className="flex items-center gap-2 bg-[#121620]/90 backdrop-blur-md border border-orange-500/30 rounded-lg px-3 py-1.5 shadow-xl text-xs"
       style={{ zIndex: 30 }}
     >
-      <span className="font-semibold tracking-wider uppercase text-cyan-400/80 mr-1 flex items-center gap-1.5">
-        <svg className="w-3.5 h-3.5 text-cyan-400" viewBox="0 0 24 24" fill="none" stroke="currentColor">
+      <span className="font-semibold tracking-wider uppercase text-orange-400/80 mr-1 flex items-center gap-1.5">
+        <svg className="w-3.5 h-3.5 text-orange-400" viewBox="0 0 24 24" fill="none" stroke="currentColor">
           <polygon points="12 2 22 8.5 22 15.5 12 22 2 15.5 2 8.5 12 2" strokeWidth="2" />
         </svg>
         AOI
@@ -26,8 +26,8 @@ export const AOIToolbar: React.FC = () => {
         }
         className={`px-2.5 py-1 rounded transition font-medium flex items-center gap-1.5 ${
           drawMode === "rectangle"
-            ? "bg-cyan-500 text-black shadow-lg shadow-cyan-500/40"
-            : "bg-white/5 hover:bg-white/10 text-cyan-200 border border-white/10"
+            ? "bg-orange-500 text-black shadow-lg shadow-orange-500/40"
+            : "bg-white/5 hover:bg-white/10 text-orange-200 border border-white/10"
         }`}
         title="Draw Bounding Box / Rectangle AOI"
       >
@@ -44,8 +44,8 @@ export const AOIToolbar: React.FC = () => {
         }
         className={`px-2.5 py-1 rounded transition font-medium flex items-center gap-1.5 ${
           drawMode === "polygon"
-            ? "bg-cyan-500 text-black shadow-lg shadow-cyan-500/40"
-            : "bg-white/5 hover:bg-white/10 text-cyan-200 border border-white/10"
+            ? "bg-orange-500 text-black shadow-lg shadow-orange-500/40"
+            : "bg-white/5 hover:bg-white/10 text-orange-200 border border-white/10"
         }`}
         title="Draw Custom Polygon AOI"
       >
@@ -73,8 +73,8 @@ export const AOIToolbar: React.FC = () => {
       {/* AOI Status Badge */}
       <div className="border-l border-white/10 pl-2 ml-1 flex items-center">
         {validationLoading ? (
-          <span className="text-cyan-300/70 animate-pulse flex items-center gap-1">
-            <span className="w-1.5 h-1.5 rounded-full bg-cyan-400 animate-ping" />
+          <span className="text-orange-300/70 animate-pulse flex items-center gap-1">
+            <span className="w-1.5 h-1.5 rounded-full bg-orange-400 animate-ping" />
             Validating...
           </span>
         ) : activeAOI ? (

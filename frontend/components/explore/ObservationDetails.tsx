@@ -10,10 +10,10 @@ export const ObservationDetails: React.FC = () => {
   if (!selectedObservation) return null
 
   return (
-    <div className="bg-[#121620]/90 border border-cyan-500/20 rounded-xl p-3 text-xs">
+    <div className="bg-[#121620]/90 border border-orange-500/20 rounded-xl p-3 text-xs">
       <div className="flex items-center justify-between pb-2 mb-2 border-b border-white/10">
-        <span className="font-semibold text-cyan-300 flex items-center gap-1.5">
-          <svg className="w-3.5 h-3.5 text-cyan-400" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
+        <span className="font-semibold text-orange-300 flex items-center gap-1.5">
+          <svg className="w-3.5 h-3.5 text-orange-400" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
             <circle cx="12" cy="12" r="10" />
             <line x1="12" y1="16" x2="12" y2="12" />
             <line x1="12" y1="8" x2="12.01" y2="8" />
@@ -34,7 +34,7 @@ export const ObservationDetails: React.FC = () => {
         </div>
         <div className="flex justify-between">
           <span className="text-slate-400">Date/Time:</span>
-          <span className="text-cyan-200">{selectedObservation.datetime}</span>
+          <span className="text-orange-200">{selectedObservation.datetime}</span>
         </div>
         <div className="flex justify-between">
           <span className="text-slate-400">Platform:</span>
@@ -42,7 +42,7 @@ export const ObservationDetails: React.FC = () => {
         </div>
         <div className="flex justify-between">
           <span className="text-slate-400">Cloud Cover:</span>
-          <span className="text-cyan-300">
+          <span className="text-orange-300">
             {selectedObservation.cloud_cover !== null && selectedObservation.cloud_cover !== undefined
               ? `${selectedObservation.cloud_cover}%`
               : "0%"}
@@ -59,7 +59,7 @@ export const ObservationDetails: React.FC = () => {
       </div>
 
       {detailsLoading ? (
-        <div className="mt-2 pt-2 border-t border-white/5 text-center text-[10px] text-cyan-400 animate-pulse">
+        <div className="mt-2 pt-2 border-t border-white/5 text-center text-[10px] text-orange-400 animate-pulse">
           Loading detailed STAC assets...
         </div>
       ) : selectedObservationDetails?.assets ? (

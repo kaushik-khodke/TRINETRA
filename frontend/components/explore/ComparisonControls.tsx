@@ -22,10 +22,10 @@ export const ComparisonControls: React.FC = () => {
   const hasPair = !!observationA && !!observationB
 
   return (
-    <div className="bg-[#121620]/95 backdrop-blur-md border border-cyan-500/30 rounded-xl p-3 shadow-2xl space-y-2.5 text-xs">
+    <div className="bg-[#121620]/95 backdrop-blur-md border border-orange-500/30 rounded-xl p-3 shadow-2xl space-y-2.5 text-xs">
       {/* Header & Pair Summary */}
       <div className="flex items-center justify-between">
-        <span className="font-semibold tracking-wider uppercase text-cyan-400 flex items-center gap-1.5">
+        <span className="font-semibold tracking-wider uppercase text-orange-400 flex items-center gap-1.5">
           <svg className="w-3.5 h-3.5" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
             <rect x="2" y="3" width="20" height="18" rx="2" />
             <line x1="12" y1="3" x2="12" y2="21" />
@@ -49,12 +49,12 @@ export const ComparisonControls: React.FC = () => {
         <div
           className={`flex-1 p-2 rounded-lg border ${
             observationA
-              ? "bg-cyan-950/40 border-cyan-400/40 text-cyan-200"
+              ? "bg-orange-950/40 border-orange-400/40 text-orange-200"
               : "bg-white/5 border-dashed border-white/20 text-slate-400"
           }`}
         >
           <div className="flex items-center justify-between text-[10px] font-mono mb-0.5">
-            <span className="text-cyan-400 font-bold uppercase">Base (A)</span>
+            <span className="text-orange-400 font-bold uppercase">Base (A)</span>
             {observationA && (
               <button
                 onClick={() => comparisonStateManager.setObservationA(null)}
@@ -112,8 +112,8 @@ export const ComparisonControls: React.FC = () => {
 
       {/* Validation / Compatibility Badge */}
       {validating ? (
-        <div className="text-[10px] text-cyan-400 animate-pulse font-mono flex items-center gap-1.5">
-          <span className="w-1.5 h-1.5 rounded-full bg-cyan-400 animate-ping" />
+        <div className="text-[10px] text-orange-400 animate-pulse font-mono flex items-center gap-1.5">
+          <span className="w-1.5 h-1.5 rounded-full bg-orange-400 animate-ping" />
           Verifying temporal and spatial alignment...
         </div>
       ) : validation ? (
@@ -163,7 +163,7 @@ export const ComparisonControls: React.FC = () => {
             onClick={() => comparisonStateManager.setMode(m)}
             className={`flex-1 py-1 px-2 rounded-md font-medium text-[11px] capitalize transition disabled:opacity-30 ${
               mode === m
-                ? "bg-gradient-to-r from-cyan-500 to-blue-600 text-black font-bold shadow-md shadow-cyan-500/30"
+                ? "bg-gradient-to-r from-orange-500 to-blue-600 text-black font-bold shadow-md shadow-orange-500/30"
                 : "bg-white/5 hover:bg-white/10 text-slate-300 border border-white/10"
             }`}
           >
@@ -177,7 +177,7 @@ export const ComparisonControls: React.FC = () => {
         <div className="space-y-1 pt-1">
           <div className="flex justify-between text-[10px] font-mono text-slate-400">
             <span>Split Position</span>
-            <span className="text-cyan-300">{Math.round(splitPosition)}%</span>
+            <span className="text-orange-300">{Math.round(splitPosition)}%</span>
           </div>
           <input
             type="range"
@@ -187,7 +187,7 @@ export const ComparisonControls: React.FC = () => {
             onChange={(e) =>
               comparisonStateManager.setSplitPosition(Number(e.target.value))
             }
-            className="w-full h-1.5 bg-white/10 rounded-lg appearance-none cursor-pointer accent-cyan-400"
+            className="w-full h-1.5 bg-white/10 rounded-lg appearance-none cursor-pointer accent-orange-400"
           />
         </div>
       )}

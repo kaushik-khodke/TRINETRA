@@ -56,7 +56,7 @@ export function ExploreSidebar() {
       <div className="sidebar-section">
         <div className="sidebar-section-header">
           <span style={{ display: "flex", alignItems: "center", gap: 6 }}>
-            <Compass size={13} color="#38bdf8" />
+            <Compass size={13} color="#ff6b2b" />
             <span>DIMENSION / VIEW</span>
           </span>
         </div>
@@ -163,7 +163,7 @@ export function ExploreSidebar() {
                 <span className="text-[11px] uppercase tracking-wider font-mono text-slate-400 block px-1">
                   Acquisitions ({observations.length})
                 </span>
-                <div className="space-y-2 max-h-[380px] overflow-y-auto pr-1 scrollbar-thin scrollbar-thumb-cyan-500/20">
+                <div className="space-y-2 max-h-[380px] overflow-y-auto pr-1 scrollbar-thin scrollbar-thumb-orange-500/20">
                   {observations.map((obs) => (
                     <ObservationCard key={obs.id} observation={obs} />
                   ))}
@@ -235,7 +235,7 @@ export function ExploreSidebar() {
                   <span className="layer-label">Central India (Nagpur)</span>
                   <span className="layer-badge">21.1458° N, 79.0882° E • Zoom 4.8</span>
                 </div>
-                <Navigation size={13} color="#38bdf8" />
+                <Navigation size={13} color="#ff6b2b" />
               </button>
 
               <button
@@ -247,7 +247,7 @@ export function ExploreSidebar() {
                   <span className="layer-label">ISRO HQ (Bengaluru)</span>
                   <span className="layer-badge">12.9716° N, 77.5946° E • Zoom 11.5</span>
                 </div>
-                <Navigation size={13} color="#38bdf8" />
+                <Navigation size={13} color="#ff6b2b" />
               </button>
 
               <button
@@ -267,7 +267,7 @@ export function ExploreSidebar() {
                   <span className="layer-label">Mumbai Harbor (West Coast)</span>
                   <span className="layer-badge">18.9220° N, 72.8347° E • Zoom 10.5</span>
                 </div>
-                <Navigation size={13} color="#38bdf8" />
+                <Navigation size={13} color="#ff6b2b" />
               </button>
             </div>
           </div>

@@ -109,7 +109,7 @@ export const InvestigationPanel: React.FC<Props> = ({
       {/* Workspace Header */}
       <div className="flex items-center justify-between border-b border-slate-800 pb-2.5">
         <div className="flex flex-col">
-          <span className="text-[10px] font-mono text-cyan-400 font-bold uppercase tracking-wider">
+          <span className="text-[10px] font-mono text-orange-400 font-bold uppercase tracking-wider">
             TRINETRA Phase 6
           </span>
           <h2 className="text-sm font-bold text-slate-100">Analyst Investigation Workspace</h2>
@@ -121,7 +121,7 @@ export const InvestigationPanel: React.FC<Props> = ({
               onClick={() => setShowComposer(!showComposer)}
               className="inline-flex items-center gap-1 px-2 py-1 bg-slate-800 hover:bg-slate-700 text-[11px] font-mono rounded text-slate-200 transition-colors"
             >
-              <PlusCircle className="w-3.5 h-3.5 text-cyan-400" />
+              <PlusCircle className="w-3.5 h-3.5 text-orange-400" />
               <span>{showComposer ? "Hide Composer" : "New Enquiry"}</span>
             </button>
           )}
@@ -184,7 +184,7 @@ export const InvestigationPanel: React.FC<Props> = ({
                   onClick={() => setActiveTab(tab.id)}
                   className={`flex items-center gap-1.5 px-2.5 py-1.5 rounded-md transition-all shrink-0 ${
                     isActive
-                      ? "bg-cyan-950 text-cyan-300 font-bold border border-cyan-700/80 shadow-sm"
+                      ? "bg-orange-950 text-orange-300 font-bold border border-orange-700/80 shadow-sm"
                       : "text-slate-400 hover:text-slate-200 hover:bg-slate-900"
                   }`}
                 >
@@ -229,7 +229,7 @@ export const InvestigationPanel: React.FC<Props> = ({
                       onClick={() => setEvidenceFilter(f)}
                       className={`px-2 py-0.5 rounded transition-all shrink-0 ${
                         evidenceFilter === f
-                          ? "bg-cyan-900 text-cyan-200 font-bold border border-cyan-700"
+                          ? "bg-orange-900 text-orange-200 font-bold border border-orange-700"
                           : "bg-slate-900 text-slate-400 hover:text-slate-200"
                       }`}
                     >

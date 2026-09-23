@@ -27,12 +27,12 @@ export const InvestigationFindingCard: React.FC<Props> = ({
       onClick={() => onSelect(finding.finding_id)}
       className={`p-3.5 rounded-lg border transition-all cursor-pointer ${
         isSelected
-          ? "bg-cyan-950/40 border-cyan-500 shadow-[0_0_15px_rgba(6,182,212,0.15)] ring-1 ring-cyan-500/50"
+          ? "bg-orange-950/40 border-orange-500 shadow-[0_0_15px_rgba(6,182,212,0.15)] ring-1 ring-orange-500/50"
           : "bg-slate-900/70 border-slate-800 hover:border-slate-700 hover:bg-slate-900/90"
       }`}
     >
       <div className="flex items-center justify-between gap-2 mb-2">
-        <span className="px-2 py-0.5 rounded text-[10px] font-mono font-bold bg-cyan-950 border border-cyan-800 text-cyan-300 uppercase tracking-wide">
+        <span className="px-2 py-0.5 rounded text-[10px] font-mono font-bold bg-orange-950 border border-orange-800 text-orange-300 uppercase tracking-wide">
           {finding.category.replace(/_/g, " ")}
         </span>
         <div className="flex items-center gap-1">
@@ -51,7 +51,7 @@ export const InvestigationFindingCard: React.FC<Props> = ({
           {Object.entries(finding.quantitative_value).map(([k, v]) => (
             <div key={k} className="flex flex-col">
               <span className="text-slate-500 text-[9px] uppercase truncate">{k.replace(/_/g, " ")}</span>
-              <span className="text-cyan-400 font-bold truncate">{String(v)}</span>
+              <span className="text-orange-400 font-bold truncate">{String(v)}</span>
             </div>
           ))}
         </div>
@@ -69,7 +69,7 @@ export const InvestigationFindingCard: React.FC<Props> = ({
                 e.stopPropagation()
                 onFocusEvidence?.(eid)
               }}
-              className="inline-flex items-center gap-0.5 px-1.5 py-0.5 rounded bg-slate-800 hover:bg-cyan-900 border border-slate-700 hover:border-cyan-600 text-[10px] font-mono text-cyan-300 transition-colors"
+              className="inline-flex items-center gap-0.5 px-1.5 py-0.5 rounded bg-slate-800 hover:bg-orange-900 border border-slate-700 hover:border-orange-600 text-[10px] font-mono text-orange-300 transition-colors"
             >
               <span>{eid}</span>
               <ArrowUpRight className="w-2.5 h-2.5 opacity-70" />

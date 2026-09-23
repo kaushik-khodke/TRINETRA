@@ -35,7 +35,7 @@ export const ObservationCard: React.FC<ObservationCardProps> = ({
     <div
       className={`p-3 rounded-xl border transition-all ${
         isSelected
-          ? "bg-cyan-500/10 border-cyan-400 shadow-md shadow-cyan-500/20"
+          ? "bg-orange-500/10 border-orange-400 shadow-md shadow-orange-500/20"
           : "bg-white/5 hover:bg-white/10 border-white/10"
       }`}
     >
@@ -50,7 +50,7 @@ export const ObservationCard: React.FC<ObservationCardProps> = ({
               loading="lazy"
             />
           ) : (
-            <svg className="w-6 h-6 text-cyan-400/50" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.5">
+            <svg className="w-6 h-6 text-orange-400/50" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.5">
               <circle cx="12" cy="12" r="10" />
               <line x1="2" y1="12" x2="22" y2="12" />
               <path d="M12 2a15.3 15.3 0 0 1 4 10 15.3 15.3 0 0 1-4 10 15.3 15.3 0 0 1-4-10 15.3 15.3 0 0 1 4-10z" />
@@ -65,7 +65,7 @@ export const ObservationCard: React.FC<ObservationCardProps> = ({
               {observation.platform || "Satellite"}
             </span>
             {observation.cloud_cover !== null && observation.cloud_cover !== undefined && (
-              <span className="text-[10px] font-mono px-1.5 py-0.5 rounded bg-black/50 text-cyan-300 border border-white/5">
+              <span className="text-[10px] font-mono px-1.5 py-0.5 rounded bg-black/50 text-orange-300 border border-white/5">
                 ☁ {Math.round(observation.cloud_cover)}%
               </span>
             )}
@@ -81,7 +81,7 @@ export const ObservationCard: React.FC<ObservationCardProps> = ({
           <div className="flex items-center gap-1.5 mt-2">
             <button
               onClick={() => temporalStateManager.selectObservation(observation)}
-              className="px-2 py-0.5 rounded bg-cyan-500/20 hover:bg-cyan-500/30 text-cyan-300 text-[10px] font-medium border border-cyan-500/30 transition"
+              className="px-2 py-0.5 rounded bg-orange-500/20 hover:bg-orange-500/30 text-orange-300 text-[10px] font-medium border border-orange-500/30 transition"
             >
               Inspect
             </button>
@@ -94,7 +94,7 @@ export const ObservationCard: React.FC<ObservationCardProps> = ({
               }
               className={`px-2 py-0.5 rounded text-[10px] font-medium border transition ${
                 isA
-                  ? "bg-cyan-500 text-black border-cyan-400 font-bold"
+                  ? "bg-orange-500 text-black border-orange-400 font-bold"
                   : "bg-white/5 hover:bg-white/10 text-slate-300 border-white/10"
               }`}
             >

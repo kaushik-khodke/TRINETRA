@@ -39,7 +39,7 @@ export const AnalysisProgress: React.FC<Props> = ({ progress, status, onCancel }
       <div className="flex items-center justify-between text-xs">
         <span className="font-semibold text-slate-300 uppercase tracking-wider flex items-center gap-1.5">
           {status === "running" ? (
-            <Loader2 className="w-3.5 h-3.5 text-cyan-400 animate-spin" />
+            <Loader2 className="w-3.5 h-3.5 text-orange-400 animate-spin" />
           ) : isFailed ? (
             <AlertCircle className="w-3.5 h-3.5 text-rose-400" />
           ) : (
@@ -47,14 +47,14 @@ export const AnalysisProgress: React.FC<Props> = ({ progress, status, onCancel }
           )}
           Pipeline: Stage {stepIndex} / {totalSteps}
         </span>
-        <span className="font-mono text-cyan-400 font-bold">{percent}%</span>
+        <span className="font-mono text-orange-400 font-bold">{percent}%</span>
       </div>
 
       {/* Progress Bar */}
       <div className="w-full h-1.5 bg-slate-800 rounded-full overflow-hidden">
         <div
           className={`h-full transition-all duration-300 ${
-            isFailed ? "bg-rose-500" : isCancelled ? "bg-amber-500" : "bg-gradient-to-r from-cyan-500 to-emerald-400"
+            isFailed ? "bg-rose-500" : isCancelled ? "bg-amber-500" : "bg-gradient-to-r from-orange-500 to-emerald-400"
           }`}
           style={{ width: `${percent}%` }}
         />
@@ -72,11 +72,11 @@ export const AnalysisProgress: React.FC<Props> = ({ progress, status, onCancel }
                   isDone
                     ? "bg-emerald-400"
                     : isCurrent
-                    ? "bg-cyan-400 animate-pulse ring-2 ring-cyan-400/30"
+                    ? "bg-orange-400 animate-pulse ring-2 ring-orange-400/30"
                     : "bg-slate-700"
                 }`}
               />
-              <span className={isCurrent ? "text-cyan-300 font-bold" : isDone ? "text-slate-400" : "text-slate-600"}>
+              <span className={isCurrent ? "text-orange-300 font-bold" : isDone ? "text-slate-400" : "text-slate-600"}>
                 {s.label}
               </span>
             </div>

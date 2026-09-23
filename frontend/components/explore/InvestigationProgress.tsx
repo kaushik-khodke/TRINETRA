@@ -29,7 +29,7 @@ export const InvestigationProgress: React.FC<Props> = ({ progress, status }) => 
       <div className="flex items-center justify-between mb-2">
         <div className="flex items-center gap-2">
           {status === "running" ? (
-            <Loader2 className="w-3.5 h-3.5 animate-spin text-cyan-400" />
+            <Loader2 className="w-3.5 h-3.5 animate-spin text-orange-400" />
           ) : status === "completed" ? (
             <CheckCircle2 className="w-3.5 h-3.5 text-emerald-400" />
           ) : status === "cancelled" ? (
@@ -39,7 +39,7 @@ export const InvestigationProgress: React.FC<Props> = ({ progress, status }) => 
           )}
           <span className="font-semibold text-slate-200 capitalize">{status}</span>
         </div>
-        <span className="font-mono text-cyan-400 font-bold">{progress.percent}%</span>
+        <span className="font-mono text-orange-400 font-bold">{progress.percent}%</span>
       </div>
 
       <p className="text-slate-400 mb-3 truncate">{progress.message}</p>
@@ -57,7 +57,7 @@ export const InvestigationProgress: React.FC<Props> = ({ progress, status }) => 
                   isDone
                     ? "bg-emerald-500 shadow-sm shadow-emerald-500/50"
                     : isCurrent
-                    ? "bg-cyan-400 animate-pulse"
+                    ? "bg-orange-400 animate-pulse"
                     : "bg-slate-800"
                 }`}
               />
@@ -66,7 +66,7 @@ export const InvestigationProgress: React.FC<Props> = ({ progress, status }) => 
                   isDone
                     ? "text-slate-300"
                     : isCurrent
-                    ? "text-cyan-300 font-semibold"
+                    ? "text-orange-300 font-semibold"
                     : "text-slate-600"
                 }`}
               >

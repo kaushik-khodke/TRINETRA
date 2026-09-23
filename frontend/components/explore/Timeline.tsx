@@ -32,10 +32,10 @@ export const Timeline: React.FC = () => {
   }
 
   return (
-    <div className="bg-[#10141e]/95 backdrop-blur-md border border-cyan-500/30 rounded-xl p-3 shadow-2xl">
+    <div className="bg-[#10141e]/95 backdrop-blur-md border border-orange-500/30 rounded-xl p-3 shadow-2xl">
       <div className="flex items-center justify-between mb-2 pb-2 border-b border-white/10">
         <div className="flex items-center gap-2">
-          <span className="font-semibold text-xs text-cyan-400 tracking-wider uppercase flex items-center gap-1.5">
+          <span className="font-semibold text-xs text-orange-400 tracking-wider uppercase flex items-center gap-1.5">
             <svg className="w-3.5 h-3.5" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
               <circle cx="12" cy="12" r="10" />
               <polyline points="12 6 12 12 16 14" />
@@ -71,7 +71,7 @@ export const Timeline: React.FC = () => {
             className={`px-2 py-0.5 rounded text-xs font-semibold flex items-center gap-1 transition ${
               isPlaying
                 ? "bg-amber-500 text-black shadow-lg shadow-amber-500/30"
-                : "bg-cyan-500 hover:bg-cyan-400 text-black shadow-lg shadow-cyan-500/30"
+                : "bg-orange-500 hover:bg-orange-400 text-black shadow-lg shadow-orange-500/30"
             }`}
             title={isPlaying ? "Pause Timeline Player" : "Play Sequence"}
           >
@@ -110,7 +110,7 @@ export const Timeline: React.FC = () => {
       {/* Horizontal Carousel Track */}
       <div
         ref={trackRef}
-        className="flex items-center gap-2 overflow-x-auto py-1 scrollbar-thin scrollbar-thumb-cyan-500/30 scrollbar-track-transparent"
+        className="flex items-center gap-2 overflow-x-auto py-1 scrollbar-thin scrollbar-thumb-orange-500/30 scrollbar-track-transparent"
         style={{ scrollSnapType: "x mandatory" }}
       >
         {observations.map((obs) => (

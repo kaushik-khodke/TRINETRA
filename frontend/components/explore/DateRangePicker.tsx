@@ -16,7 +16,7 @@ export const DateRangePicker: React.FC = () => {
           onChange={(e) =>
             temporalStateManager.setDateRange(e.target.value, endDate)
           }
-          className="bg-transparent text-cyan-200 focus:outline-none font-mono text-xs cursor-pointer"
+          className="bg-transparent text-orange-200 focus:outline-none font-mono text-xs cursor-pointer"
         />
       </div>
 
@@ -30,7 +30,7 @@ export const DateRangePicker: React.FC = () => {
           onChange={(e) =>
             temporalStateManager.setDateRange(startDate, e.target.value)
           }
-          className="bg-transparent text-cyan-200 focus:outline-none font-mono text-xs cursor-pointer"
+          className="bg-transparent text-orange-200 focus:outline-none font-mono text-xs cursor-pointer"
         />
       </div>
     </div>

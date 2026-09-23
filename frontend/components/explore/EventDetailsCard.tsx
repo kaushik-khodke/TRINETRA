@@ -131,7 +131,7 @@ export const EventDetailsCard: React.FC<Props> = ({
             >
               {event.state}
             </span>
-            <span className="text-[10px] text-cyan-400 bg-cyan-950/60 border border-cyan-800/60 px-1.5 py-0.5 rounded">
+            <span className="text-[10px] text-orange-400 bg-orange-950/60 border border-orange-800/60 px-1.5 py-0.5 rounded">
               {event.semantic_class}
             </span>
             <span className="text-[9px] text-slate-500 font-mono">v{event.version}</span>
@@ -168,12 +168,12 @@ export const EventDetailsCard: React.FC<Props> = ({
 
         <div>
           <div className="text-[10px] text-slate-400 uppercase flex items-center gap-1">
-            <MapPin className="w-3 h-3 text-cyan-400" />
+            <MapPin className="w-3 h-3 text-orange-400" />
             <span>Geospatial</span>
           </div>
           <button
             onClick={() => onFocusOnMap(event.bounding_box)}
-            className="mt-1 flex items-center gap-1 text-[11px] px-2 py-0.5 rounded bg-cyan-950 hover:bg-cyan-900 border border-cyan-700/60 text-cyan-300 transition-colors"
+            className="mt-1 flex items-center gap-1 text-[11px] px-2 py-0.5 rounded bg-orange-950 hover:bg-orange-900 border border-orange-700/60 text-orange-300 transition-colors"
           >
             <MapPin className="w-3 h-3" />
             <span>Center on Map</span>
@@ -191,7 +191,7 @@ export const EventDetailsCard: React.FC<Props> = ({
             {Object.entries(event.confidence_dimensions).map(([dim, val]) => (
               <div key={dim} className="flex justify-between items-center text-slate-300 bg-slate-900/60 px-1.5 py-0.5 rounded">
                 <span className="capitalize">{dim.replace("_", " ")}</span>
-                <span className="font-bold text-cyan-300">{(val * 100).toFixed(0)}%</span>
+                <span className="font-bold text-orange-300">{(val * 100).toFixed(0)}%</span>
               </div>
             ))}
           </div>
@@ -240,7 +240,7 @@ export const EventDetailsCard: React.FC<Props> = ({
       {event.state !== "RESOLVED" && (
         <form onSubmit={handleStateSubmit} className="space-y-2 bg-slate-950/80 p-2.5 rounded border border-slate-800">
           <div className="text-[10px] uppercase font-semibold text-slate-300 flex items-center gap-1">
-            <ArrowRight className="w-3 h-3 text-cyan-400" />
+            <ArrowRight className="w-3 h-3 text-orange-400" />
             <span>Transition Event State</span>
           </div>
 
@@ -248,7 +248,7 @@ export const EventDetailsCard: React.FC<Props> = ({
             <select
               value={selectedTargetState}
               onChange={(e) => setSelectedTargetState(e.target.value as EventState)}
-              className="bg-slate-900 border border-slate-700 rounded px-2 py-1 text-slate-200 text-xs flex-1 focus:outline-none focus:border-cyan-500"
+              className="bg-slate-900 border border-slate-700 rounded px-2 py-1 text-slate-200 text-xs flex-1 focus:outline-none focus:border-orange-500"
             >
               <option value="">Select target state...</option>
               {(["CANDIDATE", "OBSERVED", "CORROBORATED", "PERSISTENT", "RESOLVED"] as EventState[])
@@ -266,13 +266,13 @@ export const EventDetailsCard: React.FC<Props> = ({
             placeholder="Mandatory analyst justification..."
             value={transitionReason}
             onChange={(e) => setTransitionReason(e.target.value)}
-            className="w-full bg-slate-900 border border-slate-700 rounded px-2 py-1 text-slate-200 text-xs focus:outline-none focus:border-cyan-500 placeholder:text-slate-600"
+            className="w-full bg-slate-900 border border-slate-700 rounded px-2 py-1 text-slate-200 text-xs focus:outline-none focus:border-orange-500 placeholder:text-slate-600"
           />
 
           <button
             type="submit"
             disabled={!selectedTargetState || !transitionReason.trim() || isTransitioning}
-            className="w-full py-1 bg-cyan-600 hover:bg-cyan-500 disabled:opacity-50 text-slate-950 font-semibold rounded text-xs transition-colors flex items-center justify-center gap-1"
+            className="w-full py-1 bg-orange-600 hover:bg-orange-500 disabled:opacity-50 text-slate-950 font-semibold rounded text-xs transition-colors flex items-center justify-center gap-1"
           >
             {isTransitioning ? (
               <span>Transitioning...</span>
@@ -300,7 +300,7 @@ export const EventDetailsCard: React.FC<Props> = ({
             onClick={() => setShowMergeModal(true)}
             className="flex-1 flex items-center justify-center gap-1 py-1 px-2 rounded bg-slate-800 hover:bg-slate-700 text-slate-300 border border-slate-700 text-[11px] transition-colors"
           >
-            <Merge className="w-3 h-3 text-cyan-400" />
+            <Merge className="w-3 h-3 text-orange-400" />
             <span>Merge Into...</span>
           </button>
         </div>
@@ -348,8 +348,8 @@ export const EventDetailsCard: React.FC<Props> = ({
 
       {/* Merge Modal Overlay */}
       {showMergeModal && (
-        <div className="p-2.5 bg-slate-950 border border-cyan-800/80 rounded space-y-2">
-          <div className="text-[11px] font-bold text-cyan-300 flex items-center gap-1">
+        <div className="p-2.5 bg-slate-950 border border-orange-800/80 rounded space-y-2">
+          <div className="text-[11px] font-bold text-orange-300 flex items-center gap-1">
             <Merge className="w-3.5 h-3.5" />
             <span>Merge Compatible Event</span>
           </div>
@@ -378,7 +378,7 @@ export const EventDetailsCard: React.FC<Props> = ({
             <button
               onClick={handleMergeSubmit}
               disabled={!mergeSecondaryId || isMerging}
-              className="px-2 py-0.5 text-[10px] bg-cyan-600 hover:bg-cyan-500 disabled:opacity-50 font-semibold text-slate-950 rounded"
+              className="px-2 py-0.5 text-[10px] bg-orange-600 hover:bg-orange-500 disabled:opacity-50 font-semibold text-slate-950 rounded"
             >
               {isMerging ? "Merging..." : "Confirm Merge"}
             </button>
@@ -389,7 +389,7 @@ export const EventDetailsCard: React.FC<Props> = ({
       {/* Audit History Timeline */}
       <div className="space-y-1.5 border-t border-slate-800/80 pt-2">
         <span className="text-[10px] uppercase font-semibold text-slate-400 flex items-center gap-1">
-          <Activity className="w-3 h-3 text-cyan-400" />
+          <Activity className="w-3 h-3 text-orange-400" />
           <span>Audit Trail ({event.history?.length || 0} transitions)</span>
         </span>
         <div className="space-y-1.5 max-h-36 overflow-y-auto pr-1 scrollbar-thin scrollbar-thumb-slate-800">

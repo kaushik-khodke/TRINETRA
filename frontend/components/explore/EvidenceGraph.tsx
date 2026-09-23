@@ -34,7 +34,7 @@ export const EvidenceGraph: React.FC<Props> = ({
       case "CONTRADICTS":
         return "text-rose-400 border-rose-500/30 bg-rose-950/40"
       case "CORROBORATES":
-        return "text-cyan-400 border-cyan-500/30 bg-cyan-950/40"
+        return "text-orange-400 border-orange-500/30 bg-orange-950/40"
       default:
         return "text-slate-400 border-slate-700 bg-slate-900"
     }
@@ -44,7 +44,7 @@ export const EvidenceGraph: React.FC<Props> = ({
     <div className="bg-slate-900/80 border border-slate-800 rounded-lg p-3 space-y-3">
       <div className="flex items-center justify-between">
         <div className="flex items-center gap-2">
-          <Share2 className="w-4 h-4 text-cyan-400" />
+          <Share2 className="w-4 h-4 text-orange-400" />
           <h4 className="text-xs font-bold text-slate-200 uppercase tracking-wide">
             Evidence Link Graph ({evidenceCards.length} nodes, {relationships.length} edges)
           </h4>
@@ -59,7 +59,7 @@ export const EvidenceGraph: React.FC<Props> = ({
               onClick={() => setFilterType(t)}
               className={`px-1.5 py-0.5 rounded transition-colors ${
                 filterType === t
-                  ? "bg-cyan-900 text-cyan-200 font-bold border border-cyan-700"
+                  ? "bg-orange-900 text-orange-200 font-bold border border-orange-700"
                   : "bg-slate-800 text-slate-400 hover:text-slate-200"
               }`}
             >
@@ -79,7 +79,7 @@ export const EvidenceGraph: React.FC<Props> = ({
               onClick={() => onSelectEvidence(ev.id)}
               className={`px-2 py-1 rounded text-[11px] font-mono transition-all flex items-center gap-1 ${
                 isSelected
-                  ? "bg-cyan-500 text-slate-950 font-bold shadow-sm shadow-cyan-500/50 scale-105"
+                  ? "bg-orange-500 text-slate-950 font-bold shadow-sm shadow-orange-500/50 scale-105"
                   : "bg-slate-800 hover:bg-slate-700 text-slate-300 border border-slate-700"
               }`}
             >
@@ -105,21 +105,21 @@ export const EvidenceGraph: React.FC<Props> = ({
                 key={idx}
                 className={`flex items-center justify-between p-2 rounded border text-xs font-mono transition-all ${
                   isConnected
-                    ? "ring-1 ring-cyan-500/60 bg-cyan-950/20"
+                    ? "ring-1 ring-orange-500/60 bg-orange-950/20"
                     : "bg-slate-950/40 border-slate-800/60"
                 }`}
               >
                 <div className="flex items-center gap-1.5 truncate">
                   <span
                     onClick={() => onSelectEvidence(rel.source_id)}
-                    className="cursor-pointer text-cyan-400 hover:underline truncate max-w-[80px]"
+                    className="cursor-pointer text-orange-400 hover:underline truncate max-w-[80px]"
                   >
                     {rel.source_id}
                   </span>
                   <ArrowRight className="w-3 h-3 text-slate-600 shrink-0" />
                   <span
                     onClick={() => onSelectEvidence(rel.target_id)}
-                    className="cursor-pointer text-cyan-400 hover:underline truncate max-w-[80px]"
+                    className="cursor-pointer text-orange-400 hover:underline truncate max-w-[80px]"
                   >
                     {rel.target_id}
                   </span>

@@ -36,7 +36,7 @@ export const FindingsDashboard: React.FC<Props> = ({
       {conclusion && (
         <div className="bg-slate-900/90 border border-slate-800 rounded-lg p-4 space-y-3">
           <div className="flex items-center gap-2">
-            <Sparkles className="w-4 h-4 text-cyan-400" />
+            <Sparkles className="w-4 h-4 text-orange-400" />
             <h3 className="text-xs font-bold text-slate-200 uppercase tracking-wide">
               Executive Investigation Synthesis
             </h3>
@@ -100,7 +100,7 @@ export const FindingsDashboard: React.FC<Props> = ({
       <div className="space-y-2.5">
         <div className="flex items-center justify-between">
           <div className="flex items-center gap-1.5">
-            <FileText className="w-4 h-4 text-cyan-400" />
+            <FileText className="w-4 h-4 text-orange-400" />
             <h4 className="text-xs font-bold text-slate-200 uppercase tracking-wide">
               Empirical Findings ({findings.length})
             </h4>

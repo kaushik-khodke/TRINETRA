@@ -29,7 +29,7 @@ export function ViewStatePanel() {
         onClick={() => setCollapsed(!collapsed)}
       >
         <span style={{ display: "flex", alignItems: "center", gap: 6, fontWeight: 600, color: "#cbd5e1" }}>
-          <Compass size={13} color="#38bdf8" />
+          <Compass size={13} color="#ff6b2b" />
           <span>VIEW TELEMETRY</span>
         </span>
         <button

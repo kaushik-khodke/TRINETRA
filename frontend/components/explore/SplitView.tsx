@@ -39,14 +39,14 @@ export const SplitView: React.FC = () => {
     >
       {/* View A Container (Left) */}
       <div
-        className="absolute inset-y-0 left-0 overflow-hidden border-r border-cyan-500/50"
+        className="absolute inset-y-0 left-0 overflow-hidden border-r border-orange-500/50"
         style={{ width: `${splitPosition}%` }}
       >
         <div className="w-full h-full relative">
           <MapView />
           {/* Label Badge A */}
-          <div className="absolute top-4 left-4 z-20 px-2.5 py-1 rounded bg-[#121620]/90 backdrop-blur-md border border-cyan-400/40 text-[11px] font-mono text-cyan-300 shadow-xl">
-            <strong className="text-cyan-400">Layer A:</strong>{" "}
+          <div className="absolute top-4 left-4 z-20 px-2.5 py-1 rounded bg-[#121620]/90 backdrop-blur-md border border-orange-400/40 text-[11px] font-mono text-orange-300 shadow-xl">
+            <strong className="text-orange-400">Layer A:</strong>{" "}
             {observationA ? observationA.datetime.split("T")[0] : "Base"}
           </div>
         </div>
@@ -73,12 +73,12 @@ export const SplitView: React.FC = () => {
         className="absolute inset-y-0 z-30 w-4 -ml-2 cursor-col-resize flex items-center justify-center group"
         style={{ left: `${splitPosition}%` }}
       >
-        <div className="w-1 h-full bg-cyan-400 group-hover:bg-cyan-300 shadow-lg shadow-cyan-500/50 transition-colors" />
-        <div className="absolute w-8 h-8 rounded-full bg-[#121620] border-2 border-cyan-400 shadow-xl flex items-center justify-center group-hover:scale-110 transition-transform">
-          <svg className="w-4 h-4 text-cyan-300" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5">
+        <div className="w-1 h-full bg-orange-400 group-hover:bg-orange-300 shadow-lg shadow-orange-500/50 transition-colors" />
+        <div className="absolute w-8 h-8 rounded-full bg-[#121620] border-2 border-orange-400 shadow-xl flex items-center justify-center group-hover:scale-110 transition-transform">
+          <svg className="w-4 h-4 text-orange-300" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5">
             <polyline points="15 18 9 12 15 6" />
           </svg>
-          <svg className="w-4 h-4 text-cyan-300 -ml-2" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5">
+          <svg className="w-4 h-4 text-orange-300 -ml-2" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5">
             <polyline points="9 18 15 12 9 6" />
           </svg>
         </div>

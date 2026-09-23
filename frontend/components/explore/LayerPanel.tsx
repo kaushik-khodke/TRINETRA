@@ -86,7 +86,7 @@ export function LayerPanel() {
     <div className="sidebar-section">
       <div className="sidebar-section-header">
         <span style={{ display: "flex", alignItems: "center", gap: 6 }}>
-          <Layers size={13} color="#38bdf8" />
+          <Layers size={13} color="#ff6b2b" />
           <span>VISUALIZATION LAYERS</span>
         </span>
       </div>

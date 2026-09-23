@@ -57,9 +57,9 @@
   text-transform: uppercase;
   padding: 2px 7px;
   border-radius: 4px;
-  background: rgba(56, 189, 248, 0.12);
-  color: #38bdf8;
-  border: 1px solid rgba(56, 189, 248, 0.25);
+  background: rgba(255, 107, 43, 0.12);
+  color: #ff6b2b;
+  border: 1px solid rgba(255, 107, 43, 0.25);
 }
 
 .explore-search-container {
@@ -85,8 +85,8 @@
 .explore-search-input:focus {
   outline: none;
   background: rgba(255, 255, 255, 0.07);
-  border-color: rgba(56, 189, 248, 0.4);
-  box-shadow: 0 0 12px rgba(56, 189, 248, 0.15);
+  border-color: rgba(255, 107, 43, 0.4);
+  box-shadow: 0 0 12px rgba(255, 107, 43, 0.15);
 }
 
 .explore-search-icon {
@@ -137,9 +137,9 @@
 }
 
 .view-mode-btn.active {
-  background: #0284c7;
+  background: #f95716;
   color: #ffffff;
-  box-shadow: 0 1px 6px rgba(2, 132, 199, 0.4);
+  box-shadow: 0 1px 6px rgba(249, 87, 22, 0.4);
 }
 
 .btn-tactical-icon {
@@ -259,7 +259,7 @@
 }
 
 .layer-toggle-btn.active {
-  color: #38bdf8;
+  color: #ff6b2b;
 }
 
 /* Viewport Area */
@@ -304,7 +304,7 @@
 .sidebar-toggle-floating:hover {
   color: #ffffff;
   background: rgba(30, 41, 59, 0.95);
-  border-color: rgba(56, 189, 248, 0.3);
+  border-color: rgba(255, 107, 43, 0.3);
 }
 
 /* View State Panel (Telemetry Overlay) */
@@ -331,7 +331,7 @@
 }
 
 .viewstate-val {
-  color: #38bdf8;
+  color: #ff6b2b;
   font-weight: 500;
 }
 
@@ -498,9 +498,9 @@
 }
 
 .tab-btn.active {
-  color: #38bdf8;
-  background: rgba(56, 189, 248, 0.1);
-  border-color: rgba(56, 189, 248, 0.25);
+  color: #ff6b2b;
+  background: rgba(255, 107, 43, 0.1);
+  border-color: rgba(255, 107, 43, 0.25);
 }
 
 .tab-content-container {
@@ -542,18 +542,18 @@
 }
 
 .provider-btn.active {
-  color: #38bdf8;
-  background: rgba(56, 189, 248, 0.12);
-  border-color: rgba(56, 189, 248, 0.3);
+  color: #ff6b2b;
+  background: rgba(255, 107, 43, 0.12);
+  border-color: rgba(255, 107, 43, 0.3);
 }
 
 .search-region-btn {
   width: 100%;
   padding: 8px 12px;
-  background: rgba(56, 189, 248, 0.12);
-  border: 1px solid rgba(56, 189, 248, 0.3);
+  background: rgba(255, 107, 43, 0.12);
+  border: 1px solid rgba(255, 107, 43, 0.3);
   border-radius: 6px;
-  color: #38bdf8;
+  color: #ff6b2b;
   font-size: 11px;
   font-weight: 600;
   cursor: pointer;
@@ -562,8 +562,8 @@
 }
 
 .search-region-btn:hover:not(:disabled) {
-  background: rgba(56, 189, 248, 0.22);
-  border-color: #38bdf8;
+  background: rgba(255, 107, 43, 0.22);
+  border-color: #ff6b2b;
 }
 
 .search-region-btn:disabled {
@@ -597,7 +597,7 @@
 }
 
 .dataset-card:hover {
-  border-color: rgba(56, 189, 248, 0.3);
+  border-color: rgba(255, 107, 43, 0.3);
 }
 
 .dataset-card-header {
@@ -638,8 +638,8 @@
 }
 
 .provider-badge.copernicus {
-  background: rgba(56, 189, 248, 0.12);
-  color: #38bdf8;
+  background: rgba(255, 107, 43, 0.12);
+  color: #ff6b2b;
 }
 
 .dataset-date {
@@ -686,17 +686,17 @@
 .add-layer-btn {
   flex: 1.5;
   padding: 5px 0;
-  background: rgba(56, 189, 248, 0.15);
-  border: 1px solid rgba(56, 189, 248, 0.3);
+  background: rgba(255, 107, 43, 0.15);
+  border: 1px solid rgba(255, 107, 43, 0.3);
   border-radius: 4px;
-  color: #38bdf8;
+  color: #ff6b2b;
   font-size: 10px;
   font-weight: 600;
   cursor: pointer;
 }
 
 .add-layer-btn:hover:not(:disabled) {
-  background: rgba(56, 189, 248, 0.25);
+  background: rgba(255, 107, 43, 0.25);
 }
 
 .add-layer-btn.added {
@@ -785,7 +785,7 @@
 
 .opacity-slider {
   flex: 1;
-  accent-color: #38bdf8;
+  accent-color: #ff6b2b;
   height: 4px;
   cursor: pointer;
 }
@@ -820,7 +820,7 @@
   width: 100%;
   height: 34px;
   background: rgba(15, 23, 42, 0.75);
-  border: 1px solid rgba(56, 189, 248, 0.22);
+  border: 1px solid rgba(255, 107, 43, 0.22);
   border-radius: 8px;
   display: flex;
   align-items: center;
@@ -831,13 +831,13 @@
 }
 
 .query-bar-container:focus-within {
-  border-color: rgba(56, 189, 248, 0.6);
-  box-shadow: 0 0 14px rgba(56, 189, 248, 0.25);
+  border-color: rgba(255, 107, 43, 0.6);
+  box-shadow: 0 0 14px rgba(255, 107, 43, 0.25);
   background: rgba(15, 23, 42, 0.9);
 }
 
 .query-bar-ai-icon {
-  color: #38bdf8;
+  color: #ff6b2b;
   flex-shrink: 0;
 }
 
@@ -890,13 +890,13 @@
 }
 
 .query-bar-action-btn.submit {
-  background: #0284c7;
+  background: #f95716;
   color: #ffffff;
 }
 
 .query-bar-action-btn.submit:hover:not(:disabled) {
   background: #0369a1;
-  box-shadow: 0 0 8px rgba(56, 189, 248, 0.4);
+  box-shadow: 0 0 8px rgba(255, 107, 43, 0.4);
 }
 
 .query-bar-action-btn.submit:disabled {
@@ -948,9 +948,9 @@
 }
 
 .suggestion-chip:hover {
-  background: rgba(56, 189, 248, 0.15);
-  border-color: rgba(56, 189, 248, 0.35);
-  color: #38bdf8;
+  background: rgba(255, 107, 43, 0.15);
+  border-color: rgba(255, 107, 43, 0.35);
+  color: #ff6b2b;
 }
 
 .command-activity-hud {
@@ -960,7 +960,7 @@
   width: 100%;
   background: rgba(11, 15, 25, 0.95);
   backdrop-filter: blur(12px);
-  border: 1px solid rgba(56, 189, 248, 0.25);
+  border: 1px solid rgba(255, 107, 43, 0.25);
   border-radius: 8px;
   padding: 10px 12px;
   box-shadow: 0 8px 24px rgba(0, 0, 0, 0.6);
@@ -1005,9 +1005,9 @@
 }
 
 .ai-path-badge {
-  background: rgba(56, 189, 248, 0.15);
-  color: #38bdf8;
-  border: 1px solid rgba(56, 189, 248, 0.3);
+  background: rgba(255, 107, 43, 0.15);
+  color: #ff6b2b;
+  border: 1px solid rgba(255, 107, 43, 0.3);
 }
 
 .activity-close-btn {
@@ -1051,7 +1051,7 @@
 }
 
 .step-icon.no-op {
-  color: #38bdf8;
+  color: #ff6b2b;
 }
 
 .step-icon.error {
@@ -1076,12 +1076,12 @@
 }
 
 .ai-status-badge.online {
-  border-color: rgba(56, 189, 248, 0.25);
-  background: rgba(56, 189, 248, 0.08);
+  border-color: rgba(255, 107, 43, 0.25);
+  background: rgba(255, 107, 43, 0.08);
 }
 
 .ai-status-text {
-  color: #38bdf8;
+  color: #ff6b2b;
 }
 
 .ai-model-tag {
@@ -1091,7 +1091,7 @@
 }
 
 .ai-icon-pulse {
-  color: #38bdf8;
+  color: #ff6b2b;
   animation: pulse 2s infinite ease-in-out;
 }
 
@@ -1100,3 +1100,323 @@
   50% { opacity: 0.6; transform: scale(0.92); }
 }
 
+
+
+/* ==========================================================================
+   TRINETRA 4-UI DIRECTIONS & WORKSTATION THEME ADDITIONS
+   ========================================================================== */
+
+/* Master Layout Direction Switcher (Header) */
+.ui-direction-switcher {
+  display: flex;
+  align-items: center;
+  background: rgba(14, 16, 21, 0.95);
+  border: 1px solid rgba(255, 107, 43, 0.25);
+  border-radius: 6px;
+  padding: 2px;
+  gap: 2px;
+}
+
+.ui-direction-btn {
+  background: transparent;
+  border: none;
+  color: #94a3b8;
+  font-size: 10px;
+  font-weight: 700;
+  letter-spacing: 0.08em;
+  text-transform: uppercase;
+  padding: 4px 10px;
+  border-radius: 4px;
+  cursor: pointer;
+  display: flex;
+  align-items: center;
+  gap: 5px;
+  transition: all 0.15s ease;
+  white-space: nowrap;
+}
+
+.ui-direction-btn:hover {
+  color: #f1f5f9;
+  background: rgba(255, 107, 43, 0.08);
+}
+
+.ui-direction-btn.active {
+  background: #ff6b2b;
+  color: #ffffff;
+  box-shadow: 0 1px 8px rgba(255, 107, 43, 0.45);
+}
+
+.ui-direction-badge {
+  font-size: 9px;
+  opacity: 0.8;
+  font-weight: 800;
+}
+
+/* Operator Badge */
+.explore-operator-badge {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  padding: 4px 10px;
+  background: rgba(255, 255, 255, 0.03);
+  border: 1px solid rgba(255, 255, 255, 0.08);
+  border-radius: 6px;
+  font-size: 11px;
+}
+
+.operator-avatar {
+  width: 22px;
+  height: 22px;
+  border-radius: 50%;
+  background: linear-gradient(135deg, #ff6b2b, #b43403);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  font-size: 10px;
+  font-weight: bold;
+  color: #ffffff;
+}
+
+.operator-info {
+  display: flex;
+  flex-direction: column;
+  line-height: 1.1;
+}
+
+.operator-name {
+  font-weight: 600;
+  color: #f1f5f9;
+  font-size: 11px;
+}
+
+.operator-role {
+  font-size: 9px;
+  color: #ff7d42;
+  text-transform: uppercase;
+  letter-spacing: 0.06em;
+}
+
+/* --------------------------------------------------------------------------
+   VIEW B: CARTOGRAPHIC ATLAS STYLES
+   -------------------------------------------------------------------------- */
+.atlas-container {
+  display: flex;
+  width: 100%;
+  height: 100%;
+  position: relative;
+  overflow: hidden;
+}
+
+.atlas-rail {
+  width: 58px;
+  height: 100%;
+  background: rgba(11, 13, 18, 0.95);
+  border-right: 1px solid rgba(255, 107, 43, 0.15);
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  padding: 12px 0;
+  gap: 10px;
+  z-index: 25;
+}
+
+.atlas-rail-btn {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  gap: 3px;
+  width: 48px;
+  height: 48px;
+  border-radius: 6px;
+  border: none;
+  background: transparent;
+  color: #94a3b8;
+  cursor: pointer;
+  transition: all 0.15s ease;
+  font-size: 8px;
+  font-weight: 600;
+  text-transform: uppercase;
+  letter-spacing: 0.05em;
+}
+
+.atlas-rail-btn:hover {
+  background: rgba(255, 107, 43, 0.1);
+  color: #ff7d42;
+}
+
+.atlas-rail-btn.active {
+  background: rgba(255, 107, 43, 0.18);
+  color: #ff6b2b;
+  border: 1px solid rgba(255, 107, 43, 0.4);
+}
+
+.atlas-inspector-drawer {
+  position: absolute;
+  top: 16px;
+  right: 16px;
+  width: 310px;
+  background: rgba(14, 16, 22, 0.92);
+  backdrop-filter: blur(16px);
+  border: 1px solid rgba(255, 107, 43, 0.25);
+  border-radius: 10px;
+  padding: 14px;
+  z-index: 30;
+  box-shadow: 0 12px 32px rgba(0, 0, 0, 0.7);
+  display: flex;
+  flex-direction: column;
+  gap: 12px;
+}
+
+.atlas-recent-carousel {
+  position: absolute;
+  bottom: 20px;
+  left: 74px;
+  right: 340px;
+  background: rgba(11, 13, 18, 0.92);
+  backdrop-filter: blur(14px);
+  border: 1px solid rgba(255, 107, 43, 0.2);
+  border-radius: 10px;
+  padding: 10px 14px;
+  z-index: 25;
+}
+
+/* --------------------------------------------------------------------------
+   VIEW C: INTELLIGENCE TABLE STYLES
+   -------------------------------------------------------------------------- */
+.intel-table-root {
+  display: flex;
+  flex-direction: column;
+  width: 100%;
+  height: 100%;
+  background: #090a0d;
+}
+
+.intel-subnav {
+  height: 42px;
+  background: rgba(14, 16, 22, 0.95);
+  border-bottom: 1px solid rgba(255, 107, 43, 0.2);
+  display: flex;
+  align-items: center;
+  padding: 0 16px;
+  gap: 8px;
+}
+
+.intel-nav-tab {
+  padding: 6px 14px;
+  border-radius: 5px;
+  font-size: 11px;
+  font-weight: 700;
+  letter-spacing: 0.08em;
+  text-transform: uppercase;
+  color: #94a3b8;
+  background: transparent;
+  border: none;
+  cursor: pointer;
+  transition: all 0.15s ease;
+}
+
+.intel-nav-tab:hover {
+  color: #f1f5f9;
+  background: rgba(255, 255, 255, 0.04);
+}
+
+.intel-nav-tab.active {
+  background: #ff6b2b;
+  color: #ffffff;
+  box-shadow: 0 1px 8px rgba(255, 107, 43, 0.4);
+}
+
+.intel-grid-3col {
+  flex: 1;
+  display: grid;
+  grid-template-columns: 340px 1fr 340px;
+  gap: 12px;
+  padding: 12px;
+  overflow: hidden;
+}
+
+/* --------------------------------------------------------------------------
+   VIEW D: FLIGHT CONSOLE STYLES
+   -------------------------------------------------------------------------- */
+.flight-console-root {
+  display: flex;
+  flex-direction: column;
+  width: 100%;
+  height: 100%;
+  background: #08090c;
+}
+
+.flight-telemetry-strip {
+  height: 38px;
+  background: rgba(11, 13, 17, 0.98);
+  border-bottom: 1px solid rgba(255, 107, 43, 0.3);
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  padding: 0 16px;
+  font-family: ui-monospace, SFMono-Regular, Menlo, Monaco, Consolas, monospace;
+  font-size: 11px;
+}
+
+.flight-telemetry-item {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  color: #94a3b8;
+}
+
+.flight-telemetry-val {
+  color: #ff6b2b;
+  font-weight: 700;
+}
+
+.flight-3col-cockpit {
+  flex: 1;
+  display: grid;
+  grid-template-columns: 320px 1fr 280px;
+  overflow: hidden;
+  position: relative;
+}
+
+.cockpit-panel-left,
+.cockpit-panel-right {
+  background: rgba(12, 14, 19, 0.94);
+  backdrop-filter: blur(14px);
+  padding: 14px;
+  display: flex;
+  flex-direction: column;
+  gap: 14px;
+  overflow-y: auto;
+  z-index: 10;
+}
+
+.cockpit-panel-left {
+  border-right: 1px solid rgba(255, 107, 43, 0.2);
+}
+
+.cockpit-panel-right {
+  border-left: 1px solid rgba(255, 107, 43, 0.2);
+}
+
+.compass-dial-container {
+  width: 130px;
+  height: 130px;
+  border-radius: 50%;
+  border: 2px solid rgba(255, 107, 43, 0.4);
+  background: radial-gradient(circle, rgba(255, 107, 43, 0.08) 0%, rgba(0, 0, 0, 0.7) 70%);
+  position: relative;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  margin: 0 auto;
+}
+
+.compass-needle {
+  width: 4px;
+  height: 52px;
+  background: linear-gradient(to top, #ff6b2b 50%, #f87171 50%);
+  position: absolute;
+  transform-origin: center;
+  transition: transform 0.3s ease-out;
+}
