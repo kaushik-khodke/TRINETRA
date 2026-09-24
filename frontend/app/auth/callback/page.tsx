@@ -1,7 +1,6 @@
 "use client"
 
 import { useEffect, useState } from "react"
-import { supabase } from "@/lib/supabase"
 import { Activity, CheckCircle2, AlertTriangle, ArrowRight } from "lucide-react"
 
 export default function AuthCallbackPage() {
@@ -9,45 +8,7 @@ export default function AuthCallbackPage() {
   const [message, setMessage] = useState("Establishing secure mission clearance...")
 
   useEffect(() => {
-    const handleAuthCallback = async () => {
-      try {
-        // Exchange session / verify tokens in URL
-        const { data, error } = await supabase.auth.getSession()
-        if (error) throw error
-
-        if (data.session) {
-          setStatus("success")
-          setMessage("Authentication verified. Redirecting to workspace...")
-          setTimeout(() => {
-            window.location.href = "/analysis"
-          }, 800)
-        } else {
-          // If hash tokens or code are still resolving
-          const { data: authListener } = supabase.auth.onAuthStateChange((event, session) => {
-            if (session) {
-              setStatus("success")
-              setMessage("Authentication verified. Redirecting to workspace...")
-              setTimeout(() => {
-                window.location.href = "/analysis"
-              }, 800)
-            }
-          })
-
-          // Timeout fallback
-          setTimeout(() => {
-            if (status === "processing") {
-              window.location.href = "/analysis"
-            }
-          }, 2500)
-        }
-      } catch (err: any) {
-        console.error("[AuthCallback] Error:", err)
-        setStatus("error")
-        setMessage(err.message || "Failed to finalize authentication session.")
-      }
-    }
-
-    handleAuthCallback()
+    window.location.href = "/analysis"
   }, [])
 
   return (

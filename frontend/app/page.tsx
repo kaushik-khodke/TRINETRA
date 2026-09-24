@@ -2,7 +2,7 @@
 
 import { useEffect, useMemo, useRef, useState } from "react"
 import { usePathname, useRouter } from "next/navigation"
-import { Activity, ArrowRight, BarChart3, Check, CheckCheck, ChevronDown, Clock3, Copy, Cpu, ExternalLink, Eye, FileImage, Filter, GitCompareArrows, Globe, ImagePlus, Layers3, LogIn, LogOut, Maximize2, Menu, MoveHorizontal, PanelTop, Radar, RotateCcw, Search, Send, ShieldCheck, Sparkles, Trash2, Upload, X } from "lucide-react"
+import { Activity, ArrowRight, BarChart3, Check, CheckCheck, ChevronDown, Clock3, Copy, Cpu, ExternalLink, Eye, FileImage, Filter, GitCompareArrows, Globe, ImagePlus, Layers3, Maximize2, Menu, MoveHorizontal, PanelTop, Radar, RotateCcw, Search, Send, ShieldCheck, Sparkles, Trash2, Upload, X } from "lucide-react"
 import {
   analysisAPI,
   buildTrinetraUrl,
@@ -27,7 +27,6 @@ import {
 import { I18nProvider, useTranslation, type SupportedLanguage } from "@/lib/i18n"
 import { HsiViewer } from "@/components/hyperspectral/HsiViewer"
 import { useAuth } from "@/context/AuthContext"
-import AuthGate from "@/components/AuthGate"
 import TrinetraLanding from "@/components/TrinetraLanding"
 
 const Icon = ({ mode }: { mode: AnalysisMode }) =>
@@ -55,7 +54,7 @@ function LanguageSelector() {
 }
 
 function Header({ path, navigate }: { path: string; navigate: (path: string) => void }) {
-  const { isAuthenticated, displayName, avatarUrl, signOut } = useAuth()
+  const { displayName, avatarUrl } = useAuth()
   const { t } = useTranslation()
   const [health, setHealth] = useState<{ online: boolean; rawStatus?: string; model?: string; langfuse?: boolean }>({
     online: false,
@@ -127,48 +126,29 @@ function Header({ path, navigate }: { path: string; navigate: (path: string) => 
         <span>{statusText}</span>
       </div>
 
-      {/* User Authentication & Profile Widget */}
+      {/* Operator Clearance Badge */}
       <div style={{ display: "flex", alignItems: "center", gap: "0.75rem", marginLeft: "0.5rem" }}>
-        {isAuthenticated ? (
-          <div style={{ display: "flex", alignItems: "center", gap: "0.55rem", background: "rgba(20, 21, 20, 0.75)", border: "1px solid var(--line)", padding: "4px 10px 4px 6px", borderRadius: "2px" }}>
-            {avatarUrl ? (
-              <img
-                src={avatarUrl}
-                alt={displayName}
-                style={{ width: "24px", height: "24px", borderRadius: "2px", objectFit: "cover", border: "1px solid var(--acid)" }}
-              />
-            ) : (
-              <div style={{ width: "24px", height: "24px", borderRadius: "2px", background: "linear-gradient(135deg, #c75c40, #ff8b7b)", color: "#fff8f0", display: "grid", placeItems: "center", fontSize: "11px", fontWeight: 700 }}>
-                {displayName ? displayName.charAt(0).toUpperCase() : "U"}
-              </div>
-            )}
-            <div style={{ display: "flex", flexDirection: "column", maxWidth: "120px" }}>
-              <span style={{ fontSize: "11px", fontWeight: 600, color: "#f1f5f9", overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap" }}>
-                {displayName || "Operator"}
-              </span>
-              <span style={{ fontSize: "8px", color: "var(--warm)", fontFamily: "monospace", letterSpacing: "0.08em", textTransform: "uppercase" }}>
-                CLEARANCE ACTIVE
-              </span>
+        <div style={{ display: "flex", alignItems: "center", gap: "0.55rem", background: "rgba(20, 21, 20, 0.75)", border: "1px solid var(--line)", padding: "4px 10px 4px 6px", borderRadius: "2px" }}>
+          {avatarUrl ? (
+            <img
+              src={avatarUrl}
+              alt={displayName}
+              style={{ width: "24px", height: "24px", borderRadius: "2px", objectFit: "cover", border: "1px solid var(--acid)" }}
+            />
+          ) : (
+            <div style={{ width: "24px", height: "24px", borderRadius: "2px", background: "linear-gradient(135deg, #c75c40, #ff8b7b)", color: "#fff8f0", display: "grid", placeItems: "center", fontSize: "11px", fontWeight: 700 }}>
+              {displayName ? displayName.charAt(0).toUpperCase() : "I"}
             </div>
-            <button
-              onClick={() => signOut()}
-              title="Sign Out"
-              style={{ background: "none", border: "none", color: "rgba(222, 221, 211, 0.4)", padding: "4px", borderRadius: "2px", cursor: "pointer", display: "flex", alignItems: "center", marginLeft: "2px" }}
-              onMouseOver={(e) => (e.currentTarget.style.color = "#f87171")}
-              onMouseOut={(e) => (e.currentTarget.style.color = "rgba(222, 221, 211, 0.4)")}
-            >
-              <LogOut size={13} />
-            </button>
+          )}
+          <div style={{ display: "flex", flexDirection: "column", maxWidth: "140px" }}>
+            <span style={{ fontSize: "11px", fontWeight: 600, color: "#f1f5f9", overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap" }}>
+              {displayName || "ISRO Mission Commander"}
+            </span>
+            <span style={{ fontSize: "8px", color: "var(--warm)", fontFamily: "monospace", letterSpacing: "0.08em", textTransform: "uppercase" }}>
+              CLEARANCE ACTIVE
+            </span>
           </div>
-        ) : (
-          <button
-            onClick={() => navigate("/analysis")}
-            className="primary compact"
-            style={{ display: "inline-flex", alignItems: "center", gap: "0.45rem", padding: "7px 14px" }}
-          >
-            <LogIn size={13} /> Sign In
-          </button>
-        )}
+        </div>
       </div>
 
       <button className="mobile-menu" aria-label={t("aria.menu")}>
@@ -2231,7 +2211,6 @@ function Evaluation({ navigate }: { navigate: (path: string) => void }) {
 }
 
 function PageContent() {
-  const { isAuthenticated } = useAuth()
   const router = useRouter()
   const pathname = usePathname()
   const [path, setPath] = useState(pathname || "/")
@@ -2244,10 +2223,10 @@ function PageContent() {
     }
   }, [pathname])
 
-  const navigate = (next: string) => {
-    const clean = next.split("?")[0]
+  const navigate = (nextPath: string) => {
+    const clean = nextPath.split("?")[0]
     setPath(clean)
-    router.push(next)
+    router.push(nextPath)
   }
 
   useEffect(() => {
@@ -2265,11 +2244,6 @@ function PageContent() {
       return <TrinetraLanding navigate={navigate} />
     }
 
-    // Security clearance gate: require authentication for operational workspace, history, and telemetry
-    if (!isAuthenticated) {
-      return <AuthGate />
-    }
-
     if (path === "/analysis") {
       return <Workspace navigate={navigate} initialDemo={initialDemo} />
     }
@@ -2281,7 +2255,7 @@ function PageContent() {
     }
 
     return <TrinetraLanding navigate={navigate} />
-  }, [path, isAuthenticated, initialDemo])
+  }, [path, initialDemo])
 
   if (path === "/") {
     return <TrinetraLanding navigate={navigate} />
