@@ -8,8 +8,8 @@ import { AnalysisProgress as ProgressData } from "@/lib/explore/types"
 import { CheckCircle2, Loader2, AlertCircle } from "lucide-react"
 
 interface Props {
-  progress: ProgressData
-  status: string
+  progress?: ProgressData | null
+  status?: string | null
   onCancel?: () => void
 }
 
@@ -23,11 +23,17 @@ const STAGES = [
   { key: "completed", label: "Finalize" },
 ]
 
-export const AnalysisProgress: React.FC<Props> = ({ progress, status, onCancel }) => {
+export const AnalysisProgress: React.FC<Props> = ({ progress, status = "running", onCancel }) => {
   const isFailed = status === "failed"
   const isCancelled = status === "cancelled"
 
-  const safeProgress = progress || {}
+  const safeProgress = progress || {
+    current_stage: "validating",
+    step_index: 1,
+    total_steps: 7,
+    percent: 0,
+    message: "Initializing analysis pipeline...",
+  }
   const stepIndex = safeProgress.step_index ?? (safeProgress as any).step_number ?? 1
   const totalSteps = safeProgress.total_steps || 7
   const percent = typeof safeProgress.percent === "number"
@@ -86,7 +92,7 @@ export const AnalysisProgress: React.FC<Props> = ({ progress, status, onCancel }
 
       {/* Current Message */}
       <div className="flex items-center justify-between pt-1 text-[11px] text-slate-400 font-mono">
-        <span className="truncate max-w-[240px]">{progress.message || "Processing..."}</span>
+        <span className="truncate max-w-[240px]">{safeProgress.message || "Processing..."}</span>
         {status === "running" && onCancel && (
           <button
             onClick={onCancel}

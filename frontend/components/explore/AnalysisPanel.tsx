@@ -278,7 +278,7 @@ export const AnalysisPanel: React.FC<Props> = ({
               <AnalysisModeBadge mode={activeResult.mode} />
               <span className="flex items-center gap-1 text-[11px] font-mono text-slate-400">
                 <Clock className="w-3 h-3 text-orange-400" />
-                {activeResult.execution_time_seconds.toFixed(2)}s
+                {(activeResult.execution_time_seconds ?? 0).toFixed(2)}s
               </span>
             </div>
             <p className="text-xs text-slate-200 font-semibold leading-snug">

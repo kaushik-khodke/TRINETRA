@@ -15,6 +15,7 @@ import { GlobeErrorBoundary } from "./GlobeErrorBoundary"
 import { ViewStatePanel } from "./ViewStatePanel"
 
 import { AOIToolbar } from "./AOIToolbar"
+import { SpectralPresetBar } from "./SpectralPresetBar"
 import { Timeline } from "./Timeline"
 import { SplitView } from "./SplitView"
 import { CoordinateHUD } from "./CoordinateHUD"
@@ -58,9 +59,10 @@ export function ExploreViewport() {
         {sidebarOpen ? <PanelLeftClose size={16} /> : <PanelLeftOpen size={16} />}
       </button>
 
-      {/* Floating AOI Toolbar */}
-      <div className="absolute top-3.5 left-16 z-20">
+      {/* Top Floating Controls Dock: AOI Selection + Copernicus Multi-Spectral Presets */}
+      <div className="absolute top-3.5 left-16 z-20 flex items-center gap-2.5 flex-wrap pointer-events-auto">
         <AOIToolbar />
+        <SpectralPresetBar />
       </div>
 
       {/* Active Renderer Isolation (Section 27: Never run both renderers simultaneously) */}

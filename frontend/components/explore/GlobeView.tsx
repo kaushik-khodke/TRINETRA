@@ -13,6 +13,7 @@ import { globeState } from "@/lib/explore/globe-state"
 import { performanceMonitor } from "@/lib/explore/performance"
 import { GlobeCameraState, RendererAdapter } from "@/lib/explore/types"
 import { globeCommandBus } from "@/lib/explore/globe-command-bus"
+import { aoiStateManager } from "@/lib/explore/aoi-state"
 
 const SHARPEN_SHADER = `
   uniform sampler2D colorTexture;
@@ -39,6 +40,46 @@ const SHARPEN_SHADER = `
     out_FragColor = vec4(clamp(sharpened.rgb, 0.0, 1.0), center.a);
   }
 `
+
+/**
+ * Picks accurate ground lon/lat degrees from Cesium canvas pixel coordinates.
+ * Intersects with 3D terrain mesh or falls back to WGS84 ellipsoid.
+ */
+function getLonLatFromPixel(
+  viewer: any,
+  Cesium: any,
+  windowPosition: { x: number; y: number }
+): [number, number] | null {
+  if (!viewer || viewer.isDestroyed() || !viewer.scene || !windowPosition) return null
+  const scene = viewer.scene
+  let cartesian = null
+
+  try {
+    const ray = viewer.camera.getPickRay(windowPosition)
+    if (ray) {
+      cartesian = scene.globe.pick(ray, scene)
+    }
+  } catch {}
+
+  if (!cartesian) {
+    try {
+      cartesian = viewer.camera.pickEllipsoid(windowPosition, scene.globe.ellipsoid)
+    } catch {}
+  }
+
+  if (!cartesian) return null
+
+  try {
+    const cartographic = Cesium.Cartographic.fromCartesian(cartesian)
+    if (!cartographic) return null
+    const lon = Cesium.Math.toDegrees(cartographic.longitude)
+    const lat = Cesium.Math.toDegrees(cartographic.latitude)
+    if (!isFinite(lon) || !isFinite(lat)) return null
+    return [lon, lat]
+  } catch {
+    return null
+  }
+}
 
 /**
  * Client-only standalone loader for CesiumJS
@@ -94,6 +135,11 @@ export default function GlobeView() {
   const containerRef = useRef<HTMLDivElement>(null)
   const viewerRef = useRef<any>(null)
   const cesiumLayersRef = useRef<Map<string, any>>(new Map())
+  const firstCornerRef = useRef<[number, number] | null>(null)
+  const downPixelRef = useRef<{ x: number; y: number } | null>(null)
+  const isMouseDownRef = useRef<boolean>(false)
+  const polygonPointsRef = useRef<[number, number][]>([])
+  const aoiHandlerRef = useRef<any>(null)
 
   useEffect(() => {
     if (typeof window === "undefined" || !containerRef.current) return
@@ -528,13 +574,13 @@ export default function GlobeView() {
                 const coords = geom.coordinates ? (geom.coordinates[0] || []) : []
                 const flatHierarchy = coords.flatMap((pt: [number, number]) => [pt[0], pt[1]])
                 if (flatHierarchy.length >= 6) {
-                  // Semi-transparent glowing cyan polygon fill
+                  // Semi-transparent glowing cyan polygon fill clamped to terrain
                   viewerRef.current.entities.add({
                     id: "trinetra-aoi-entity",
                     polygon: {
                       hierarchy: CesiumGlobal.Cartesian3.fromDegreesArray(flatHierarchy),
                       material: CesiumGlobal.Color.fromCssColorString("#06b6d4").withAlpha(0.22),
-                      height: 0,
+                      classificationType: CesiumGlobal.ClassificationType ? CesiumGlobal.ClassificationType.BOTH : undefined,
                     },
                   })
                   // Sharp vibrant cyan boundary border clamped to ground
@@ -554,11 +600,12 @@ export default function GlobeView() {
               }
             },
             clearAOI: () => {
-              if (!viewerRef.current) return
+              if (!viewerRef.current || viewerRef.current.isDestroyed()) return
               const existingPoly = viewerRef.current.entities.getById("trinetra-aoi-entity")
               if (existingPoly) viewerRef.current.entities.remove(existingPoly)
               const existingOutline = viewerRef.current.entities.getById("trinetra-aoi-outline")
               if (existingOutline) viewerRef.current.entities.remove(existingOutline)
+              clearDrawPreviews()
               viewerRef.current.scene.requestRender()
             },
             getCameraState: (): GlobeCameraState => {
@@ -584,6 +631,259 @@ export default function GlobeView() {
 
           globeController.registerAdapter("3d", adapter)
 
+          // ---------------------------------------------------------------
+          // Interactive AOI Drawing & ScreenSpaceEventHandler Integration
+          // ---------------------------------------------------------------
+          const updatePreview = (coords: [number, number][]) => {
+            if (!viewerRef.current || viewerRef.current.isDestroyed()) return
+            const CesiumGlobal = (window as any).Cesium || Cesium
+            if (!CesiumGlobal) return
+
+            const flatCoords = coords.flatMap((pt) => [pt[0], pt[1]])
+            if (flatCoords.length < 4) {
+              clearDrawPreviews()
+              return
+            }
+
+            const existingPoly = viewerRef.current.entities.getById("trinetra-aoi-draw-preview")
+            if (existingPoly) viewerRef.current.entities.remove(existingPoly)
+
+            const existingLine = viewerRef.current.entities.getById("trinetra-aoi-draw-outline")
+            if (existingLine) viewerRef.current.entities.remove(existingLine)
+
+            if (flatCoords.length >= 6) {
+              viewerRef.current.entities.add({
+                id: "trinetra-aoi-draw-preview",
+                polygon: {
+                  hierarchy: CesiumGlobal.Cartesian3.fromDegreesArray(flatCoords),
+                  material: CesiumGlobal.Color.fromCssColorString("#06b6d4").withAlpha(0.2),
+                  classificationType: CesiumGlobal.ClassificationType ? CesiumGlobal.ClassificationType.BOTH : undefined,
+                },
+              })
+            }
+
+            viewerRef.current.entities.add({
+              id: "trinetra-aoi-draw-outline",
+              polyline: {
+                positions: CesiumGlobal.Cartesian3.fromDegreesArray(flatCoords),
+                width: 2.5,
+                material: CesiumGlobal.Color.fromCssColorString("#22d3ee"),
+                clampToGround: true,
+              },
+            })
+
+            viewerRef.current.scene.requestRender()
+          }
+
+          const clearDrawPreviews = () => {
+            if (!viewerRef.current || viewerRef.current.isDestroyed()) return
+            const existingPoly = viewerRef.current.entities.getById("trinetra-aoi-draw-preview")
+            if (existingPoly) viewerRef.current.entities.remove(existingPoly)
+            const existingLine = viewerRef.current.entities.getById("trinetra-aoi-draw-outline")
+            if (existingLine) viewerRef.current.entities.remove(existingLine)
+            viewerRef.current.scene.requestRender()
+          }
+
+          const commitBox = (minX: number, minY: number, maxX: number, maxY: number) => {
+            const boxGeoJSON = {
+              type: "Polygon",
+              coordinates: [
+                [
+                  [minX, minY],
+                  [maxX, minY],
+                  [maxX, maxY],
+                  [minX, maxY],
+                  [minX, minY],
+                ],
+              ],
+            }
+            firstCornerRef.current = null
+            downPixelRef.current = null
+            isMouseDownRef.current = false
+            clearDrawPreviews()
+            aoiStateManager.setAOI(boxGeoJSON)
+          }
+
+          // Render pre-existing active AOI if already configured
+          const existingAOI = aoiStateManager.getState().activeAOI
+          if (existingAOI) {
+            adapter.setAOI?.(existingAOI)
+          }
+
+          // Disable default double-click zooming behavior in Cesium
+          viewer.screenSpaceEventHandler.removeInputAction(Cesium.ScreenSpaceEventType.LEFT_DOUBLE_CLICK)
+
+          const aoiHandler = new Cesium.ScreenSpaceEventHandler(viewer.scene.canvas)
+          aoiHandlerRef.current = aoiHandler
+
+          // LEFT_DOWN: Record drag start or first/second corner
+          aoiHandler.setInputAction((movement: any) => {
+            const { drawMode } = aoiStateManager.getState()
+            if (!drawMode) return
+
+            const coords = getLonLatFromPixel(viewerRef.current, Cesium, movement.position)
+            if (!coords) return
+
+            isMouseDownRef.current = true
+            downPixelRef.current = { x: movement.position.x, y: movement.position.y }
+
+            if (drawMode === "rectangle") {
+              if (!firstCornerRef.current) {
+                firstCornerRef.current = coords
+              } else {
+                // Second corner click in two-click mode
+                const [x1, y1] = firstCornerRef.current
+                const [x2, y2] = coords
+                const minX = Math.min(x1, x2)
+                const maxX = Math.max(x1, x2)
+                const minY = Math.min(y1, y2)
+                const maxY = Math.max(y1, y2)
+
+                if (Math.hypot(maxX - minX, maxY - minY) > 0.0002) {
+                  commitBox(minX, minY, maxX, maxY)
+                }
+              }
+            } else if (drawMode === "polygon") {
+              polygonPointsRef.current.push(coords)
+              if (polygonPointsRef.current.length >= 2) {
+                const previewRing = [...polygonPointsRef.current, polygonPointsRef.current[0]]
+                updatePreview(previewRing)
+              }
+            }
+          }, Cesium.ScreenSpaceEventType.LEFT_DOWN)
+
+          // MOUSE_MOVE: Real-time dynamic preview box/polygon
+          aoiHandler.setInputAction((movement: any) => {
+            const { drawMode } = aoiStateManager.getState()
+            if (!drawMode) return
+
+            const coords = getLonLatFromPixel(viewerRef.current, Cesium, movement.endPosition)
+            if (!coords) return
+
+            if (drawMode === "rectangle" && firstCornerRef.current) {
+              const [x1, y1] = firstCornerRef.current
+              const [x2, y2] = coords
+              const minX = Math.min(x1, x2)
+              const maxX = Math.max(x1, x2)
+              const minY = Math.min(y1, y2)
+              const maxY = Math.max(y1, y2)
+
+              const previewRing: [number, number][] = [
+                [minX, minY],
+                [maxX, minY],
+                [maxX, maxY],
+                [minX, maxY],
+                [minX, minY],
+              ]
+              updatePreview(previewRing)
+            } else if (drawMode === "polygon" && polygonPointsRef.current.length > 0) {
+              const previewRing: [number, number][] = [
+                ...polygonPointsRef.current,
+                coords,
+                polygonPointsRef.current[0],
+              ]
+              updatePreview(previewRing)
+            }
+          }, Cesium.ScreenSpaceEventType.MOUSE_MOVE)
+
+          // LEFT_UP: Drag-to-draw finalize
+          aoiHandler.setInputAction((movement: any) => {
+            const { drawMode } = aoiStateManager.getState()
+            if (!drawMode) return
+
+            const currentDownPixel = downPixelRef.current
+            isMouseDownRef.current = false
+            downPixelRef.current = null
+
+            if (drawMode === "rectangle" && firstCornerRef.current) {
+              const endCoords = getLonLatFromPixel(viewerRef.current, Cesium, movement.position)
+              if (!endCoords) return
+
+              const pixelDist = currentDownPixel
+                ? Math.hypot(movement.position.x - currentDownPixel.x, movement.position.y - currentDownPixel.y)
+                : 0
+
+              const [x1, y1] = firstCornerRef.current
+              const [x2, y2] = endCoords
+              const minX = Math.min(x1, x2)
+              const maxX = Math.max(x1, x2)
+              const minY = Math.min(y1, y2)
+              const maxY = Math.max(y1, y2)
+              const coordDist = Math.hypot(maxX - minX, maxY - minY)
+
+              // If user dragged more than 10 pixels and coordinates changed by > 0.0002 deg, finalize box
+              if (pixelDist > 10 && coordDist > 0.0002) {
+                commitBox(minX, minY, maxX, maxY)
+              }
+            }
+          }, Cesium.ScreenSpaceEventType.LEFT_UP)
+
+          // LEFT_DOUBLE_CLICK: Finalize polygon
+          aoiHandler.setInputAction(() => {
+            const { drawMode } = aoiStateManager.getState()
+            if (drawMode === "polygon" && polygonPointsRef.current.length >= 3) {
+              const closedRing = [...polygonPointsRef.current, polygonPointsRef.current[0]]
+              const polyGeoJSON = {
+                type: "Polygon",
+                coordinates: [closedRing],
+              }
+              polygonPointsRef.current = []
+              clearDrawPreviews()
+              aoiStateManager.setAOI(polyGeoJSON)
+            }
+          }, Cesium.ScreenSpaceEventType.LEFT_DOUBLE_CLICK)
+
+          // RIGHT_CLICK: Close polygon or cancel active drawing
+          aoiHandler.setInputAction(() => {
+            const { drawMode } = aoiStateManager.getState()
+            if (drawMode === "polygon" && polygonPointsRef.current.length >= 3) {
+              const closedRing = [...polygonPointsRef.current, polygonPointsRef.current[0]]
+              const polyGeoJSON = {
+                type: "Polygon",
+                coordinates: [closedRing],
+              }
+              polygonPointsRef.current = []
+              clearDrawPreviews()
+              aoiStateManager.setAOI(polyGeoJSON)
+            } else if (drawMode) {
+              firstCornerRef.current = null
+              downPixelRef.current = null
+              polygonPointsRef.current = []
+              clearDrawPreviews()
+              aoiStateManager.setDrawMode(null)
+            }
+          }, Cesium.ScreenSpaceEventType.RIGHT_CLICK)
+
+          // Subscribe to aoiStateManager: Lock camera & update cursor when drawing
+          const unsubAOI = aoiStateManager.subscribe((state) => {
+            if (!viewerRef.current || viewerRef.current.isDestroyed()) return
+            const canvas = viewerRef.current.scene?.canvas
+            const controller = viewerRef.current.scene?.screenSpaceCameraController
+            if (!controller) return
+
+            if (state.drawMode) {
+              controller.enableRotate = false
+              controller.enableTranslate = false
+              controller.enableTilt = false
+              controller.enableLook = false
+              controller.enableZoom = false
+              if (canvas) canvas.style.cursor = "crosshair"
+            } else {
+              controller.enableRotate = true
+              controller.enableTranslate = true
+              controller.enableTilt = true
+              controller.enableLook = true
+              controller.enableZoom = true
+              if (canvas) canvas.style.cursor = "default"
+
+              firstCornerRef.current = null
+              downPixelRef.current = null
+              isMouseDownRef.current = false
+              polygonPointsRef.current = []
+              clearDrawPreviews()
+            }
+          })
+
           // Subscribe to GlobeCommandBus for focus and AOI
           const unsubBus = globeCommandBus.subscribe((cmd) => {
             if (!viewerRef.current || !Cesium) return
@@ -597,11 +897,21 @@ export default function GlobeView() {
               adapter.setAOI?.(cmd.geometry)
             } else if (cmd.type === "CLEAR_AOI") {
               adapter.clearAOI?.()
+            } else if (cmd.type === "SET_BASEMAP") {
+              adapter.setBasemap?.(cmd.basemapId, cmd.tileUrl)
+            } else if (cmd.type === "SHOW_LAYER") {
+              adapter.setLayerVisibility?.(cmd.layerId, true)
+            } else if (cmd.type === "HIDE_LAYER") {
+              adapter.setLayerVisibility?.(cmd.layerId, false)
+            } else if (cmd.type === "SET_LAYER_OPACITY") {
+              adapter.setLayerOpacity?.(cmd.layerId, cmd.opacity)
             }
           })
 
-          // Save unsub function on viewer for unmount
+          // Save unsub functions on viewer for unmount
           ;(viewerRef.current as any).__unsubBus = unsubBus
+          ;(viewerRef.current as any).__unsubAOI = unsubAOI
+          ;(viewerRef.current as any).__aoiHandler = aoiHandler
         } catch (initErr: any) {
           console.error("[GlobeView] Cesium initialization error:", initErr)
           globeState.setRendererStatus("error", initErr?.message || "Cesium WebGL Init Failed")
@@ -612,11 +922,29 @@ export default function GlobeView() {
         globeState.setRendererStatus("error", "Cesium module load failure")
       })
 
+    // Escape key cancels in-progress AOI drawing
+    const handleKeyDown = (e: KeyboardEvent) => {
+      if (e.key === "Escape") {
+        const { drawMode } = aoiStateManager.getState()
+        if (drawMode) {
+          aoiStateManager.setDrawMode(null)
+        }
+      }
+    }
+    window.addEventListener("keydown", handleKeyDown)
+
     return () => {
       isMounted = false
+      window.removeEventListener("keydown", handleKeyDown)
       globeController.unregisterAdapter("3d")
       if (viewerRef.current && !viewerRef.current.isDestroyed()) {
         try {
+          if ((viewerRef.current as any).__unsubAOI) {
+            ;(viewerRef.current as any).__unsubAOI()
+          }
+          if ((viewerRef.current as any).__aoiHandler) {
+            ;(viewerRef.current as any).__aoiHandler.destroy()
+          }
           if ((viewerRef.current as any).__unsubBus) {
             ;(viewerRef.current as any).__unsubBus()
           }

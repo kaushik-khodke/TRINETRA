@@ -354,6 +354,16 @@ export default function MapView({ viewId = "view-a" }: MapViewProps) {
           }
         } else if (cmd.type === "SET_BASEMAP") {
           adapter.setBasemap?.(cmd.basemapId, cmd.tileUrl)
+        } else if (cmd.type === "SHOW_LAYER") {
+          adapter.setLayerVisibility?.(cmd.layerId, true)
+        } else if (cmd.type === "HIDE_LAYER") {
+          adapter.setLayerVisibility?.(cmd.layerId, false)
+        } else if (cmd.type === "SET_LAYER_OPACITY") {
+          adapter.setLayerOpacity?.(cmd.layerId, cmd.opacity)
+        } else if (cmd.type === "ADD_LAYER") {
+          adapter.addLayerSource?.(cmd.layer)
+        } else if (cmd.type === "REMOVE_LAYER") {
+          adapter.removeLayerSource?.(cmd.layerId)
         }
       })
 

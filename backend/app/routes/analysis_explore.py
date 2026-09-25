@@ -47,6 +47,14 @@ async def enqueue_analysis(
         "request_id": run.request_id,
         "status": run.status.value,
         "mode": run.mode,
+        "progress": run.progress.dict() if hasattr(run, "progress") and run.progress else {
+            "stage": "validating",
+            "message": "Initializing analysis pipeline...",
+            "step_index": 1,
+            "step_number": 1,
+            "total_steps": 7,
+            "percent": 0,
+        },
         "created_at": run.created_at,
     }
 
