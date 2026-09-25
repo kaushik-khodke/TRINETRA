@@ -70,6 +70,7 @@ export interface ExploreState {
   webglSupported: boolean
   activeBasemap: string
   errorMessage?: string | null
+  sidebarWidth: number
 }
 
 export type GlobeCommand =

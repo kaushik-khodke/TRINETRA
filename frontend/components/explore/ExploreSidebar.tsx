@@ -6,16 +6,16 @@
  * Phase 2: Live EO discovery catalog, active layer management, and telemetry status.
  */
 
-import React, { useState } from "react"
-import { BrainCircuit, Briefcase, Calendar, Compass, Database, GitCompare, Layers, MapPin, Navigation, Satellite, Sparkles } from "lucide-react"
+import React, { useState, useCallback } from "react"
+import Link from "next/link"
+import { ArrowLeft, BrainCircuit, Briefcase, Calendar, Compass, Database, GitCompare, Layers, MapPin, Navigation, PanelLeftClose, Satellite, Sparkles } from "lucide-react"
 import { globeCommandBus } from "@/lib/explore/globe-command-bus"
-import { useGlobeState } from "@/lib/explore/globe-state"
+import { useGlobeState, globeState } from "@/lib/explore/globe-state"
 import { DEFAULT_CAMERA_STATE, ISRO_HQ_LOCATION } from "@/lib/explore/constants"
 import { ViewModeSwitcher } from "./ViewModeSwitcher"
 import DataSourcePanel from "./DataSourcePanel"
 import CatalogResults from "./CatalogResults"
 import ActiveLayers from "./ActiveLayers"
-import DataStatus from "./DataStatus"
 import { TemporalToolbar } from "./TemporalToolbar"
 import { ObservationCard } from "./ObservationCard"
 import { ObservationDetails } from "./ObservationDetails"
@@ -29,11 +29,35 @@ import { useComparisonState } from "@/lib/explore/comparison-state"
 import { useAOIState } from "@/lib/explore/aoi-state"
 
 export function ExploreSidebar() {
-  const { sidebarOpen } = useGlobeState()
+  const { sidebarOpen, sidebarWidth } = useGlobeState()
   const { observations, selectedObservation } = useTemporalState()
   const comparisonState = useComparisonState()
   const { activeAOI } = useAOIState()
   const [activeTab, setActiveTab] = useState<"catalog" | "temporal" | "compare" | "analysis" | "investigate" | "intelligence" | "workspace" | "layers" | "waypoints">("catalog")
+  const [isResizing, setIsResizing] = useState(false)
+
+  const startResizing = useCallback((e: React.MouseEvent) => {
+    e.preventDefault()
+    setIsResizing(true)
+    document.body.style.cursor = "col-resize"
+    document.body.style.userSelect = "none"
+
+    const onMouseMove = (moveEvent: MouseEvent) => {
+      const newWidth = Math.max(280, Math.min(window.innerWidth * 0.7, moveEvent.clientX))
+      globeState.setSidebarWidth(newWidth)
+    }
+
+    const onMouseUp = () => {
+      setIsResizing(false)
+      document.body.style.cursor = ""
+      document.body.style.userSelect = ""
+      window.removeEventListener("mousemove", onMouseMove)
+      window.removeEventListener("mouseup", onMouseUp)
+    }
+
+    window.addEventListener("mousemove", onMouseMove)
+    window.addEventListener("mouseup", onMouseUp)
+  }, [])
 
   const handleFlyTo = (target: typeof DEFAULT_CAMERA_STATE) => {
     globeCommandBus.dispatch({
@@ -48,27 +72,61 @@ export function ExploreSidebar() {
 
   return (
     <aside
-      className={`explore-sidebar ${!sidebarOpen ? "collapsed" : ""}`}
+      className={`explore-sidebar ${!sidebarOpen ? "collapsed" : ""} ${isResizing ? "resizing" : ""}`}
+      style={{
+        width: !sidebarOpen ? undefined : `${sidebarWidth}px`,
+      }}
       role="complementary"
       aria-label="Exploration Controls and Layers"
     >
+      {/* Draggable Resize Handle */}
+      {sidebarOpen && (
+        <div
+          className={`sidebar-resize-handle ${isResizing ? "active" : ""}`}
+          onMouseDown={startResizing}
+          onDoubleClick={() => globeState.setSidebarWidth(380)}
+          title="Drag to resize sidebar width (double-click to reset)"
+          aria-label="Drag to resize sidebar"
+        />
+      )}
+      {/* 0. Top Sidebar Header Bar */}
+      <div className="flex items-center justify-between px-3.5 h-[50px] border-b border-white/10 shrink-0">
+        <div className="flex items-center gap-2">
+          <Link
+            href="/analysis"
+            className="btn-tactical-icon !h-7 !px-2 text-xs"
+            title="Return to Tactical Analysis Workspace"
+          >
+            <ArrowLeft size={13} />
+            <span>Workspace</span>
+          </Link>
+          <span className="font-extrabold tracking-wider text-white text-xs uppercase">
+            TRI•NETRA
+          </span>
+        </div>
+        <button
+          type="button"
+          onClick={() => globeState.toggleSidebar()}
+          className="p-1.5 rounded-lg text-slate-300 hover:text-white hover:bg-white/10 transition-colors"
+          title="Collapse Sidebar"
+          aria-label="Collapse Sidebar"
+        >
+          <PanelLeftClose size={15} />
+        </button>
+      </div>
+
       {/* 1. Dimension / View Mode Switcher */}
       <div className="sidebar-section">
         <div className="sidebar-section-header">
           <span style={{ display: "flex", alignItems: "center", gap: 6 }}>
-            <Compass size={13} color="#ff6b2b" />
+            <Compass size={13} color="#ff8c42" />
             <span>DIMENSION / VIEW</span>
           </span>
         </div>
         <ViewModeSwitcher />
       </div>
 
-      {/* 2. Operational Data Status */}
-      <div className="sidebar-section">
-        <DataStatus />
-      </div>
-
-      {/* 3. Section Navigation Tabs */}
+      {/* 2. Section Navigation Tabs */}
       <div className="sidebar-tabs">
         <button
           className={`tab-btn ${activeTab === "catalog" ? "active" : ""}`}

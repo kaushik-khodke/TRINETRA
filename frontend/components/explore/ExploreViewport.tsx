@@ -43,24 +43,28 @@ const GlobeView = dynamic(() => import("./GlobeView"), {
 })
 
 export function ExploreViewport() {
-  const { viewMode, sidebarOpen } = useGlobeState()
+  const { viewMode, sidebarOpen, sidebarWidth } = useGlobeState()
   const { mode: comparisonMode } = useComparisonState()
 
   return (
     <main className="explore-viewport relative" role="region" aria-label="Earth Observation Viewport">
-      {/* Floating Sidebar Toggle Button */}
-      <button
-        type="button"
-        className="sidebar-toggle-floating"
-        onClick={() => globeState.toggleSidebar()}
-        aria-label={sidebarOpen ? "Collapse sidebar" : "Expand sidebar"}
-        title={sidebarOpen ? "Collapse sidebar" : "Expand sidebar"}
+      {/* Top Floating Glass Dock: Sidebar Toggle + AOI Selection + Copernicus Multi-Spectral Presets */}
+      <div
+        className="absolute top-16 z-20 flex items-center gap-2 pointer-events-auto flex-wrap"
+        style={{
+          left: sidebarOpen ? `${sidebarWidth + 14}px` : "14px",
+          transition: "left 0.15s ease-out",
+        }}
       >
-        {sidebarOpen ? <PanelLeftClose size={16} /> : <PanelLeftOpen size={16} />}
-      </button>
-
-      {/* Top Floating Controls Dock: AOI Selection + Copernicus Multi-Spectral Presets */}
-      <div className="absolute top-3.5 left-16 z-20 flex items-center gap-2.5 flex-wrap pointer-events-auto">
+        <button
+          type="button"
+          className="sidebar-toggle-floating"
+          onClick={() => globeState.toggleSidebar()}
+          aria-label={sidebarOpen ? "Collapse sidebar" : "Expand sidebar"}
+          title={sidebarOpen ? "Collapse sidebar" : "Expand sidebar"}
+        >
+          {sidebarOpen ? <PanelLeftClose size={15} /> : <PanelLeftOpen size={15} />}
+        </button>
         <AOIToolbar />
         <SpectralPresetBar />
       </div>
@@ -87,7 +91,13 @@ export function ExploreViewport() {
       )}
 
       {/* Floating Acquisition Timeline */}
-      <div className="absolute bottom-10 left-4 right-4 z-20 pointer-events-auto">
+      <div
+        className="absolute bottom-10 right-4 z-20 pointer-events-auto"
+        style={{
+          left: sidebarOpen ? `${sidebarWidth + 14}px` : "16px",
+          transition: "left 0.15s ease-out",
+        }}
+      >
         <Timeline />
       </div>
 

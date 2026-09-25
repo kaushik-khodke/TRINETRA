@@ -24,6 +24,7 @@ class GlobeStateManager {
     rendererStatus: "idle",
     webglSupported: true,
     errorMessage: null,
+    sidebarWidth: 380,
   }
 
   private listeners: Set<(state: ExploreState) => void> = new Set()
@@ -49,6 +50,11 @@ class GlobeStateManager {
 
   setSidebarOpen(sidebarOpen: boolean): void {
     this.setState({ sidebarOpen })
+  }
+
+  setSidebarWidth(sidebarWidth: number): void {
+    const clamped = Math.max(280, Math.min(typeof window !== "undefined" ? window.innerWidth * 0.7 : 700, Math.round(sidebarWidth)))
+    this.setState({ sidebarWidth: clamped })
   }
 
   setCamera(camera: GlobeCameraState): void {

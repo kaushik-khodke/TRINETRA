@@ -13,7 +13,7 @@ import { performanceMonitor } from "@/lib/explore/performance"
 import { PerformanceMetrics } from "@/lib/explore/types"
 
 export function ExploreStatusBar() {
-  const { rendererStatus, viewMode, webglSupported, errorMessage } = useGlobeState()
+  const { rendererStatus, viewMode, webglSupported, errorMessage, sidebarOpen, sidebarWidth } = useGlobeState()
   const [perf, setPerf] = useState<PerformanceMetrics>(performanceMonitor.getMetrics())
 
   useEffect(() => {
@@ -28,7 +28,15 @@ export function ExploreStatusBar() {
   }
 
   return (
-    <footer className="explore-status-bar" role="status" aria-live="polite">
+    <footer
+      className="explore-status-bar"
+      role="status"
+      aria-live="polite"
+      style={{
+        left: sidebarOpen ? `${sidebarWidth}px` : "0px",
+        transition: "left 0.15s ease-out",
+      }}
+    >
       {/* Left: Renderer & WebGL readiness */}
       <div style={{ display: "flex", alignItems: "center", gap: 16 }}>
         <div className="status-indicator">

@@ -33,10 +33,10 @@ export const SpectralPresetBar: React.FC = () => {
   return (
     <div className="relative flex items-center" style={{ zIndex: 30 }}>
       {/* Main Floating Glass Bar */}
-      <div className="flex items-center gap-1.5 bg-[#121620]/90 backdrop-blur-md border border-white/10 rounded-lg px-2.5 py-1.5 shadow-xl text-xs">
+      <div className="h-9 px-2.5 rounded-xl bg-[#0a0e18]/70 backdrop-blur-xl border border-white/10 shadow-[inset_0_1px_0_0_rgba(255,255,255,0.1),0_8px_24px_rgba(0,0,0,0.45)] flex items-center gap-1.5 text-xs select-none transition-all">
         {/* Header Icon / Title */}
-        <div className="flex items-center gap-1.5 mr-1 pr-2 border-r border-white/10 text-slate-400">
-          <Layers className="w-3.5 h-3.5 text-cyan-400" />
+        <div className="flex items-center gap-1.5 mr-0.5 pr-2 border-r border-white/10 text-cyan-400">
+          <Layers className="w-3.5 h-3.5" />
           <span className="font-semibold uppercase tracking-wider text-[11px] text-slate-300 hidden sm:inline">
             Spectra
           </span>
@@ -51,17 +51,17 @@ export const SpectralPresetBar: React.FC = () => {
               <button
                 key={preset.id}
                 onClick={() => handleSelectPreset(preset)}
-                className={`px-2 py-1 rounded transition-all font-mono text-[11px] flex items-center gap-1.5 ${
+                className={`h-6 px-2 rounded-lg transition-all font-mono text-[11px] flex items-center gap-1.5 ${
                   isActive
                     ? "font-semibold shadow-md"
-                    : "text-slate-300 hover:text-white bg-white/5 hover:bg-white/10 border border-white/5"
+                    : "text-slate-300 hover:text-white bg-white/[0.04] hover:bg-white/[0.08] border border-white/[0.06]"
                 }`}
                 style={
                   isActive
                     ? {
                         backgroundColor: `${preset.colorAccent}25`,
                         color: preset.colorAccent,
-                        borderColor: preset.colorAccent,
+                        borderColor: `${preset.colorAccent}60`,
                         borderWidth: "1px",
                         boxShadow: `0 0 10px ${preset.colorAccent}30`,
                       }
@@ -82,10 +82,10 @@ export const SpectralPresetBar: React.FC = () => {
         {/* Info & Scientific Details Toggle Button */}
         <button
           onClick={() => setShowInfo(!showInfo)}
-          className={`ml-1 p-1 rounded transition border ${
+          className={`h-6 w-6 rounded-lg ml-0.5 flex items-center justify-center transition-all border ${
             showInfo
-              ? "bg-cyan-500/20 text-cyan-300 border-cyan-500/40"
-              : "bg-white/5 hover:bg-white/10 text-slate-400 hover:text-slate-200 border-white/10"
+              ? "bg-cyan-500/20 text-cyan-300 border-cyan-500/40 shadow-[0_0_8px_rgba(6,182,212,0.3)]"
+              : "bg-white/[0.04] hover:bg-white/[0.08] text-slate-400 hover:text-slate-200 border-white/[0.08]"
           }`}
           title="View Spectral Band Formula & Scientific Significance"
         >
@@ -95,7 +95,7 @@ export const SpectralPresetBar: React.FC = () => {
 
       {/* Expandable Scientific Details & Legend Popover */}
       {showInfo && (
-        <div className="absolute top-full left-0 mt-2 w-80 bg-[#10141e]/98 backdrop-blur-xl border border-cyan-500/30 rounded-xl p-3 shadow-2xl space-y-2.5 text-xs text-slate-300 animate-in fade-in slide-in-from-top-1 duration-200">
+        <div className="absolute top-full left-0 mt-2 w-80 bg-[#090d16]/92 backdrop-blur-2xl border border-white/10 rounded-2xl p-3.5 shadow-2xl space-y-2.5 text-xs text-slate-300 shadow-[inset_0_1px_0_0_rgba(255,255,255,0.12),0_16px_36px_rgba(0,0,0,0.6)] animate-in fade-in slide-in-from-top-1 duration-200">
           <div className="flex items-center justify-between border-b border-white/10 pb-2">
             <div className="flex items-center gap-1.5">
               <span

@@ -16,16 +16,16 @@ import { ExploreStatusBar } from "./ExploreStatusBar"
 export function ExploreShell() {
   return (
     <div className="explore-root" id="shanetra-explore-root">
-      {/* 1. Header with search & view switchers */}
+      {/* 1. Underlying 3D Globe / 2D Map Viewport spanning 100% of the screen */}
+      <ExploreViewport />
+
+      {/* 2. Frosted Glass Top Header */}
       <ExploreHeader />
 
-      {/* 2. Workstation body containing sidebar & viewport */}
-      <div className="explore-body">
-        <ExploreSidebar />
-        <ExploreViewport />
-      </div>
+      {/* 3. Frosted Glass Left Sidebar Drawer */}
+      <ExploreSidebar />
 
-      {/* 3. Operational bottom telemetry status bar */}
+      {/* 4. Frosted Glass Bottom Telemetry Status Bar */}
       <ExploreStatusBar />
     </div>
   )

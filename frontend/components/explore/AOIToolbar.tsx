@@ -9,10 +9,10 @@ export const AOIToolbar: React.FC = () => {
 
   return (
     <div
-      className="flex items-center gap-2 bg-[#121620]/90 backdrop-blur-md border border-orange-500/30 rounded-lg px-3 py-1.5 shadow-xl text-xs"
+      className="h-9 px-2.5 rounded-xl bg-[#0a0e18]/70 backdrop-blur-xl border border-white/10 shadow-[inset_0_1px_0_0_rgba(255,255,255,0.1),0_8px_24px_rgba(0,0,0,0.45)] flex items-center gap-1.5 text-xs select-none transition-all"
       style={{ zIndex: 30 }}
     >
-      <span className="font-semibold tracking-wider uppercase text-orange-400/80 mr-1 flex items-center gap-1.5">
+      <span className="font-semibold tracking-wider uppercase text-orange-400/90 mr-0.5 flex items-center gap-1.5 text-[11px]">
         <svg className="w-3.5 h-3.5 text-orange-400" viewBox="0 0 24 24" fill="none" stroke="currentColor">
           <polygon points="12 2 22 8.5 22 15.5 12 22 2 15.5 2 8.5 12 2" strokeWidth="2" />
         </svg>
@@ -24,10 +24,10 @@ export const AOIToolbar: React.FC = () => {
         onClick={() =>
           aoiStateManager.setDrawMode(drawMode === "rectangle" ? null : "rectangle")
         }
-        className={`px-2.5 py-1 rounded transition font-medium flex items-center gap-1.5 ${
+        className={`h-6 px-2.5 rounded-lg transition-all font-medium flex items-center gap-1.5 text-[11px] ${
           drawMode === "rectangle"
-            ? "bg-orange-500 text-black shadow-lg shadow-orange-500/40"
-            : "bg-white/5 hover:bg-white/10 text-orange-200 border border-white/10"
+            ? "bg-orange-500/20 text-orange-300 border border-orange-500/50 shadow-[0_0_12px_rgba(249,115,22,0.25)]"
+            : "bg-white/[0.04] hover:bg-white/[0.08] text-slate-300 hover:text-white border border-white/[0.06]"
         }`}
         title="Draw Bounding Box / Rectangle AOI"
       >
@@ -42,10 +42,10 @@ export const AOIToolbar: React.FC = () => {
         onClick={() =>
           aoiStateManager.setDrawMode(drawMode === "polygon" ? null : "polygon")
         }
-        className={`px-2.5 py-1 rounded transition font-medium flex items-center gap-1.5 ${
+        className={`h-6 px-2.5 rounded-lg transition-all font-medium flex items-center gap-1.5 text-[11px] ${
           drawMode === "polygon"
-            ? "bg-orange-500 text-black shadow-lg shadow-orange-500/40"
-            : "bg-white/5 hover:bg-white/10 text-orange-200 border border-white/10"
+            ? "bg-orange-500/20 text-orange-300 border border-orange-500/50 shadow-[0_0_12px_rgba(249,115,22,0.25)]"
+            : "bg-white/[0.04] hover:bg-white/[0.08] text-slate-300 hover:text-white border border-white/[0.06]"
         }`}
         title="Draw Custom Polygon AOI"
       >
@@ -59,7 +59,7 @@ export const AOIToolbar: React.FC = () => {
       {activeAOI && (
         <button
           onClick={() => aoiStateManager.clearAOI()}
-          className="px-2 py-1 rounded bg-red-500/20 hover:bg-red-500/30 text-red-300 border border-red-500/40 transition font-medium flex items-center gap-1"
+          className="h-6 px-2 rounded-lg bg-rose-500/15 hover:bg-rose-500/25 text-rose-300 border border-rose-500/30 transition-all font-medium flex items-center gap-1 text-[11px]"
           title="Clear active Area of Interest"
         >
           <svg className="w-3 h-3" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
@@ -71,21 +71,21 @@ export const AOIToolbar: React.FC = () => {
       )}
 
       {/* AOI Status Badge */}
-      <div className="border-l border-white/10 pl-2 ml-1 flex items-center">
+      <div className="border-l border-white/10 pl-2 ml-0.5 flex items-center">
         {validationLoading ? (
-          <span className="text-orange-300/70 animate-pulse flex items-center gap-1">
+          <span className="text-orange-300/70 animate-pulse flex items-center gap-1.5 text-[11px] font-mono">
             <span className="w-1.5 h-1.5 rounded-full bg-orange-400 animate-ping" />
             Validating...
           </span>
         ) : activeAOI ? (
           validation?.valid ? (
-            <span className="text-emerald-400 font-mono flex items-center gap-1">
+            <span className="text-emerald-400 font-mono text-[11px] flex items-center gap-1.5">
               <span className="w-1.5 h-1.5 rounded-full bg-emerald-400" />
               {areaKm2 ? `${areaKm2.toLocaleString()} km²` : "Valid AOI"}
             </span>
           ) : (
             <span
-              className="text-rose-400 font-mono flex items-center gap-1 cursor-help"
+              className="text-rose-400 font-mono text-[11px] flex items-center gap-1.5 cursor-help"
               title={validation?.errors?.join("; ") || "Invalid geometry"}
             >
               <span className="w-1.5 h-1.5 rounded-full bg-rose-500" />
@@ -93,7 +93,7 @@ export const AOIToolbar: React.FC = () => {
             </span>
           )
         ) : (
-          <span className="text-slate-400/60 font-mono">No AOI</span>
+          <span className="text-slate-400/60 font-mono text-[10.5px]">No AOI</span>
         )}
       </div>
     </div>

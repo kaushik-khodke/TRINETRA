@@ -39,7 +39,7 @@ export const CoordinateHUD: React.FC = () => {
 
   return (
     <div
-      className="absolute bottom-3 right-3 z-20 flex items-center gap-2.5 px-3 py-1.5 rounded-lg bg-[#0b0f19]/85 backdrop-blur-md border border-orange-500/25 shadow-2xl font-mono text-[11px] text-slate-300 pointer-events-auto select-none transition-all hover:border-orange-500/50 hover:bg-[#0b0f19]/95"
+      className="absolute bottom-9 right-3 z-20 h-9 px-3 rounded-xl bg-[#0a0e18]/70 backdrop-blur-xl border border-white/10 shadow-[inset_0_1px_0_0_rgba(255,255,255,0.1),0_8px_24px_rgba(0,0,0,0.45)] flex items-center gap-2.5 font-mono text-[11px] text-slate-300 pointer-events-auto select-none transition-all hover:border-white/20 hover:bg-[#0a0e18]/85"
       style={{ letterSpacing: "0.02em" }}
       title="Active Camera Center Coordinates & Telemetry"
     >
@@ -49,13 +49,13 @@ export const CoordinateHUD: React.FC = () => {
           className="w-3.5 h-3.5 transition-transform duration-300"
           style={{ transform: `rotate(${heading}deg)` }}
         />
-        <span className="font-bold text-[10px] text-orange-400/80 uppercase">GEO</span>
+        <span className="font-bold text-[10px] text-orange-400/90 uppercase tracking-wider">GEO</span>
       </div>
 
       {/* Lat / Lon */}
       <div className="flex items-center gap-2 border-l border-white/10 pl-2">
         <span className="text-slate-100 font-semibold">{latFormatted}</span>
-        <span className="text-slate-500">|</span>
+        <span className="text-slate-600">|</span>
         <span className="text-slate-100 font-semibold">{lngFormatted}</span>
       </div>
 
@@ -78,7 +78,7 @@ export const CoordinateHUD: React.FC = () => {
       {/* Quick Copy Coordinates Button */}
       <button
         onClick={handleCopy}
-        className="ml-1 p-1 rounded hover:bg-white/10 text-slate-400 hover:text-orange-300 transition-colors flex items-center"
+        className="ml-0.5 h-6 w-6 rounded-lg flex items-center justify-center hover:bg-white/10 text-slate-400 hover:text-orange-300 transition-colors"
         title="Copy coordinates (lat, lon) to clipboard"
       >
         {copied ? (
