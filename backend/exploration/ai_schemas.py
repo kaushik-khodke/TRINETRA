@@ -221,62 +221,6 @@ class CompareRegionsCommand(BaseModel):
     region_b_id: str = Field(..., min_length=1, max_length=64)
 
 
-# --- Phase 7 Persistent Intelligence & Discovery Commands ---
-
-class SearchIntelligenceCommand(BaseModel):
-    model_config = ConfigDict(extra="forbid")
-    type: Literal["SEARCH_INTELLIGENCE"] = "SEARCH_INTELLIGENCE"
-    query: str = Field(..., min_length=1, max_length=500)
-    semantic_class: Optional[str] = Field(None, max_length=64)
-    state: Optional[str] = Field(None, max_length=32)
-    min_confidence: Optional[float] = Field(None, ge=0.0, le=1.0)
-
-
-class OpenEventCommand(BaseModel):
-    model_config = ConfigDict(extra="forbid")
-    type: Literal["OPEN_EVENT"] = "OPEN_EVENT"
-    event_id: str = Field(..., min_length=1, max_length=64)
-
-
-class OpenFindingCommand(BaseModel):
-    model_config = ConfigDict(extra="forbid")
-    type: Literal["OPEN_FINDING"] = "OPEN_FINDING"
-    finding_id: str = Field(..., min_length=1, max_length=64)
-
-
-class FindSimilarCommand(BaseModel):
-    model_config = ConfigDict(extra="forbid")
-    type: Literal["FIND_SIMILAR"] = "FIND_SIMILAR"
-    event_id: Optional[str] = Field(None, max_length=64)
-    finding_id: Optional[str] = Field(None, max_length=64)
-
-
-class RunTemplateCommand(BaseModel):
-    model_config = ConfigDict(extra="forbid")
-    type: Literal["RUN_TEMPLATE"] = "RUN_TEMPLATE"
-    template_id: str = Field(..., min_length=1, max_length=64)
-    region_id: Optional[str] = Field(None, max_length=64)
-
-
-class CreateMonitorCommand(BaseModel):
-    model_config = ConfigDict(extra="forbid")
-    type: Literal["CREATE_MONITOR"] = "CREATE_MONITOR"
-    name: str = Field(..., min_length=1, max_length=128)
-    region_id: Optional[str] = Field(None, max_length=64)
-    condition_text: Optional[str] = Field(None, max_length=500)
-
-
-class ShowAnomaliesCommand(BaseModel):
-    model_config = ConfigDict(extra="forbid")
-    type: Literal["SHOW_ANOMALIES"] = "SHOW_ANOMALIES"
-    region_id: Optional[str] = Field(None, max_length=64)
-    min_score: Optional[float] = Field(0.5, ge=0.0, le=1.0)
-
-
-class ShowHotspotsCommand(BaseModel):
-    model_config = ConfigDict(extra="forbid")
-    type: Literal["SHOW_HOTSPOTS"] = "SHOW_HOTSPOTS"
-    region_id: Optional[str] = Field(None, max_length=64)
 
 
 # --- Phase 8: Analyst Command Center Commands ---
@@ -341,14 +285,6 @@ ExploreCommand = Annotated[
         ShowTimelineCommand,
         TrackObjectCommand,
         CompareRegionsCommand,
-        SearchIntelligenceCommand,
-        OpenEventCommand,
-        OpenFindingCommand,
-        FindSimilarCommand,
-        RunTemplateCommand,
-        CreateMonitorCommand,
-        ShowAnomaliesCommand,
-        ShowHotspotsCommand,
         OpenWorkspaceCommand,
         CreateWorkspaceCommand,
         PinToEvidenceBoardCommand,
@@ -427,12 +363,6 @@ class ExploreStatePatch(BaseModel):
     focused_evidence_id: Optional[str] = None
     timeline_active: Optional[bool] = None
     object_tracking: Optional[Dict[str, Any]] = None
-    active_event_id: Optional[str] = None
-    intelligence_search: Optional[Dict[str, Any]] = None
-    intelligence_tab: Optional[str] = None
-    active_monitor_id: Optional[str] = None
-    anomalies_active: Optional[bool] = None
-    hotspots_active: Optional[bool] = None
     active_workspace_id: Optional[str] = None
     active_workspace_tab: Optional[str] = None
     evidence_board_active: Optional[bool] = None

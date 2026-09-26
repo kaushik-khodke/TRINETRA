@@ -10,15 +10,8 @@ from investigation.errors import PlanningFailureError, GovernanceFailureError
 
 
 INTENT_RULES: Dict[str, Dict[str, Any]] = {
-    "LOCATION_IDENTIFICATION": {
-        "keywords": ["location", "where", "coordinate", "coordinates", "place", "region", "area", "bounds", "latitude", "longitude", "city", "situated", "gps", "which area"],
-        "required": ["SPATIAL", "METADATA"],
-        "preferred": ["OPTICAL", "GIS_STATISTIC"],
-        "specialists": ["gis_statistics"],
-        "cost": "LOW",
-    },
     "BUILT_UP_CHANGE": {
-        "keywords": ["built", "construction", "building", "urban", "development", "structure", "city", "expansion"],
+        "keywords": ["built", "construction", "building", "urban", "development", "structure", "expansion"],
         "required": ["CHANGE", "SPATIAL", "GIS_STATISTIC"],
         "preferred": ["OBJECT", "SPECTRAL", "OPTICAL"],
         "specialists": ["change_detection", "grounding", "spectral_analysis", "gis_statistics"],
@@ -78,6 +71,17 @@ INTENT_RULES: Dict[str, Dict[str, Any]] = {
         "required": ["METADATA"],
         "preferred": ["OPTICAL"],
         "specialists": ["caption", "vqa"],
+        "cost": "LOW",
+    },
+    "LOCATION_IDENTIFICATION": {
+        "keywords": [
+            "location", "where", "coordinate", "coordinates", "situated", "latitude", "longitude",
+            "gps", "which area", "what area", "which place", "what place", "which city", "what city",
+            "bounds of", "name of this", "identify area", "identify region",
+        ],
+        "required": ["SPATIAL", "METADATA"],
+        "preferred": ["OPTICAL", "GIS_STATISTIC"],
+        "specialists": ["gis_statistics"],
         "cost": "LOW",
     },
     "GENERAL_CHANGE": {

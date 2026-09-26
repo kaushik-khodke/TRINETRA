@@ -8,7 +8,7 @@
 
 import React, { useState, useCallback } from "react"
 import Link from "next/link"
-import { ArrowLeft, Briefcase, Compass, Database, Layers, MapPin, Navigation, PanelLeftClose, Satellite, Sparkles } from "lucide-react"
+import { ArrowLeft, Briefcase, Compass, Layers, MapPin, Navigation, PanelLeftClose, Satellite, Sparkles } from "lucide-react"
 import { globeCommandBus } from "@/lib/explore/globe-command-bus"
 import { useGlobeState, globeState } from "@/lib/explore/globe-state"
 import { DEFAULT_CAMERA_STATE, ISRO_HQ_LOCATION } from "@/lib/explore/constants"
@@ -17,14 +17,13 @@ import DataSourcePanel from "./DataSourcePanel"
 import CatalogResults from "./CatalogResults"
 import ActiveLayers from "./ActiveLayers"
 import { InvestigationPanel } from "./InvestigationPanel"
-import { IntelligenceWorkspace } from "./IntelligenceWorkspace"
 import { WorkspaceShell } from "@/components/workspace/WorkspaceShell"
 import { useAOIState } from "@/lib/explore/aoi-state"
 
 export function ExploreSidebar() {
   const { sidebarOpen, sidebarWidth } = useGlobeState()
   const { activeAOI } = useAOIState()
-  const [activeTab, setActiveTab] = useState<"catalog" | "layers" | "investigate" | "intelligence" | "workspace" | "waypoints">("catalog")
+  const [activeTab, setActiveTab] = useState<"catalog" | "layers" | "investigate" | "workspace" | "waypoints">("catalog")
   const [isResizing, setIsResizing] = useState(false)
 
   const startResizing = useCallback((e: React.MouseEvent) => {
@@ -144,14 +143,6 @@ export function ExploreSidebar() {
           <span>Investigate</span>
         </button>
         <button
-          className={`tab-btn ${activeTab === "intelligence" ? "active" : ""}`}
-          onClick={() => setActiveTab("intelligence")}
-          title="Persistent EO Intelligence, Semantic Search & Monitoring"
-        >
-          <Database size={12} />
-          <span>Intel</span>
-        </button>
-        <button
           className={`tab-btn ${activeTab === "workspace" ? "active" : ""}`}
           onClick={() => setActiveTab("workspace")}
           title="Analyst Command Center & Multi-Region Workflows"
@@ -187,11 +178,6 @@ export function ExploreSidebar() {
           </div>
         )}
 
-        {activeTab === "intelligence" && (
-          <div className="intelligence-tab-pane h-full">
-            <IntelligenceWorkspace />
-          </div>
-        )}
 
         {activeTab === "workspace" && (
           <div className="workspace-tab-pane h-full">

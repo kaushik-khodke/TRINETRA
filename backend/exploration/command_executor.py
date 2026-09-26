@@ -35,14 +35,6 @@ from exploration.ai_schemas import (
     ShowTimelineCommand,
     TrackObjectCommand,
     CompareRegionsCommand,
-    SearchIntelligenceCommand,
-    OpenEventCommand,
-    OpenFindingCommand,
-    FindSimilarCommand,
-    RunTemplateCommand,
-    CreateMonitorCommand,
-    ShowAnomaliesCommand,
-    ShowHotspotsCommand,
     OpenWorkspaceCommand,
     CreateWorkspaceCommand,
     PinToEvidenceBoardCommand,
@@ -135,18 +127,6 @@ class CommandExecutor:
                 timeline_active_patch = details["timeline_active"]
             if "object_tracking" in details:
                 object_tracking_patch = details["object_tracking"]
-            if "active_event_id" in details:
-                active_event_patch = details["active_event_id"]
-            if "intelligence_search" in details:
-                intelligence_search_patch = details["intelligence_search"]
-            if "intelligence_tab" in details:
-                intelligence_tab_patch = details["intelligence_tab"]
-            if "active_monitor_id" in details:
-                active_monitor_patch = details["active_monitor_id"]
-            if "anomalies_active" in details:
-                anomalies_active_patch = details["anomalies_active"]
-            if "hotspots_active" in details:
-                hotspots_active_patch = details["hotspots_active"]
             if "active_workspace_id" in details:
                 active_workspace_id_patch = details["active_workspace_id"]
             if "active_workspace_tab" in details:
@@ -185,12 +165,6 @@ class CommandExecutor:
             focused_evidence_id=focused_evidence_patch if "focused_evidence_patch" in locals() else None,
             timeline_active=timeline_active_patch if "timeline_active_patch" in locals() else None,
             object_tracking=object_tracking_patch if "object_tracking_patch" in locals() else None,
-            active_event_id=active_event_patch if "active_event_patch" in locals() else None,
-            intelligence_search=intelligence_search_patch if "intelligence_search_patch" in locals() else None,
-            intelligence_tab=intelligence_tab_patch if "intelligence_tab_patch" in locals() else None,
-            active_monitor_id=active_monitor_patch if "active_monitor_patch" in locals() else None,
-            anomalies_active=anomalies_active_patch if "anomalies_active_patch" in locals() else None,
-            hotspots_active=hotspots_active_patch if "hotspots_active_patch" in locals() else None,
             active_workspace_id=active_workspace_id_patch if "active_workspace_id_patch" in locals() else None,
             active_workspace_tab=active_workspace_tab_patch if "active_workspace_tab_patch" in locals() else None,
             evidence_board_active=evidence_board_active_patch if "evidence_board_active_patch" in locals() else None,
@@ -522,109 +496,6 @@ class CommandExecutor:
                 None,
             )
 
-        # 24. SEARCH_INTELLIGENCE
-        elif isinstance(cmd, SearchIntelligenceCommand):
-            return (
-                CommandExecutionStatus.EXECUTED,
-                f"Executing intelligence search for '{cmd.query}'.",
-                {
-                    "intelligence_search": {
-                        "query": cmd.query,
-                        "semantic_class": cmd.semantic_class,
-                        "state": cmd.state,
-                        "min_confidence": cmd.min_confidence,
-                    },
-                    "intelligence_tab": "search",
-                },
-                None,
-            )
-
-        # 25. OPEN_EVENT
-        elif isinstance(cmd, OpenEventCommand):
-            return (
-                CommandExecutionStatus.EXECUTED,
-                f"Opened EO Event '{cmd.event_id}'.",
-                {"active_event_id": cmd.event_id, "intelligence_tab": "events"},
-                None,
-            )
-
-        # 26. OPEN_FINDING
-        elif isinstance(cmd, OpenFindingCommand):
-            return (
-                CommandExecutionStatus.EXECUTED,
-                f"Opened persistent finding '{cmd.finding_id}'.",
-                {"active_finding_id": cmd.finding_id, "intelligence_tab": "findings"},
-                None,
-            )
-
-        # 27. FIND_SIMILAR
-        elif isinstance(cmd, FindSimilarCommand):
-            target = cmd.event_id or cmd.finding_id
-            return (
-                CommandExecutionStatus.EXECUTED,
-                f"Finding similar events and findings to '{target}'.",
-                {
-                    "intelligence_search": {
-                        "event_id": cmd.event_id,
-                        "finding_id": cmd.finding_id,
-                        "type": "similarity",
-                    },
-                    "intelligence_tab": "similarity",
-                },
-                None,
-            )
-
-        # 28. RUN_TEMPLATE
-        elif isinstance(cmd, RunTemplateCommand):
-            return (
-                CommandExecutionStatus.EXECUTED,
-                f"Triggered investigation template '{cmd.template_id}'.",
-                {
-                    "investigation": {
-                        "template_id": cmd.template_id,
-                        "region_id": cmd.region_id,
-                        "status": "queued",
-                    },
-                    "intelligence_tab": "templates",
-                },
-                None,
-            )
-
-        # 29. CREATE_MONITOR
-        elif isinstance(cmd, CreateMonitorCommand):
-            return (
-                CommandExecutionStatus.EXECUTED,
-                f"Configured persistent monitor '{cmd.name}'.",
-                {
-                    "active_monitor_id": cmd.name,
-                    "intelligence_tab": "monitoring",
-                },
-                None,
-            )
-
-        # 30. SHOW_ANOMALIES
-        elif isinstance(cmd, ShowAnomaliesCommand):
-            return (
-                CommandExecutionStatus.EXECUTED,
-                "Displaying regional anomalies panel.",
-                {
-                    "anomalies_active": True,
-                    "intelligence_tab": "anomalies",
-                },
-                None,
-            )
-
-        # 31. SHOW_HOTSPOTS
-        elif isinstance(cmd, ShowHotspotsCommand):
-            return (
-                CommandExecutionStatus.EXECUTED,
-                "Displaying spatial activity hotspots.",
-                {
-                    "hotspots_active": True,
-                    "intelligence_tab": "hotspots",
-                },
-                None,
-            )
 
         # 32. OPEN_WORKSPACE
         elif isinstance(cmd, OpenWorkspaceCommand):

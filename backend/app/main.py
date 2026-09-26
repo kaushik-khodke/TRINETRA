@@ -35,7 +35,6 @@ from core.security import SecurityValidator
 from core.exceptions import TRINETRABaseException, SecurityViolationError
 from app.routes.explore import router as explore_router
 from app.routes.investigation import router as investigation_router
-from app.routes.intelligence import router as intelligence_router
 from app.routes.workspace import router as workspace_router
 
 app = FastAPI(
@@ -48,8 +47,6 @@ app = FastAPI(
 app.include_router(explore_router)
 # Exploration Semantic EO Intelligence & Investigation Router (Phase 6)
 app.include_router(investigation_router)
-# Exploration Persistent EO Intelligence & Discovery Router (Phase 7)
-app.include_router(intelligence_router)
 # Analyst Command Center & Multi-Region Workflows Router (Phase 8)
 app.include_router(workspace_router)
 

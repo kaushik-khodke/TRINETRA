@@ -193,38 +193,6 @@ class InvestigationService:
                 inv.progress.message = "Investigation concluded successfully."
                 logger.info("Investigation %s completed successfully", inv.investigation_id)
 
-                # Phase 7: Automatically ingest findings into Persistent EO Intelligence
-                try:
-                    from intelligence.service import intelligence_service
-                    from intelligence.models import PersistentFinding
-                    findings_data = final_state.get("findings", [])
-                    aoi_bbox = None
-                    if inv.aoi and isinstance(inv.aoi, dict):
-                        coords = inv.aoi.get("coordinates", [[]])[0]
-                        if coords and len(coords) >= 4:
-                            lons = [pt[0] for pt in coords if len(pt) >= 2]
-                            lats = [pt[1] for pt in coords if len(pt) >= 2]
-                            if lons and lats:
-                                aoi_bbox = [min(lons), min(lats), max(lons), max(lats)]
-
-                    for f_item in findings_data:
-                        f_id = f_item.get("finding_id") or f"fnd_{uuid.uuid4().hex[:8]}"
-                        p_finding = PersistentFinding(
-                            finding_id=f_id,
-                            investigation_id=inv.investigation_id,
-                            type=f_item.get("type", "change_finding"),
-                            label=f_item.get("label", "Detected change"),
-                            geometry=f_item.get("geometry") or inv.aoi or {},
-                            bounding_box=f_item.get("bounding_box") or aoi_bbox or [78.9, 21.1, 79.0, 21.2],
-                            confidence=float(f_item.get("confidence", 0.85)),
-                            evidence_ids=f_item.get("evidence_ids", []),
-                            observation_ids=inv.observation_ids,
-                            metrics=f_item.get("metrics", {}),
-                            semantic_class=f_item.get("semantic_class", "GENERAL_CHANGE"),
-                        )
-                        intelligence_service.ingest_finding(p_finding)
-                except Exception as e_ingest:
-                    logger.warning("Failed to auto-ingest findings into intelligence service: %s", e_ingest)
 
             except Exception as e:
                 logger.exception("Investigation %s failed during execution: %s", inv.investigation_id, e)
