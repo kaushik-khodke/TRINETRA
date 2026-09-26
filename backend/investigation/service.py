@@ -123,28 +123,76 @@ class InvestigationService:
                     "errors": [],
                 }
 
-                inv.progress.current_stage = InvestigationProgressStage.SPECIALISTS
-                inv.progress.percent = 30
-                inv.progress.message = "Executing analytical specialists in parallel..."
+                # Stream graph execution node-by-node via thread-safe queue
+                queue: asyncio.Queue = asyncio.Queue()
+                loop = asyncio.get_running_loop()
+                accumulated_state = dict(initial_state)
 
-                # Execute compiled LangGraph workflow in thread pool
-                final_state = await asyncio.to_thread(investigation_graph.invoke, initial_state)
+                def _stream_worker():
+                    try:
+                        for output in investigation_graph.stream(initial_state):
+                            for node_name, node_update in output.items():
+                                loop.call_soon_threadsafe(queue.put_nowait, (node_name, node_update))
+                        loop.call_soon_threadsafe(queue.put_nowait, (None, None))
+                    except Exception as exc:
+                        logger.exception("Error in investigation stream worker: %s", exc)
+                        loop.call_soon_threadsafe(queue.put_nowait, ("__ERROR__", exc))
 
-                if inv.cancel_requested:
-                    inv.status = InvestigationStatus.CANCELLED
-                    return inv
+                threading.Thread(target=_stream_worker, daemon=True).start()
 
-                inv.progress.current_stage = InvestigationProgressStage.FUSION
-                inv.progress.percent = 60
-                inv.progress.message = "Fusing multi-source evidence and resolving discrepancies..."
+                while True:
+                    node_name, node_update = await queue.get()
+                    if node_name == "__ERROR__":
+                        raise node_update
+                    if node_name is None:
+                        break
 
-                inv.progress.current_stage = InvestigationProgressStage.SEMANTICS
-                inv.progress.percent = 80
-                inv.progress.message = "Formulating semantic event hypotheses and findings..."
+                    if inv.cancel_requested:
+                        inv.status = InvestigationStatus.CANCELLED
+                        inv.completed_at = datetime.utcnow().isoformat()
+                        inv.progress.current_stage = InvestigationProgressStage.CANCELLED
+                        inv.progress.message = "Investigation cancelled by analyst."
+                        return inv
 
-                inv.progress.current_stage = InvestigationProgressStage.REASONING
-                inv.progress.percent = 95
-                inv.progress.message = "Synthesizing conclusion within non-causal attribution boundaries..."
+                    # Merge partial state into running state
+                    accumulated_state.update(node_update)
+                    inv.result_data = dict(accumulated_state)
+
+                    # Advance stage progress in real time as each specialist/node finishes
+                    if node_name == "plan_investigation":
+                        specs = accumulated_state.get("plan", {}).get("planned_specialists", [])
+                        inv.progress.current_stage = InvestigationProgressStage.SPECIALISTS
+                        inv.progress.percent = 28
+                        inv.progress.message = f"Planning complete. Executing specialists: {', '.join(specs)}"
+                    elif node_name == "execute_specialists":
+                        ev_items = accumulated_state.get("evidence_items", [])
+                        inv.progress.current_stage = InvestigationProgressStage.FUSION
+                        inv.progress.percent = 52
+                        inv.progress.message = f"Specialists executed ({len(ev_items)} evidence items). Fusing multi-sensor telemetry..."
+                    elif node_name == "fuse_evidence":
+                        clusters = accumulated_state.get("evidence_clusters", [])
+                        inv.progress.current_stage = InvestigationProgressStage.SEMANTICS
+                        inv.progress.percent = 72
+                        inv.progress.message = f"Evidence fused ({len(clusters)} clusters). Formulating semantic event hypotheses..."
+                    elif node_name == "classify_semantics":
+                        findings = accumulated_state.get("findings", [])
+                        hyp = accumulated_state.get("hypotheses", [{}])[0]
+                        sem_class = hyp.get("semantic_class", "SURFACE_DYNAMICS") if isinstance(hyp, dict) else getattr(hyp, "semantic_class", "SURFACE_DYNAMICS")
+                        inv.progress.current_stage = InvestigationProgressStage.REASONING
+                        inv.progress.percent = 88
+                        inv.progress.message = f"Semantics formulated: {sem_class} ({len(findings)} findings). Synthesizing conclusion..."
+                    elif node_name == "reason_conclusion":
+                        inv.progress.current_stage = InvestigationProgressStage.REASONING
+                        inv.progress.percent = 95
+                        inv.progress.message = "Executive reasoning finalized. Compiling final investigation artifacts..."
+                    elif node_name == "compile_report":
+                        inv.progress.percent = 98
+                        inv.progress.message = "Artifacts persisted. Concluding investigation..."
+
+                    # Ensure smooth visual progression between node transitions
+                    await asyncio.sleep(0.35)
+
+                final_state = accumulated_state
 
                 # Extract artifacts and save HTML report
                 inv_dir = os.path.join(str(settings.investigation_artifacts_dir), inv.investigation_id)
