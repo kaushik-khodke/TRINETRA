@@ -1025,10 +1025,11 @@ class GeoResolver:
     _MAX_CACHE_SIZE: int = 256
 
     @classmethod
-    def resolve(cls, query: str) -> Optional[GeographicTarget]:
+    def resolve(cls, query: str, allow_online: bool = True) -> Optional[GeographicTarget]:
         """
         Resolves query to GeographicTarget.
         Returns target, or target with is_ambiguous=True, or None.
+        If allow_online=False, only searches instant deterministic coordinates, LRU cache, and offline gazetteer.
         """
         if not query or not isinstance(query, str):
             return None
@@ -1038,6 +1039,17 @@ class GeoResolver:
 
         # Multi-clause / compound sentences are not single geographic location entities
         if any(conj in clean_lower for conj in [" and ", " then ", " but ", " with "]):
+            return None
+
+        # Knowledge questions or trivia phrases are not physical placenames
+        if (
+            "capital of" in clean_lower
+            or clean_lower.startswith("what ")
+            or clean_lower.startswith("where ")
+            or clean_lower.startswith("who ")
+            or clean_lower.startswith("which ")
+            or clean_lower.endswith("?")
+        ):
             return None
 
         # 1. Deterministic coordinate parser
@@ -1064,18 +1076,24 @@ class GeoResolver:
             cls._set_cache(clean_lower, target)
             return target
 
-        # 4. Gazetteer lookup
-        clean_norm = re.sub(r"^(?:the|to|at|in)\s+", "", clean_lower).strip()
-        first_segment = clean_lower.split(",")[0].strip()
-        first_norm = re.sub(r"^(?:the|to|at|in)\s+", "", first_segment).strip()
-        lookup_key = (
+        # Normalize compound location expressions: "Medical Square located in India" -> "Medical Square, India"
+        normalized_compound = re.sub(
+            r"\s+(?:located\s+in|situated\s+in|in\s+the|inside\s+of|inside|in)\s+",
+            ", ",
+            clean,
+            flags=re.IGNORECASE,
+        ).strip()
+        normalized_compound = re.sub(r"^(?:go\s+to|fly\s+to|navigate\s+to|zoom\s+to)\s+", "", normalized_compound, flags=re.IGNORECASE).strip()
+        clean_norm = re.sub(r"^(?:the|to|at|in|go\s+to|fly\s+to|navigate\s+to|zoom\s+to)\s+", "", clean_lower).strip()
+
+        # Check if the query is an exact match for a single entry in offline gazetteer
+        # (e.g. user asked directly for "India", "Nagpur", "Delhi", "China", "USA")
+        exact_key = (
             clean_lower if clean_lower in OFFLINE_GAZETTEER
-            else (clean_norm if clean_norm in OFFLINE_GAZETTEER
-            else (first_segment if first_segment in OFFLINE_GAZETTEER
-            else (first_norm if first_norm in OFFLINE_GAZETTEER else None)))
+            else (clean_norm if clean_norm in OFFLINE_GAZETTEER else None)
         )
-        if lookup_key:
-            entry = OFFLINE_GAZETTEER[lookup_key]
+        if exact_key:
+            entry = OFFLINE_GAZETTEER[exact_key]
             raw_bbox = entry.get("bbox")
             bbox = cls._sanitize_bbox(raw_bbox, entry["lat"], entry["lon"]) if raw_bbox else None
             target = GeographicTarget(
@@ -1091,8 +1109,43 @@ class GeoResolver:
             cls._set_cache(clean_lower, target)
             return target
 
-        # 5. Word-boundary match in gazetteer (longest key first)
-        # Prevents "Taj Mahal, Agra, India" from matching "India" before "Taj Mahal"
+        # 4. If allow_online is True and query is NOT an exact offline gazetteer key,
+        # prioritize the Global Online Geocoder with the full compound address!
+        # This correctly resolves compound queries like "Medical Square, India", "Eiffel Tower, Paris",
+        # without falsely truncating to just "India" or "France".
+        if allow_online:
+            for candidate_query in [normalized_compound, clean]:
+                if candidate_query:
+                    online_target = cls._query_online_geocoder(candidate_query)
+                    if online_target:
+                        cls._set_cache(clean_lower, online_target)
+                        return online_target
+
+        # 5. Offline Fallback for compound queries when online geocoder finds nothing or allow_online is False
+        first_segment = clean_lower.split(",")[0].strip()
+        first_norm = re.sub(r"^(?:the|to|at|in)\s+", "", first_segment).strip()
+        fallback_key = (
+            first_segment if first_segment in OFFLINE_GAZETTEER
+            else (first_norm if first_norm in OFFLINE_GAZETTEER else None)
+        )
+        if fallback_key:
+            entry = OFFLINE_GAZETTEER[fallback_key]
+            raw_bbox = entry.get("bbox")
+            bbox = cls._sanitize_bbox(raw_bbox, entry["lat"], entry["lon"]) if raw_bbox else None
+            target = GeographicTarget(
+                name=entry["name"],
+                latitude=entry["lat"],
+                longitude=entry["lon"],
+                bbox=bbox,
+                zoom=entry.get("zoom"),
+                source="offline_gazetteer",
+                confidence=0.85,
+                is_ambiguous=False,
+            )
+            cls._set_cache(clean_lower, target)
+            return target
+
+        # Word-boundary match in gazetteer as last offline resort
         for key, entry in sorted(OFFLINE_GAZETTEER.items(), key=lambda x: len(x[0]), reverse=True):
             pattern = r"\b" + re.escape(key) + r"\b"
             if re.search(pattern, clean_lower) or (clean_norm and re.search(pattern, clean_norm)):
@@ -1105,19 +1158,11 @@ class GeoResolver:
                     bbox=bbox,
                     zoom=entry.get("zoom"),
                     source="offline_gazetteer",
-                    confidence=0.9,
+                    confidence=0.8,
                     is_ambiguous=False,
                 )
                 cls._set_cache(clean_lower, target)
                 return target
-
-        # 6. Global Online Geocoder Integration (OSM Nominatim / Photon / Mapbox / Google)
-        # Allows user to navigate to ANY city, town, village, or spot worldwide (e.g. Alaska, Taj Mahal, etc.)
-        query_for_online = clean_norm or clean_lower
-        online_target = cls._query_online_geocoder(query_for_online)
-        if online_target:
-            cls._set_cache(clean_lower, online_target)
-            return online_target
 
         return None
 
@@ -1225,13 +1270,23 @@ class GeoResolver:
                 parts = [p.strip() for p in disp.split(",")]
                 short_name = ", ".join(parts[:3]) if len(parts) > 3 else disp
 
+                importance = float(hit.get("importance", 0.5))
+                query_words = [w.strip().lower() for w in re.split(r"[, ]+", query) if len(w.strip()) > 2]
+                matched_words = sum(1 for w in query_words if w in disp.lower())
+                word_match_ratio = (matched_words / len(query_words)) if query_words else 0.5
+
+                if word_match_ratio >= 0.5:
+                    conf = round(min(0.98, max(0.85, 0.80 + (importance * 0.2))), 2)
+                else:
+                    conf = round(min(0.95, max(0.4, 0.45 + (importance * 0.5))), 2)
+
                 return GeographicTarget(
                     name=short_name,
                     latitude=lat,
                     longitude=lon,
                     bbox=bbox,
                     source="osm_nominatim",
-                    confidence=0.95,
+                    confidence=conf,
                 )
         except Exception:
             return None

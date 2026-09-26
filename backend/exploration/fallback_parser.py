@@ -164,6 +164,23 @@ class FallbackParser:
         if is_compound:
             return None
 
+        # Defer semantic questions, country capitals, superlatives, and knowledge queries to the LLM
+        is_knowledge_query = (
+            clean.endswith("?")
+            or any(clean.startswith(prefix) for prefix in [
+                "what", "where", "which", "who", "when", "why", "how",
+                "tell me", "explain", "describe", "find me", "can you",
+                "capital of", "capital",
+            ])
+            or "capital of" in clean
+            or any(w in clean for w in [
+                "largest", "smallest", "biggest", "highest", "deepest",
+                "hottest", "coldest", "richest", "poorest", "population of",
+            ])
+        )
+        if is_knowledge_query:
+            return None
+
         # 1. Reset View
         if RESET_REGEX.match(clean):
             return ExploreCommandPlan(
@@ -248,6 +265,10 @@ class FallbackParser:
         if target_loc_name:
             target_lower = target_loc_name.lower()
 
+            # If user said "Where is the capital of X" or similar, defer to LLM reasoning
+            if any(target_lower.startswith(p) for p in ["the capital", "capital", "what", "where"]) or "capital of" in target_lower:
+                return None
+
             # Check geographic superlatives knowledge first (e.g. "most polluted city", "hottest place")
             for key, sup_entry in GEOGRAPHIC_SUPERLATIVES.items():
                 if key in target_lower or key in clean:
@@ -271,7 +292,7 @@ class FallbackParser:
             if re.search(r"\b(most|least|best|worst|richest|poorest)\b", target_lower):
                 return None
 
-            geo_target = GeoResolver.resolve(target_loc_name)
+            geo_target = GeoResolver.resolve(target_loc_name, allow_online=True)
             if geo_target:
                 from exploration.ai_schemas import FlyToCommand, SetAOICommand
                 bbox = geo_target.bbox or [geo_target.longitude - 0.08, geo_target.latitude - 0.06, geo_target.longitude + 0.08, geo_target.latitude + 0.06]
@@ -293,8 +314,9 @@ class FallbackParser:
                     ],
                 )
 
-        # 9. Direct City / Location Name ("New Delhi", "Mumbai", "Sriharikota", "China", "Taj Mahal")
-        direct_geo = GeoResolver.resolve(clean)
+        # 9. Direct City / Location Name ("New Delhi", "Mumbai", "Sriharikota", "China")
+        # In Fast-Path, ONLY match against instant offline gazetteer to prevent random OSM fuzzy street matches
+        direct_geo = GeoResolver.resolve(clean, allow_online=False)
         if direct_geo and direct_geo.confidence >= 0.9:
             from exploration.ai_schemas import FlyToCommand, SetAOICommand
             bbox = direct_geo.bbox or [direct_geo.longitude - 0.08, direct_geo.latitude - 0.06, direct_geo.longitude + 0.08, direct_geo.latitude + 0.06]

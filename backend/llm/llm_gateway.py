@@ -26,10 +26,33 @@ class UnifiedLLMGateway:
     """
 
     @classmethod
+    def _normalize_gemini_model(cls, raw_model: Optional[str]) -> str:
+        """Normalizes any user-supplied Gemini model string into the official Google API slug."""
+        if not raw_model:
+            return "gemini-3.5-flash-lite"
+        m = raw_model.strip().lower()
+        if "3.5" in m and "lite" in m:
+            return "gemini-3.5-flash-lite"
+        if "3.5" in m:
+            return "gemini-3.5-flash"
+        if "2.5" in m and "lite" in m:
+            return "gemini-2.5-flash-lite"
+        if "2.5" in m and "pro" in m:
+            return "gemini-2.5-pro"
+        if "2.5" in m:
+            return "gemini-2.5-flash"
+        if "1.5" in m and "pro" in m:
+            return "gemini-1.5-pro"
+        if "1.5" in m:
+            return "gemini-1.5-flash"
+        return m.replace(" ", "-")
+
+    @classmethod
     def resolve_cloud_config(cls) -> Tuple[Optional[str], Optional[str], Optional[str]]:
         """
         Resolves (api_key, base_url, model) from settings and environment.
-        Supports OpenAI, Groq, OpenRouter, Gemini, and generic OpenAI-compatible APIs.
+        Supports OpenAI, Groq, OpenRouter, Gemini (including AQ. and AIza keys),
+        and generic OpenAI-compatible APIs.
         """
         api_key = (
             settings.llm_api_key
@@ -48,19 +71,27 @@ class UnifiedLLMGateway:
 
         if custom_base:
             base_url = custom_base.rstrip("/")
-            model = model or "gpt-4o-mini"
+            if "generativelanguage.googleapis.com" in base_url or (model and "gemini" in model.lower()):
+                model = cls._normalize_gemini_model(model or "gemini-3.5-flash-lite")
+            else:
+                model = model or "gpt-4o-mini"
             return api_key, base_url, model
 
-        # Auto-detect provider based on key prefix or provider setting
+        # Auto-detect provider based on key prefix, model name, or provider setting
         if provider == "groq" or api_key.startswith("gsk_"):
             base_url = "https://api.groq.com/openai/v1"
             model = model or "llama-3.3-70b-versatile"
         elif provider == "openrouter" or api_key.startswith("sk-or-"):
             base_url = "https://openrouter.ai/api/v1"
             model = model or "openai/gpt-4o-mini"
-        elif provider == "gemini" or api_key.startswith("AIza"):
+        elif (
+            provider in ("gemini", "google")
+            or api_key.startswith("AIza")
+            or api_key.startswith("AQ.")
+            or (model and "gemini" in model.lower())
+        ):
             base_url = "https://generativelanguage.googleapis.com/v1beta/openai"
-            model = model or "gemini-1.5-flash"
+            model = cls._normalize_gemini_model(model or "gemini-3.5-flash-lite")
         else:
             # Default to standard OpenAI endpoint
             base_url = "https://api.openai.com/v1"
@@ -106,6 +137,13 @@ class UnifiedLLMGateway:
                     print(f"[UnifiedLLMGateway] Cloud LLM ({model}) executed structured generation in {latency}ms.")
                     return result
                 print(f"[UnifiedLLMGateway] Cloud LLM returned empty result. Falling back to local Ollama...")
+            except urllib.error.HTTPError as http_err:
+                err_detail = ""
+                try:
+                    err_detail = http_err.read().decode("utf-8", errors="ignore")
+                except Exception:
+                    pass
+                print(f"[UnifiedLLMGateway] Cloud LLM HTTP {http_err.code} Error ({err_detail}). Falling back to local Ollama...")
             except Exception as cloud_err:
                 print(f"[UnifiedLLMGateway] Cloud LLM request failed ({cloud_err}). Falling back to local Ollama...")
 
@@ -161,28 +199,38 @@ class UnifiedLLMGateway:
             headers={
                 "Content-Type": "application/json",
                 "Authorization": f"Bearer {api_key}",
+                "Connection": "close",
                 "User-Agent": "TRINETRA-ExploreAI/2.2",
             },
         )
 
-        with urllib.request.urlopen(req, timeout=timeout) as resp:
-            data = json.loads(resp.read().decode("utf-8"))
-            choices = data.get("choices", [])
-            if not choices:
-                return None
+        last_err = None
+        for attempt in range(2):
+            try:
+                with urllib.request.urlopen(req, timeout=timeout) as resp:
+                    data = json.loads(resp.read().decode("utf-8"))
+                    choices = data.get("choices", [])
+                    if not choices:
+                        return None
 
-            content = choices[0].get("message", {}).get("content", "").strip()
-            if not content:
-                return None
+                    content = choices[0].get("message", {}).get("content", "").strip()
+                    if not content:
+                        return None
 
-            # Strip markdown fences if present
-            if content.startswith("```"):
-                content = content.strip("`")
-                if content.startswith("json"):
-                    content = content[4:].strip()
+                    # Strip markdown fences if present
+                    if content.startswith("```"):
+                        content = content.strip("`")
+                        if content.startswith("json"):
+                            content = content[4:].strip()
 
-            parsed = json.loads(content)
-            return schema.model_validate(parsed) if hasattr(schema, "model_validate") else schema.parse_obj(parsed)
+                    parsed = json.loads(content)
+                    return schema.model_validate(parsed) if hasattr(schema, "model_validate") else schema.parse_obj(parsed)
+            except (socket.timeout, TimeoutError, urllib.error.URLError) as e:
+                last_err = e
+                if attempt == 0:
+                    time.sleep(1.0)
+                    continue
+                raise last_err
 
     @classmethod
     def get_status_info(cls) -> Dict[str, Any]:

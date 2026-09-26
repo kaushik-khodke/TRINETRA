@@ -35,11 +35,6 @@ from exploration.ai_schemas import (
     ShowTimelineCommand,
     TrackObjectCommand,
     CompareRegionsCommand,
-    OpenWorkspaceCommand,
-    CreateWorkspaceCommand,
-    PinToEvidenceBoardCommand,
-    RunInvestigationPlanCommand,
-    ExportReportCommand,
     EXPLORE_COMMAND_FAILED,
     EXPLORE_LOCATION_AMBIGUOUS,
     EXPLORE_LOCATION_NOT_FOUND,
@@ -104,7 +99,12 @@ class CommandExecutor:
 
             # Capture patches
             if details.get("camera"):
-                camera_patch = details["camera"]
+                if camera_patch is None:
+                    camera_patch = {}
+                camera_patch.update(details["camera"])
+                if current_camera is None:
+                    current_camera = {}
+                current_camera.update(details["camera"])
             if details.get("dataset_id"):
                 dataset_id_patch = details["dataset_id"]
             if "aoi" in details:
@@ -127,14 +127,6 @@ class CommandExecutor:
                 timeline_active_patch = details["timeline_active"]
             if "object_tracking" in details:
                 object_tracking_patch = details["object_tracking"]
-            if "active_workspace_id" in details:
-                active_workspace_id_patch = details["active_workspace_id"]
-            if "active_workspace_tab" in details:
-                active_workspace_tab_patch = details["active_workspace_tab"]
-            if "evidence_board_active" in details:
-                evidence_board_active_patch = details["evidence_board_active"]
-            if "active_plan_id" in details:
-                active_plan_id_patch = details["active_plan_id"]
 
             items.append(
                 CommandExecutionItem(
@@ -165,10 +157,6 @@ class CommandExecutor:
             focused_evidence_id=focused_evidence_patch if "focused_evidence_patch" in locals() else None,
             timeline_active=timeline_active_patch if "timeline_active_patch" in locals() else None,
             object_tracking=object_tracking_patch if "object_tracking_patch" in locals() else None,
-            active_workspace_id=active_workspace_id_patch if "active_workspace_id_patch" in locals() else None,
-            active_workspace_tab=active_workspace_tab_patch if "active_workspace_tab_patch" in locals() else None,
-            evidence_board_active=evidence_board_active_patch if "evidence_board_active_patch" in locals() else None,
-            active_plan_id=active_plan_id_patch if "active_plan_id_patch" in locals() else None,
         )
 
 
@@ -214,12 +202,22 @@ class CommandExecutor:
                 lon = target.longitude
                 name = target.name
                 bbox = getattr(target, "bbox", None)
+                if getattr(target, "zoom", None):
+                    zoom = target.zoom
+                elif bbox:
+                    from exploration.fallback_parser import FallbackParser
+                    zoom = FallbackParser.calculate_zoom(bbox, default=11.5)
             else:
                 if cmd.location_query:
                     target = GeoResolver.resolve(cmd.location_query)
                     if target and getattr(target, "bbox", None):
                         if abs(target.latitude - lat) < 1.0 and abs(target.longitude - lon) < 1.0:
                             bbox = target.bbox
+                            if getattr(target, "zoom", None):
+                                zoom = target.zoom
+                            else:
+                                from exploration.fallback_parser import FallbackParser
+                                zoom = FallbackParser.calculate_zoom(bbox, default=11.5)
 
             # If bbox is missing, generate an appropriate bounding box around the target coordinates
             if not bbox and lat is not None and lon is not None:
@@ -497,64 +495,7 @@ class CommandExecutor:
             )
 
 
-        # 32. OPEN_WORKSPACE
-        elif isinstance(cmd, OpenWorkspaceCommand):
-            return (
-                CommandExecutionStatus.EXECUTED,
-                f"Opened analyst workspace '{cmd.workspace_id}'.",
-                {
-                    "active_workspace_id": cmd.workspace_id,
-                    "active_workspace_tab": cmd.tab or "overview",
-                },
-                None,
-            )
 
-        # 33. CREATE_WORKSPACE
-        elif isinstance(cmd, CreateWorkspaceCommand):
-            return (
-                CommandExecutionStatus.EXECUTED,
-                f"Created analyst workspace '{cmd.name}'.",
-                {
-                    "active_workspace_id": f"ws-{cmd.name.lower().replace(' ', '-')[:16]}",
-                    "active_workspace_tab": "overview",
-                },
-                None,
-            )
-
-        # 34. PIN_TO_BOARD
-        elif isinstance(cmd, PinToEvidenceBoardCommand):
-            return (
-                CommandExecutionStatus.EXECUTED,
-                f"Pinned {cmd.item_type} '{cmd.source_id}' to evidence board.",
-                {
-                    "evidence_board_active": True,
-                    "active_workspace_tab": "board",
-                },
-                None,
-            )
-
-        # 35. RUN_INVESTIGATION_PLAN
-        elif isinstance(cmd, RunInvestigationPlanCommand):
-            return (
-                CommandExecutionStatus.EXECUTED,
-                f"Dispatched execution for investigation plan '{cmd.plan_id}'.",
-                {
-                    "active_plan_id": cmd.plan_id,
-                    "active_workspace_tab": "plans",
-                },
-                None,
-            )
-
-        # 36. EXPORT_REPORT
-        elif isinstance(cmd, ExportReportCommand):
-            return (
-                CommandExecutionStatus.EXECUTED,
-                f"Generated export package for report '{cmd.report_id}'.",
-                {
-                    "active_workspace_tab": "reports",
-                },
-                None,
-            )
 
         return CommandExecutionStatus.FAILED, f"Unexecutable command type '{cmd_type}'.", {}, EXPLORE_COMMAND_FAILED
 

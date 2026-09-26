@@ -223,41 +223,6 @@ class CompareRegionsCommand(BaseModel):
 
 
 
-# --- Phase 8: Analyst Command Center Commands ---
-
-class OpenWorkspaceCommand(BaseModel):
-    model_config = ConfigDict(extra="forbid")
-    type: Literal["OPEN_WORKSPACE"] = "OPEN_WORKSPACE"
-    workspace_id: str = Field(..., max_length=64)
-    tab: Optional[str] = Field(None, max_length=32)
-
-
-class CreateWorkspaceCommand(BaseModel):
-    model_config = ConfigDict(extra="forbid")
-    type: Literal["CREATE_WORKSPACE"] = "CREATE_WORKSPACE"
-    name: str = Field(..., min_length=2, max_length=120)
-    description: Optional[str] = Field(None, max_length=500)
-
-
-class PinToEvidenceBoardCommand(BaseModel):
-    model_config = ConfigDict(extra="forbid")
-    type: Literal["PIN_TO_BOARD"] = "PIN_TO_BOARD"
-    item_type: str = Field(..., max_length=32)
-    source_id: str = Field(..., max_length=64)
-    title: Optional[str] = Field(None, max_length=120)
-
-
-class RunInvestigationPlanCommand(BaseModel):
-    model_config = ConfigDict(extra="forbid")
-    type: Literal["RUN_INVESTIGATION_PLAN"] = "RUN_INVESTIGATION_PLAN"
-    plan_id: str = Field(..., max_length=64)
-
-
-class ExportReportCommand(BaseModel):
-    model_config = ConfigDict(extra="forbid")
-    type: Literal["EXPORT_REPORT"] = "EXPORT_REPORT"
-    report_id: str = Field(..., max_length=64)
-    format: Optional[str] = Field("ZIP", max_length=16)
 
 
 ExploreCommand = Annotated[
@@ -285,11 +250,6 @@ ExploreCommand = Annotated[
         ShowTimelineCommand,
         TrackObjectCommand,
         CompareRegionsCommand,
-        OpenWorkspaceCommand,
-        CreateWorkspaceCommand,
-        PinToEvidenceBoardCommand,
-        RunInvestigationPlanCommand,
-        ExportReportCommand,
     ],
     Field(discriminator="type"),
 ]
@@ -363,10 +323,6 @@ class ExploreStatePatch(BaseModel):
     focused_evidence_id: Optional[str] = None
     timeline_active: Optional[bool] = None
     object_tracking: Optional[Dict[str, Any]] = None
-    active_workspace_id: Optional[str] = None
-    active_workspace_tab: Optional[str] = None
-    evidence_board_active: Optional[bool] = None
-    active_plan_id: Optional[str] = None
 
 
 

@@ -20,7 +20,11 @@ Your sole job is to classify the user's intent into exactly one of:
 - 'unsupported': request requiring deep scientific Earth observation analysis (e.g. flood detection, change detection, NDVI calculation, vehicle counting, VQA, damage reports), or unrelated general conversation.
 
 CRITICAL RULES:
-1. Extract 'location_query' if a named place is mentioned.
+1. Extract 'location_query' if a named place, landmark, or geographic entity is mentioned or asked about.
+   - COMPOUND & MULTI-PART ADDRESSES: If the user provides a multi-part address or specifies a local place and a region/country (e.g. 'Medical Square located in India', 'Eiffel Tower located in France', 'Central Park in New York', 'MG Road in Bangalore'):
+     COMBINE all components hierarchically into a single coherent search address in 'location_query' (e.g., 'Medical Square, India' or 'Medical Square, Nagpur, India').
+     NEVER truncate the query to just the country or city! Always retain the most specific landmark/square.
+   - CAPITALS & TRIVIA: Resolve country capitals or landmarks to the specific authoritative destination (e.g., 'capital of Nigeria' -> location_query='Abuja, Nigeria').
 2. Extract 'dataset_query' if a dataset or satellite type is mentioned (e.g., 'Sentinel-2', 'SAR', 'radar').
 3. If the user asks for scientific analysis ('what changed', 'detect flooding', 'measure vegetation', 'find damage'), classify as 'unsupported' with a clear unsupported_reason explaining that analytical models belong to later phases.
 4. Respond ONLY with the requested structured JSON schema."""
@@ -44,7 +48,10 @@ STRICT CONSTRAINTS & SECURITY POLICIES:
    - SEARCH_DATASETS
    - ADD_DATASET_LAYER
 2. NEVER output commands like CREATE_WORKSPACE, SHOW_TIMELINE, FIND_SIMILAR, RUN_ANALYSIS, or custom tool names. They do NOT exist in this exploration schema and will be rejected.
-3. When the user asks about landmarks, capitals, geographical features, or places (e.g. 'capital of India', 'financial capital', 'Silicon Valley of India', 'Eiffel tower'), resolve it to the specific city or location name, put it in 'location_query' (e.g. 'New Delhi'), and emit a FLY_TO command.
+3. When the user asks about landmarks, capitals, geographical features, places, or multi-part/compound addresses (e.g. 'capital of Nigeria', 'Medical Square located in India', 'MG Road in Bangalore', 'Eiffel tower in France'):
+   - Combine all location parts into a single coherent, precise string in 'location_query' (e.g. 'Medical Square, India' or 'Medical Square, Nagpur, India').
+   - NEVER drop the specific landmark or local square to just the country (e.g. do NOT output 'India' when asked for 'Medical Square located in India').
+   - Emit a FLY_TO command with this combined 'location_query'.
 4. NEVER invent or fabricate latitude/longitude coordinates! Instead, put the place name in 'location_query'. The backend's GeoResolver will resolve coordinates.
 5. NEVER invent dataset IDs or observation hashes! Use 'SEARCH_DATASETS' with collection names (e.g. 'Sentinel-2').
 6. You may ONLY reference layer IDs present in the ALLOWED LAYERS list. Do NOT invent new layer IDs.

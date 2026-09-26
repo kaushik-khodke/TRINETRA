@@ -41,6 +41,7 @@ from exploration.prompts import (
     build_planner_prompt,
 )
 from exploration.service import explore_service
+from config.settings import settings
 from llm.model_registry import LocalModelRegistry
 from llm.ollama_provider import OllamaProvider
 from llm.llm_gateway import UnifiedLLMGateway
@@ -109,96 +110,72 @@ class ExploreAIService:
         active_layer_ids = list(request.active_layer_ids or [])
         current_camera = request.view_state.model_dump() if request.view_state else None
 
-        # 2. FAST PATH: Deterministic Fallback Parser (< 1ms execution, 0 LLM calls)
-        fallback_plan = FallbackParser.parse(raw_query)
-        if fallback_plan:
-            valid, err_code, err_msg = CommandValidator.validate_plan(fallback_plan, active_layer_ids)
-            if valid:
-                status, items, patch, exec_err = CommandExecutor.execute_plan(
-                    plan=fallback_plan,
-                    current_active_layers=active_layer_ids,
-                    current_camera=current_camera,
+        # 2. AI PRIMARY PATH: Route query to the LLM Gateway
+        llm_status = UnifiedLLMGateway.get_status_info()
+        intent_obj: Optional[ExploreIntent] = None
+
+        if llm_status["available"]:
+            intent_prompt = build_intent_prompt(raw_query, current_camera)
+            try:
+                intent_obj = UnifiedLLMGateway.generate_structured(
+                    prompt=intent_prompt,
+                    schema=ExploreIntent,
+                    role="fast_router",
+                    system_prompt=INTENT_CLASSIFIER_SYSTEM_PROMPT,
+                    timeout=max(45.0, settings.llm_timeout),
+                    temperature=0.0,
                 )
-                summary = CommandExecutor.generate_user_summary(items)
-                latency = (time.time() - t0) * 1000.0
+            except (socket.timeout, TimeoutError):
+                logger.warning("LLM intent generation timed out.")
+                intent_obj = None
+            except Exception as e_llm:
+                logger.warning(f"LLM intent generation error: {e_llm}")
+                intent_obj = None
+
+        # 3. EMERGENCY FALLBACK: Deterministic Fallback Parser (active only if LLM is offline or failed)
+        if not intent_obj:
+            fallback_plan = FallbackParser.parse(raw_query)
+            if fallback_plan:
+                valid, err_code, err_msg = CommandValidator.validate_plan(fallback_plan, active_layer_ids)
+                if valid:
+                    status, items, patch, exec_err = CommandExecutor.execute_plan(
+                        plan=fallback_plan,
+                        current_active_layers=active_layer_ids,
+                        current_camera=current_camera,
+                    )
+                    summary = CommandExecutor.generate_user_summary(items)
+                    latency = (time.time() - t0) * 1000.0
+                    return ExploreAIQueryResponse(
+                        request_id=req_id,
+                        status=status,
+                        summary=summary,
+                        intent=fallback_plan.intent,
+                        fast_path=True,
+                        commands=items,
+                        state_patch=patch,
+                        error_code=exec_err,
+                        latency_ms=round(latency, 2),
+                    )
+
+            if not llm_status["available"]:
                 return ExploreAIQueryResponse(
                     request_id=req_id,
-                    status=status,
-                    summary=summary,
-                    intent=fallback_plan.intent,
-                    fast_path=True,
-                    commands=items,
-                    state_patch=patch,
-                    error_code=exec_err,
-                    latency_ms=round(latency, 2),
+                    status="rejected",
+                    summary="LLM service is currently offline. Basic commands ('reset', 'zoom in', 'show boundaries') remain active via deterministic fallback.",
+                    intent="unsupported",
+                    fast_path=False,
+                    commands=[],
+                    state_patch=ExploreStatePatch(visible_layer_ids=active_layer_ids),
+                    error_code="EXPLORE_PROVIDER_UNAVAILABLE",
+                    latency_ms=round((time.time() - t0) * 1000.0, 2),
                 )
 
-        # 3. AI PATH: Verify LLM runtime availability (Cloud API or Local Ollama)
-        llm_status = UnifiedLLMGateway.get_status_info()
-        if not llm_status["available"]:
-            return ExploreAIQueryResponse(
-                request_id=req_id,
-                status="rejected",
-                summary="Local Ollama service is offline. Basic commands ('reset', 'zoom in', 'show boundaries') remain active via deterministic fallback.",
-                intent="unsupported",
-                fast_path=False,
-                commands=[],
-                state_patch=ExploreStatePatch(visible_layer_ids=active_layer_ids),
-                error_code="EXPLORE_PROVIDER_UNAVAILABLE",
-                latency_ms=round((time.time() - t0) * 1000.0, 2),
-            )
-
-        # 4. Stage A: Fast Intent Classification (role: fast_router)
-        intent_prompt = build_intent_prompt(raw_query, current_camera)
-        intent_obj: Optional[ExploreIntent] = None
-        try:
-            intent_obj = UnifiedLLMGateway.generate_structured(
-                prompt=intent_prompt,
-                schema=ExploreIntent,
-                role="fast_router",
-                system_prompt=INTENT_CLASSIFIER_SYSTEM_PROMPT,
-                timeout=25.0,
-                temperature=0.0,
-            )
-        except (socket.timeout, TimeoutError):
             return self._build_error_response(
                 req_id=req_id,
-                error_code=EXPLORE_LLM_TIMEOUT,
-                summary="Exploration AI query timed out. Please try again or use simpler commands.",
+                error_code=EXPLORE_LLM_INVALID_OUTPUT,
+                summary="Failed to classify exploration intent. Try: 'Go to China', 'Focus on New Delhi', 'Show radar imagery', or 'Reset globe'.",
                 t0=t0,
             )
-        except Exception as e_llm:
-            logger.warning(f"LLM intent generation error: {e_llm}")
-            intent_obj = None
-
-        if not intent_obj:
-            # Fallback heuristic: check if query contains any known location in GeoResolver
-            from exploration.geo_resolver import GeoResolver
-            from exploration.fallback_parser import NAV_REGEX
-            nav_match = NAV_REGEX.match(raw_query)
-            target_loc = nav_match.group(1).strip() if nav_match else raw_query
-            geo_match = GeoResolver.resolve(target_loc) or GeoResolver.resolve(raw_query)
-            if geo_match:
-                intent_obj = ExploreIntent(
-                    intent=ExploreIntentType.NAVIGATION,
-                    confidence=0.85,
-                    location_query=geo_match.name,
-                    requested_actions=["fly_to"],
-                )
-            elif nav_match:
-                return self._build_error_response(
-                    req_id=req_id,
-                    error_code="LOCATION_NOT_FOUND",
-                    summary=f"Location '{target_loc}' could not be resolved from offline gazetteer. Try major countries (e.g. 'Go to China', 'Go to India', 'Go to USA') or exact coordinates ('21.14, 79.08').",
-                    t0=t0,
-                )
-            else:
-                return self._build_error_response(
-                    req_id=req_id,
-                    error_code=EXPLORE_LLM_INVALID_OUTPUT,
-                    summary="Failed to classify exploration intent. Try: 'Go to China', 'Focus on New Delhi', 'Show radar imagery', or 'Reset globe'.",
-                    t0=t0,
-                )
 
         # 5. Guardrail: Defer deep scientific analysis requests (VQA, change detection, NDVI, flooding)
         if intent_obj.intent == ExploreIntentType.UNSUPPORTED:
@@ -238,7 +215,7 @@ class ExploreAIService:
                 schema=ExploreCommandPlan,
                 role="planner",
                 system_prompt=COMMAND_PLANNER_SYSTEM_PROMPT,
-                timeout=25.0,
+                timeout=max(45.0, settings.llm_timeout),
                 temperature=0.0,
             )
         except (socket.timeout, TimeoutError):

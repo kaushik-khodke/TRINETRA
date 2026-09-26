@@ -8,7 +8,7 @@
 
 import React, { useState, useCallback } from "react"
 import Link from "next/link"
-import { ArrowLeft, Briefcase, Compass, Layers, MapPin, Navigation, PanelLeftClose, Satellite, Sparkles } from "lucide-react"
+import { ArrowLeft, Compass, Layers, MapPin, Navigation, PanelLeftClose, Satellite, Sparkles } from "lucide-react"
 import { globeCommandBus } from "@/lib/explore/globe-command-bus"
 import { useGlobeState, globeState } from "@/lib/explore/globe-state"
 import { DEFAULT_CAMERA_STATE, ISRO_HQ_LOCATION } from "@/lib/explore/constants"
@@ -17,13 +17,12 @@ import DataSourcePanel from "./DataSourcePanel"
 import CatalogResults from "./CatalogResults"
 import ActiveLayers from "./ActiveLayers"
 import { InvestigationPanel } from "./InvestigationPanel"
-import { WorkspaceShell } from "@/components/workspace/WorkspaceShell"
 import { useAOIState } from "@/lib/explore/aoi-state"
 
 export function ExploreSidebar() {
   const { sidebarOpen, sidebarWidth } = useGlobeState()
   const { activeAOI } = useAOIState()
-  const [activeTab, setActiveTab] = useState<"catalog" | "layers" | "investigate" | "workspace" | "waypoints">("catalog")
+  const [activeTab, setActiveTab] = useState<"catalog" | "layers" | "investigate" | "waypoints">("catalog")
   const [isResizing, setIsResizing] = useState(false)
 
   const startResizing = useCallback((e: React.MouseEvent) => {
@@ -143,14 +142,6 @@ export function ExploreSidebar() {
           <span>Investigate</span>
         </button>
         <button
-          className={`tab-btn ${activeTab === "workspace" ? "active" : ""}`}
-          onClick={() => setActiveTab("workspace")}
-          title="Analyst Command Center & Multi-Region Workflows"
-        >
-          <Briefcase size={12} />
-          <span>Workspace</span>
-        </button>
-        <button
           className={`tab-btn ${activeTab === "waypoints" ? "active" : ""}`}
           onClick={() => setActiveTab("waypoints")}
           title="Waypoints"
@@ -179,11 +170,6 @@ export function ExploreSidebar() {
         )}
 
 
-        {activeTab === "workspace" && (
-          <div className="workspace-tab-pane h-full">
-            <WorkspaceShell />
-          </div>
-        )}
 
         {activeTab === "layers" && (
           <div className="layers-tab-pane">
