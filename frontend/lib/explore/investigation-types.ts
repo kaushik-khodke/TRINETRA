@@ -120,6 +120,32 @@ export interface InvestigationConclusion {
   recommendations: string[]
 }
 
+export type SpecialistModelType =
+  | "router"
+  | "vision"
+  | "sar"
+  | "spectral"
+  | "gis"
+  | "fusion"
+  | "classifier"
+  | "reasoning"
+
+export interface ChainOfThoughtStep {
+  step_number: number
+  node: string
+  stage: string
+  agent_role: string
+  model_name: string
+  model_type: SpecialistModelType
+  input_summary: string
+  observation: string
+  thought_process: string
+  prediction: string
+  confidence: number
+  metrics?: Record<string, any>
+  timestamp?: string
+}
+
 export interface InvestigationItem {
   investigation_id: string
   question: string
@@ -133,6 +159,7 @@ export interface InvestigationItem {
   hypotheses: SemanticHypothesisData[]
   conflicts: EvidenceConflictData[]
   conclusion?: InvestigationConclusion
+  chain_of_thought?: ChainOfThoughtStep[]
   limitations: any[]
   artifacts: InvestigationArtifact[]
   result_data?: Record<string, any>
@@ -144,6 +171,7 @@ export interface InvestigationRequest {
   observation_ids: string[]
   aoi?: any
   temporal_scope?: Record<string, any>
+  options?: Record<string, any>
 }
 
 export interface InvestigationValidationResponse {
