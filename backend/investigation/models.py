@@ -69,6 +69,7 @@ class Investigation(BaseModel):
     aoi: Optional[Dict[str, Any]] = None
     observation_ids: List[str] = Field(default_factory=list)
     temporal_scope: Dict[str, Any] = Field(default_factory=dict)
+    options: Dict[str, Any] = Field(default_factory=dict)
     intent: str = "GENERAL_CHANGE"
     required_evidence: List[str] = Field(default_factory=list)
     status: InvestigationStatus = InvestigationStatus.QUEUED

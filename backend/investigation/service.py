@@ -57,6 +57,7 @@ class InvestigationService:
             aoi=request.aoi,
             observation_ids=request.observation_ids,
             temporal_scope=getattr(request, "temporal_scope", None) or getattr(request, "temporal_range", None) or {},
+            options=getattr(request, "options", None) or {},
         )
         with self._lock:
             self._investigations[inv.investigation_id] = inv
@@ -116,7 +117,7 @@ class InvestigationService:
                     "question": inv.question,
                     "observation_ids": inv.observation_ids,
                     "aoi": inv.aoi,
-                    "options": inv.options or {},
+                    "options": getattr(inv, "options", None) or {},
                     "status": "QUEUED",
                     "warnings": [],
                     "errors": [],

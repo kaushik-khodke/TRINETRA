@@ -204,6 +204,14 @@ export default function GlobeView() {
 
           // Add resilient render error recovery to prevent WebGL scene freezing
           try {
+            ;(viewer as any).showErrorPanel = (title: string, message: string, err: any) => {
+              console.warn("[GlobeView] Cesium viewer error panel suppressed:", title, message, err)
+            }
+            if (viewer.cesiumWidget) {
+              ;(viewer.cesiumWidget as any).showErrorPanel = (title: string, message: string, err: any) => {
+                console.warn("[GlobeView] CesiumWidget error panel suppressed:", title, message, err)
+              }
+            }
             viewer.scene.renderError.addEventListener((scene: any, error: any) => {
               console.warn("[GlobeView] Intercepted Cesium render error, clearing corrupt geometries:", error)
               try {
@@ -214,11 +222,6 @@ export default function GlobeView() {
               } catch {}
               viewer.useDefaultRenderLoop = true
             })
-            if (viewer.cesiumWidget) {
-              ;(viewer.cesiumWidget as any).showErrorPanel = (title: string, message: string, err: any) => {
-                console.warn("[GlobeView] Cesium error panel suppressed:", title, message, err)
-              }
-            }
           } catch (e) {
             // Non-blocking
           }
@@ -489,13 +492,40 @@ export default function GlobeView() {
 
                 if (sanitizedCoords.length < 3) return
 
+                // Deduplicate adjacent vertices to avoid zero-length segments that trigger splitLongitude DeveloperError
+                const uniqueCoords: [number, number][] = []
+                for (const pt of sanitizedCoords) {
+                  if (uniqueCoords.length === 0) {
+                    uniqueCoords.push(pt)
+                  } else {
+                    const prev = uniqueCoords[uniqueCoords.length - 1]
+                    if (Math.abs(prev[0] - pt[0]) > 1e-6 || Math.abs(prev[1] - pt[1]) > 1e-6) {
+                      uniqueCoords.push(pt)
+                    }
+                  }
+                }
+
+                if (uniqueCoords.length < 3) return
+
                 // Check if polygon spans or touches the antimeridian (+-180)
                 const crossesOrNearMeridian =
                   Math.abs(maxLon - minLon) >= 180 ||
                   Math.abs(minLon) >= 175 ||
                   Math.abs(maxLon) >= 175
 
-                const flatHierarchy = sanitizedCoords.flatMap((pt) => [pt[0], pt[1]])
+                // Cesium polygon hierarchy expects outer ring WITHOUT duplicate closing vertex
+                const polyCoords = [...uniqueCoords]
+                if (
+                  polyCoords.length > 3 &&
+                  Math.abs(polyCoords[0][0] - polyCoords[polyCoords.length - 1][0]) < 1e-6 &&
+                  Math.abs(polyCoords[0][1] - polyCoords[polyCoords.length - 1][1]) < 1e-6
+                ) {
+                  polyCoords.pop()
+                }
+
+                if (polyCoords.length < 3) return
+
+                const flatHierarchy = polyCoords.flatMap((pt) => [pt[0], pt[1]])
                 if (flatHierarchy.length >= 6) {
                   // Only use ClassificationType.BOTH if away from antimeridian to avoid Cesium splitLongitude DeveloperError
                   const classificationType =
@@ -512,16 +542,36 @@ export default function GlobeView() {
                       classificationType: classificationType,
                     },
                   })
-                  // Sharp vibrant cyan boundary border clamped to ground
-                  viewerRef.current.entities.add({
-                    id: "trinetra-aoi-outline",
-                    polyline: {
-                      positions: CesiumGlobal.Cartesian3.fromDegreesArray(flatHierarchy),
-                      width: 3.5,
-                      material: CesiumGlobal.Color.fromCssColorString("#22d3ee"),
-                      clampToGround: !crossesOrNearMeridian,
-                    },
-                  })
+
+                  // Outline: safely closed ring
+                  const outlineCoords = [...polyCoords, polyCoords[0]]
+                  const flatOutline = outlineCoords.flatMap((pt) => [pt[0], pt[1]])
+
+                  try {
+                    viewerRef.current.entities.add({
+                      id: "trinetra-aoi-outline",
+                      polyline: {
+                        positions: CesiumGlobal.Cartesian3.fromDegreesArray(flatOutline),
+                        width: 3.5,
+                        material: CesiumGlobal.Color.fromCssColorString("#22d3ee"),
+                        clampToGround: !crossesOrNearMeridian,
+                      },
+                    })
+                  } catch (outlineErr) {
+                    console.warn("[GlobeView] Could not add clamped outline, falling back to unclamped:", outlineErr)
+                    try {
+                      viewerRef.current.entities.add({
+                        id: "trinetra-aoi-outline",
+                        polyline: {
+                          positions: CesiumGlobal.Cartesian3.fromDegreesArray(flatOutline),
+                          width: 2.5,
+                          material: CesiumGlobal.Color.fromCssColorString("#22d3ee"),
+                          clampToGround: false,
+                        },
+                      })
+                    } catch {}
+                  }
+
                   viewerRef.current.scene.requestRender()
                 }
               } catch (e) {
