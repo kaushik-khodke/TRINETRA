@@ -9,6 +9,7 @@ import { useInvestigationState } from "@/lib/explore/investigation-state"
 import { InvestigationComposer } from "./InvestigationComposer"
 import { InvestigationProgress } from "./InvestigationProgress"
 import { FindingsDashboard } from "./FindingsDashboard"
+import { ChainOfThoughtView } from "./ChainOfThoughtView"
 import { EvidenceCard } from "./EvidenceCard"
 import { EvidenceGraph } from "./EvidenceGraph"
 import { InvestigationTimeline } from "./InvestigationTimeline"
@@ -19,6 +20,7 @@ import { InvestigationHistory } from "./InvestigationHistory"
 import { SemanticLegend } from "./SemanticLegend"
 import {
   FileText,
+  BrainCircuit,
   Share2,
   Calendar,
   Box,
@@ -40,6 +42,7 @@ interface Props {
 
 type WorkspaceTab =
   | "findings"
+  | "cot"
   | "evidence"
   | "timeline"
   | "objects"
@@ -78,7 +81,7 @@ export const InvestigationPanel: React.FC<Props> = ({
   } = useInvestigationState()
 
   const { activeAOI } = useAOIState()
-  const { cameraState } = useGlobeState()
+  const { camera } = useGlobeState()
 
   const [activeTab, setActiveTab] = useState<WorkspaceTab>("findings")
   const [showComposer, setShowComposer] = useState<boolean>(!currentInvestigation)
@@ -92,10 +95,10 @@ export const InvestigationPanel: React.FC<Props> = ({
         observation_ids: observationIds,
         aoi: rawAOI || undefined,
         options: {
-          viewport: cameraState ? {
-            latitude: cameraState.latitude,
-            longitude: cameraState.longitude,
-            zoom: cameraState.zoom,
+          viewport: camera ? {
+            latitude: camera.latitude,
+            longitude: camera.longitude,
+            zoom: camera.zoom,
           } : undefined,
         },
       })
@@ -156,6 +159,7 @@ export const InvestigationPanel: React.FC<Props> = ({
         <div className="shrink-0 flex items-center gap-1.5 overflow-x-auto px-3 py-2 bg-slate-900/90 border-b border-slate-800 text-xs font-mono z-10">
           {[
             { id: "findings" as WorkspaceTab, label: "Findings", icon: FileText, count: findings.length },
+            { id: "cot" as WorkspaceTab, label: "Chain of Thoughts", icon: BrainCircuit, count: currentInvestigation.chain_of_thought?.length },
             { id: "evidence" as WorkspaceTab, label: "Evidence Graph", icon: Share2, count: evidenceCards.length },
             { id: "timeline" as WorkspaceTab, label: "Timeline", icon: Calendar, count: timeline.length },
             { id: "objects" as WorkspaceTab, label: "Objects", icon: Box },
@@ -224,6 +228,13 @@ export const InvestigationPanel: React.FC<Props> = ({
                 selectedFindingId={selectedFindingId}
                 onSelectFinding={setSelectedFindingId}
                 onFocusEvidence={handleFocusEvidence}
+              />
+            )}
+
+            {activeTab === "cot" && (
+              <ChainOfThoughtView
+                investigation={currentInvestigation}
+                isCompact={false}
               />
             )}
 
