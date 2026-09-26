@@ -116,6 +116,7 @@ class InvestigationService:
                     "question": inv.question,
                     "observation_ids": inv.observation_ids,
                     "aoi": inv.aoi,
+                    "options": inv.options or {},
                     "status": "QUEUED",
                     "warnings": [],
                     "errors": [],

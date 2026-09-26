@@ -750,8 +750,10 @@ export default function GlobeView() {
           // LEFT_DOUBLE_CLICK: Finalize polygon
           aoiHandler.setInputAction(() => {
             const { drawMode } = aoiStateManager.getState()
-            if (drawMode === "polygon" && polygonPointsRef.current.length >= 3) {
-              const closedRing = [...polygonPointsRef.current, polygonPointsRef.current[0]]
+            const rawPts = polygonPointsRef.current
+            const deduped = rawPts.filter((p, i, a) => i === 0 || Math.hypot(p[0] - a[i - 1][0], p[1] - a[i - 1][1]) > 1e-6)
+            if (drawMode === "polygon" && deduped.length >= 3) {
+              const closedRing = [...deduped, deduped[0]]
               const polyGeoJSON = {
                 type: "Polygon",
                 coordinates: [closedRing],
@@ -765,8 +767,10 @@ export default function GlobeView() {
           // RIGHT_CLICK: Close polygon or cancel active drawing
           aoiHandler.setInputAction(() => {
             const { drawMode } = aoiStateManager.getState()
-            if (drawMode === "polygon" && polygonPointsRef.current.length >= 3) {
-              const closedRing = [...polygonPointsRef.current, polygonPointsRef.current[0]]
+            const rawPts = polygonPointsRef.current
+            const deduped = rawPts.filter((p, i, a) => i === 0 || Math.hypot(p[0] - a[i - 1][0], p[1] - a[i - 1][1]) > 1e-6)
+            if (drawMode === "polygon" && deduped.length >= 3) {
+              const closedRing = [...deduped, deduped[0]]
               const polyGeoJSON = {
                 type: "Polygon",
                 coordinates: [closedRing],

@@ -29,6 +29,8 @@ import {
   PlusCircle,
   Filter,
 } from "lucide-react"
+import { useAOIState } from "@/lib/explore/aoi-state"
+import { useGlobeState } from "@/lib/explore/globe-state"
 
 interface Props {
   availableObservationIds?: string[]
@@ -75,16 +77,27 @@ export const InvestigationPanel: React.FC<Props> = ({
     deleteNote,
   } = useInvestigationState()
 
+  const { activeAOI } = useAOIState()
+  const { cameraState } = useGlobeState()
+
   const [activeTab, setActiveTab] = useState<WorkspaceTab>("findings")
   const [showComposer, setShowComposer] = useState<boolean>(!currentInvestigation)
   const [evidenceFilter, setEvidenceFilter] = useState<string>("ALL")
 
   const handleLaunch = async (question: string, observationIds: string[]) => {
     try {
+      const rawAOI = aoiGeometry || (activeAOI ? (activeAOI.geometry || activeAOI) : null)
       await startInvestigation({
         question,
         observation_ids: observationIds,
-        aoi: aoiGeometry || undefined,
+        aoi: rawAOI || undefined,
+        options: {
+          viewport: cameraState ? {
+            latitude: cameraState.latitude,
+            longitude: cameraState.longitude,
+            zoom: cameraState.zoom,
+          } : undefined,
+        },
       })
       setShowComposer(false)
       setActiveTab("findings")

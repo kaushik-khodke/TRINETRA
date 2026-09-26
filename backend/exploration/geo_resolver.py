@@ -1391,8 +1391,54 @@ class GeoResolver:
             cls._cache.popitem(last=False)
 
     @classmethod
-    def find_nearest(cls, lat: float, lon: float) -> GeographicTarget:
-        """Finds the closest known gazetteer target to the specified coordinates."""
+    def reverse_geocode(cls, lat: float, lon: float, allow_online: bool = True) -> GeographicTarget:
+        """
+        Reverse geocodes WGS84 coordinates to a human-readable named location.
+        Tries online reverse geocoding (OpenStreetMap Nominatim) first, then falls back
+        to offline gazetteer matching.
+        """
+        if allow_online:
+            try:
+                url = f"https://nominatim.openstreetmap.org/reverse?lat={lat:.6f}&lon={lon:.6f}&format=json&addressdetails=1"
+                req = urllib.request.Request(
+                    url,
+                    headers={
+                        "User-Agent": "TRINETRA-Geospatial-Intelligence/2.2 (https://trinetra.gov.in; contact: support@trinetra.gov.in)",
+                        "Accept-Language": "en",
+                    },
+                )
+                with urllib.request.urlopen(req, timeout=3.5) as resp:
+                    data = json.loads(resp.read().decode("utf-8"))
+                    if data and "display_name" in data:
+                        disp = data["display_name"]
+                        parts = [p.strip() for p in disp.split(",")]
+                        short_name = ", ".join(parts[:4]) if len(parts) > 4 else disp
+                        bb = data.get("boundingbox")
+                        bbox = None
+                        if bb and len(bb) == 4:
+                            raw_bbox = [float(bb[2]), float(bb[0]), float(bb[3]), float(bb[1])]
+                            bbox = cls._sanitize_bbox(raw_bbox, lat, lon)
+                        return GeographicTarget(
+                            name=short_name,
+                            latitude=lat,
+                            longitude=lon,
+                            bbox=bbox,
+                            source="nominatim_reverse",
+                            confidence=0.96,
+                        )
+            except Exception:
+                pass
+
+        return cls.find_nearest(lat, lon, allow_online=False)
+
+    @classmethod
+    def find_nearest(cls, lat: float, lon: float, allow_online: bool = True) -> GeographicTarget:
+        """Finds the closest known gazetteer target or reverse-geocoded location for coordinates."""
+        if allow_online:
+            target = cls.reverse_geocode(lat, lon, allow_online=True)
+            if target and target.source == "nominatim_reverse":
+                return target
+
         best_entry = None
         best_dist = float("inf")
 
@@ -1402,14 +1448,24 @@ class GeoResolver:
                 best_dist = dist
                 best_entry = entry
 
-        if best_entry and best_dist < 25.0:  # within ~5 degrees
+        # Tightly bounded distance (~0.35 degrees or ~35-40 km for direct city match)
+        if best_entry and best_dist < 0.15:
             return GeographicTarget(
                 name=best_entry["name"],
                 latitude=best_entry["lat"],
                 longitude=best_entry["lon"],
                 bbox=best_entry.get("bbox"),
                 source="offline_gazetteer",
-                confidence=round(max(0.75, 1.0 - (best_dist / 50.0)), 2),
+                confidence=round(max(0.85, 1.0 - (best_dist / 1.0)), 2),
+            )
+        elif best_entry and best_dist < 2.0:
+            return GeographicTarget(
+                name=f"Region near {best_entry['name']} ({lat:.4f}° N, {lon:.4f}° E)",
+                latitude=lat,
+                longitude=lon,
+                bbox=best_entry.get("bbox"),
+                source="offline_gazetteer",
+                confidence=0.80,
             )
 
         return GeographicTarget(

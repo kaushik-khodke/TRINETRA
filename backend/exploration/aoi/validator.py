@@ -113,7 +113,18 @@ class AOIValidator:
         try:
             s_geom = shape(raw_geom)
             if not s_geom.is_valid:
-                # Attempt light fix if self-intersection
+                try:
+                    from shapely.validation import make_valid
+                    fixed = make_valid(s_geom)
+                    if fixed.is_valid and not fixed.is_empty:
+                        if fixed.geom_type == "Polygon":
+                            s_geom = fixed
+                        elif fixed.geom_type == "MultiPolygon" and len(fixed.geoms) > 0:
+                            s_geom = max(fixed.geoms, key=lambda g: g.area)
+                except Exception:
+                    pass
+
+            if not s_geom.is_valid:
                 from shapely.validation import explain_validity
                 val_err = explain_validity(s_geom)
                 return AOIValidationResult(

@@ -164,7 +164,7 @@ export function ExploreSidebar() {
         {activeTab === "investigate" && (
           <div className="investigation-tab-pane h-full w-full flex flex-col min-h-0 overflow-hidden">
             <InvestigationPanel
-              aoiGeometry={activeAOI?.geometry}
+              aoiGeometry={activeAOI ? (activeAOI.geometry || activeAOI) : null}
             />
           </div>
         )}

@@ -145,9 +145,11 @@ export default function MapView({ viewId = "view-a" }: MapViewProps) {
 
       map.on("dblclick", (e) => {
         const { drawMode } = aoiStateManager.getState()
-        if (drawMode === "polygon" && polygonPointsRef.current.length >= 3) {
+        const rawPts = polygonPointsRef.current
+        const deduped = rawPts.filter((p, i, a) => i === 0 || Math.hypot(p[0] - a[i - 1][0], p[1] - a[i - 1][1]) > 1e-6)
+        if (drawMode === "polygon" && deduped.length >= 3) {
           e.preventDefault()
-          const closedRing = [...polygonPointsRef.current, polygonPointsRef.current[0]]
+          const closedRing = [...deduped, deduped[0]]
           const polyGeoJSON = {
             type: "Polygon",
             coordinates: [closedRing],

@@ -11,6 +11,7 @@ class InvestigationGraphState(TypedDict, total=False):
     question: str
     observation_ids: List[str]
     aoi: Optional[Dict[str, Any]]
+    options: Optional[Dict[str, Any]]
     status: str
     plan: Dict[str, Any]
     context: Any  # InvestigationContext reference

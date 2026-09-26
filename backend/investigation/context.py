@@ -17,11 +17,13 @@ class InvestigationContext:
         question: str,
         aoi_geometry: Optional[Dict[str, Any]] = None,
         observation_ids: Optional[List[str]] = None,
+        options: Optional[Dict[str, Any]] = None,
     ):
         self.investigation_id = investigation_id
         self.question = question
         self.aoi_geometry = aoi_geometry
         self.observation_ids = observation_ids or []
+        self.options = options or {}
         self.aoi_bounds: Optional[List[float]] = None
         self.tensors: Dict[str, Any] = {}
         self.metadata: Dict[str, Any] = {}
