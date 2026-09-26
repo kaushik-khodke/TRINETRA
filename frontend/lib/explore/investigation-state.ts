@@ -12,6 +12,7 @@ import {
   StructuredFindingData,
   TimelineMilestone,
   AnalystNote,
+  ChainOfThoughtStep,
 } from "./investigation-types"
 import { investigationApi } from "./investigation-api"
 
@@ -23,6 +24,7 @@ export function useInvestigationState() {
   const [evidenceRelationships, setEvidenceRelationships] = useState<any[]>([])
   const [evidenceConflicts, setEvidenceConflicts] = useState<any[]>([])
   const [findings, setFindings] = useState<StructuredFindingData[]>([])
+  const [chainOfThought, setChainOfThought] = useState<ChainOfThoughtStep[]>([])
   const [timeline, setTimeline] = useState<TimelineMilestone[]>([])
   const [notes, setNotes] = useState<AnalystNote[]>([])
   const [selectedEvidenceId, setSelectedEvidenceId] = useState<string | null>(null)
@@ -60,6 +62,7 @@ export function useInvestigationState() {
 
         setCurrentInvestigation(details)
         if (details.findings) setFindings(details.findings)
+        if (details.chain_of_thought) setChainOfThought(details.chain_of_thought)
 
         if (details.status === "completed") {
           // Fetch evidence, timeline, notes
@@ -90,7 +93,7 @@ export function useInvestigationState() {
 
           refreshHistory()
         } else if (details.status === "running" || details.status === "queued") {
-          pollingTimerRef.current = setTimeout(poll, 1500)
+          pollingTimerRef.current = setTimeout(poll, 650)
         }
       } catch (err: any) {
         if (isMounted) setError(err.message || "Polling error")
@@ -191,6 +194,7 @@ export function useInvestigationState() {
     evidenceRelationships,
     evidenceConflicts,
     findings,
+    chainOfThought,
     timeline,
     notes,
     selectedEvidenceId,

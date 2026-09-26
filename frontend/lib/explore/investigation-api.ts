@@ -13,6 +13,7 @@ import {
   TimelineMilestone,
   InvestigationArtifact,
   AnalystNote,
+  ChainOfThoughtStep,
 } from "./investigation-types"
 
 const BACKEND_URL = process.env.NEXT_PUBLIC_BACKEND_URL || "http://127.0.0.1:8000"
@@ -114,6 +115,19 @@ class InvestigationApiClient {
       signal: customSignal,
     })
     if (!res.ok) throw new Error(`Failed to fetch timeline for ${investigationId}: ${res.statusText}`)
+    return await res.json()
+  }
+
+  async getInvestigationChainOfThought(investigationId: string, customSignal?: AbortSignal): Promise<{
+    investigation_id: string
+    total_steps: number
+    chain_of_thought: ChainOfThoughtStep[]
+  }> {
+    const res = await fetch(`${BACKEND_URL}/api/v1/explore/investigations/${investigationId}/chain-of-thought`, {
+      headers: { Accept: "application/json" },
+      signal: customSignal,
+    })
+    if (!res.ok) throw new Error(`Failed to fetch chain-of-thought for ${investigationId}: ${res.statusText}`)
     return await res.json()
   }
 
