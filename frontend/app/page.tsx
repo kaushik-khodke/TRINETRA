@@ -2,7 +2,7 @@
 
 import { useEffect, useMemo, useRef, useState } from "react"
 import { usePathname, useRouter } from "next/navigation"
-import { Activity, ArrowRight, BarChart3, Check, CheckCheck, ChevronDown, Clock3, Copy, Cpu, ExternalLink, Eye, FileImage, Filter, GitCompareArrows, Globe, ImagePlus, Layers3, LogIn, LogOut, Maximize2, Menu, MoveHorizontal, PanelTop, Radar, RotateCcw, Search, Send, ShieldCheck, Sparkles, Trash2, Upload, X } from "lucide-react"
+import { Activity, ArrowRight, BarChart3, BrainCircuit, Check, CheckCheck, ChevronDown, Clock3, Copy, Cpu, ExternalLink, Eye, FileImage, Filter, GitCompareArrows, Globe, ImagePlus, Layers3, LogIn, LogOut, Maximize2, Menu, MoveHorizontal, PanelTop, Radar, RotateCcw, Search, Send, ShieldCheck, Sparkles, Trash2, Upload, Workflow, X } from "lucide-react"
 import {
   analysisAPI,
   buildTrinetraUrl,
@@ -26,6 +26,7 @@ import {
 } from "@/lib/types"
 import { I18nProvider, useTranslation, type SupportedLanguage } from "@/lib/i18n"
 import { HsiViewer } from "@/components/hyperspectral/HsiViewer"
+import { ChainOfThoughtView } from "@/components/explore/ChainOfThoughtView"
 import { useAuth } from "@/context/AuthContext"
 import AuthGate from "@/components/AuthGate"
 import TrinetraLanding from "@/components/TrinetraLanding"
@@ -1197,6 +1198,9 @@ function ResultView({
   const parts = result.answer.split(/(\*\*.*?\*\*)/g)
   const confidenceKey = `confidence.${result.confidence}` as const
   const confidenceText = t(confidenceKey)
+  const [activeTab, setActiveTab] = useState<"evidence" | "cot" | "unified">("evidence")
+
+  const cotSteps = result.chain_of_thought || []
 
   return (
     <div className="result-view">
@@ -1219,20 +1223,131 @@ function ResultView({
           )
         )}
       </div>
-      {result.hsiData?.isHsi ? (
-        <HsiViewer {...result.hsiData} />
-      ) : (
-        <EvidenceViewer result={result} />
-      )}
-      <div className="evidence-list">
-        {result.evidence.map((item, index) => (
-          <div key={item}>
-            <span>0{index + 1}</span>
-            {item}
-            <Check />
-          </div>
-        ))}
+
+      {/* Analysis View Mode Selector: Visual Evidence vs Chain of Thought vs Unified */}
+      <div
+        className="analysis-tab-bar"
+        style={{
+          display: "flex",
+          alignItems: "center",
+          gap: "0.5rem",
+          marginTop: "1.2rem",
+          marginBottom: "1rem",
+          borderBottom: "1px solid rgba(255, 255, 255, 0.1)",
+          paddingBottom: "0.6rem",
+          flexWrap: "wrap",
+        }}
+      >
+        <button
+          type="button"
+          onClick={() => setActiveTab("evidence")}
+          id="tab-satellite-evidence"
+          style={{
+            display: "inline-flex",
+            alignItems: "center",
+            gap: "0.45rem",
+            padding: "0.5rem 0.95rem",
+            borderRadius: "6px",
+            fontSize: "0.82rem",
+            fontFamily: "monospace",
+            fontWeight: 600,
+            cursor: "pointer",
+            transition: "all 0.2s ease",
+            background: activeTab === "evidence" ? "rgba(86, 215, 223, 0.16)" : "rgba(255, 255, 255, 0.03)",
+            color: activeTab === "evidence" ? "#56d7df" : "rgba(255, 255, 255, 0.65)",
+            border: activeTab === "evidence" ? "1px solid rgba(86, 215, 223, 0.45)" : "1px solid rgba(255, 255, 255, 0.08)",
+          }}
+        >
+          <Layers3 size={15} /> Satellite Evidence
+        </button>
+
+        <button
+          type="button"
+          onClick={() => setActiveTab("cot")}
+          id="tab-chain-of-thought"
+          style={{
+            display: "inline-flex",
+            alignItems: "center",
+            gap: "0.45rem",
+            padding: "0.5rem 0.95rem",
+            borderRadius: "6px",
+            fontSize: "0.82rem",
+            fontFamily: "monospace",
+            fontWeight: 600,
+            cursor: "pointer",
+            transition: "all 0.2s ease",
+            background: activeTab === "cot" ? "rgba(251, 146, 60, 0.18)" : "rgba(255, 255, 255, 0.03)",
+            color: activeTab === "cot" ? "#fb923c" : "rgba(255, 255, 255, 0.65)",
+            border: activeTab === "cot" ? "1px solid rgba(251, 146, 60, 0.45)" : "1px solid rgba(255, 255, 255, 0.08)",
+          }}
+        >
+          <BrainCircuit size={15} /> Chain of Thought
+          <span
+            style={{
+              fontSize: "10px",
+              padding: "1px 6px",
+              borderRadius: "999px",
+              background: activeTab === "cot" ? "rgba(251, 146, 60, 0.3)" : "rgba(255, 255, 255, 0.1)",
+              color: activeTab === "cot" ? "#fed7aa" : "rgba(255, 255, 255, 0.5)",
+            }}
+          >
+            {cotSteps.length}
+          </span>
+        </button>
+
+        <button
+          type="button"
+          onClick={() => setActiveTab("unified")}
+          id="tab-unified-view"
+          style={{
+            display: "inline-flex",
+            alignItems: "center",
+            gap: "0.45rem",
+            padding: "0.5rem 0.95rem",
+            borderRadius: "6px",
+            fontSize: "0.82rem",
+            fontFamily: "monospace",
+            fontWeight: 600,
+            cursor: "pointer",
+            transition: "all 0.2s ease",
+            background: activeTab === "unified" ? "rgba(168, 85, 247, 0.16)" : "rgba(255, 255, 255, 0.03)",
+            color: activeTab === "unified" ? "#c084fc" : "rgba(255, 255, 255, 0.65)",
+            border: activeTab === "unified" ? "1px solid rgba(168, 85, 247, 0.4)" : "1px solid rgba(255, 255, 255, 0.08)",
+          }}
+        >
+          <Workflow size={15} /> Unified View
+        </button>
       </div>
+
+      {/* Main Content Area based on Active Tab */}
+      {(activeTab === "evidence" || activeTab === "unified") && (
+        <>
+          {result.hsiData?.isHsi ? (
+            <HsiViewer {...result.hsiData} />
+          ) : (
+            <EvidenceViewer result={result} />
+          )}
+          <div className="evidence-list">
+            {result.evidence.map((item, index) => (
+              <div key={item}>
+                <span>0{index + 1}</span>
+                {item}
+                <Check />
+              </div>
+            ))}
+          </div>
+        </>
+      )}
+
+      {(activeTab === "cot" || activeTab === "unified") && (
+        <div style={{ marginTop: activeTab === "unified" ? "1.5rem" : "0.5rem", marginBottom: "1rem" }}>
+          <ChainOfThoughtView
+            steps={cotSteps}
+            title="TIFF Multimodal LangGraph Chain of Thought"
+            subtitle="Chronological multi-specialist telemetry, internal reasoning traces, and sensor fusion deductions for this raster scene."
+          />
+        </div>
+      )}
       {/* Quantum Research Mode & Comparative Telemetry Widget */}
       <QuantumResearchWidget
         comparison={result.classical_vs_qml_comparison}
