@@ -108,9 +108,29 @@ async def get_investigation_details(
         "hypotheses": res_data.get("hypotheses", []),
         "conflicts": res_data.get("conflicts", []),
         "conclusion": res_data.get("conclusion"),
+        "chain_of_thought": res_data.get("chain_of_thought", []),
         "limitations": res_data.get("limitations", []),
         "artifacts": [a.dict() for a in inv.artifacts],
         "error": inv.error,
+    }
+
+
+@router.get("/{investigation_id}/chain-of-thought")
+async def get_investigation_chain_of_thought(
+    investigation_id: str = Path(..., description="Unique investigation ID"),
+) -> Dict[str, Any]:
+    """Retrieves structured LangGraph Chain of Thought telemetry and specialist observations."""
+    inv = investigation_service.get_investigation(investigation_id)
+    if not inv:
+        raise HTTPException(status_code=404, detail="Investigation not found.")
+
+    res_data = inv.result_data or {}
+    cot = res_data.get("chain_of_thought", [])
+
+    return {
+        "investigation_id": investigation_id,
+        "total_steps": len(cot),
+        "chain_of_thought": cot,
     }
 
 
