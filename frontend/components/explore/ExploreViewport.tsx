@@ -16,10 +16,7 @@ import { ViewStatePanel } from "./ViewStatePanel"
 
 import { AOIToolbar } from "./AOIToolbar"
 import { SpectralPresetBar } from "./SpectralPresetBar"
-import { Timeline } from "./Timeline"
-import { SplitView } from "./SplitView"
 import { CoordinateHUD } from "./CoordinateHUD"
-import { useComparisonState } from "@/lib/explore/comparison-state"
 
 // Dynamic client-side only renderer loading with zero SSR overhead
 const MapView = dynamic(() => import("./MapView"), {
@@ -44,7 +41,6 @@ const GlobeView = dynamic(() => import("./GlobeView"), {
 
 export function ExploreViewport() {
   const { viewMode, sidebarOpen, sidebarWidth } = useGlobeState()
-  const { mode: comparisonMode } = useComparisonState()
 
   return (
     <main className="explore-viewport relative" role="region" aria-label="Earth Observation Viewport">
@@ -70,13 +66,7 @@ export function ExploreViewport() {
       </div>
 
       {/* Active Renderer Isolation (Section 27: Never run both renderers simultaneously) */}
-      {comparisonMode === "split" && viewMode === "2d" ? (
-        <MapErrorBoundary>
-          <Suspense fallback={null}>
-            <SplitView />
-          </Suspense>
-        </MapErrorBoundary>
-      ) : viewMode === "2d" ? (
+      {viewMode === "2d" ? (
         <MapErrorBoundary>
           <Suspense fallback={null}>
             <MapView />
@@ -89,17 +79,6 @@ export function ExploreViewport() {
           </Suspense>
         </GlobeErrorBoundary>
       )}
-
-      {/* Floating Acquisition Timeline */}
-      <div
-        className="absolute bottom-10 right-4 z-20 pointer-events-auto"
-        style={{
-          left: sidebarOpen ? `${sidebarWidth + 14}px` : "16px",
-          transition: "left 0.15s ease-out",
-        }}
-      >
-        <Timeline />
-      </div>
 
       {/* Live Geospatial Coordinate & Telemetry HUD */}
       <CoordinateHUD />

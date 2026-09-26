@@ -65,10 +65,10 @@ export const ComparisonControls: React.FC = () => {
             )}
           </div>
           <p className="truncate font-semibold text-white text-[11px]">
-            {observationA ? observationA.datetime.split("T")[0] : "Select observation A"}
+            {observationA ? observationA.datetime.split("T")[0] : "Select Base (A)"}
           </p>
           <p className="text-[9px] text-slate-400 truncate">
-            {observationA ? observationA.id : "Choose from timeline"}
+            {observationA ? observationA.id : "Click '+ Set A' below"}
           </p>
         </div>
 
@@ -102,13 +102,20 @@ export const ComparisonControls: React.FC = () => {
             )}
           </div>
           <p className="truncate font-semibold text-white text-[11px]">
-            {observationB ? observationB.datetime.split("T")[0] : "Select observation B"}
+            {observationB ? observationB.datetime.split("T")[0] : "Select Compare (B)"}
           </p>
           <p className="text-[9px] text-slate-400 truncate">
-            {observationB ? observationB.id : "Choose from timeline"}
+            {observationB ? observationB.id : "Click '+ Set B' below"}
           </p>
         </div>
       </div>
+
+      {/* Helper when pair is missing */}
+      {!hasPair && (
+        <div className="text-[10px] text-slate-400 text-center py-0.5 font-mono">
+          Pick any 2 satellite passes from below to compare
+        </div>
+      )}
 
       {/* Validation / Compatibility Badge */}
       {validating ? (
@@ -161,16 +168,24 @@ export const ComparisonControls: React.FC = () => {
             key={m}
             disabled={!hasPair}
             onClick={() => comparisonStateManager.setMode(m)}
-            className={`flex-1 py-1 px-2 rounded-md font-medium text-[11px] capitalize transition disabled:opacity-30 ${
+            className={`flex-1 py-1.5 px-2 rounded-md font-medium text-[11px] capitalize transition disabled:opacity-30 ${
               mode === m
-                ? "bg-gradient-to-r from-orange-500 to-blue-600 text-black font-bold shadow-md shadow-orange-500/30"
-                : "bg-white/5 hover:bg-white/10 text-slate-300 border border-white/10"
+                ? "bg-gradient-to-r from-orange-500 to-amber-500 text-black font-bold shadow-md shadow-orange-500/30"
+                : hasPair
+                ? "bg-orange-500/20 hover:bg-orange-500/30 text-orange-200 border border-orange-500/30 cursor-pointer"
+                : "bg-white/5 text-slate-400 border border-white/10"
             }`}
           >
             {m === "side_by_side" ? "Side by Side" : m}
           </button>
         ))}
       </div>
+
+      {hasPair && mode === "none" && (
+        <div className="p-2 rounded-lg bg-orange-500/10 border border-orange-500/30 text-orange-300 text-[10px] text-center font-medium">
+          Pair ready! Click <strong>Split</strong>, <strong>Side by Side</strong>, or <strong>Opacity</strong> to start viewing.
+        </div>
+      )}
 
       {/* Split Slider Control */}
       {mode === "split" && (

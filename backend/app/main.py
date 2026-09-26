@@ -34,7 +34,6 @@ from app.middleware import RequestIDMiddleware, format_rfc7807_error
 from core.security import SecurityValidator
 from core.exceptions import TRINETRABaseException, SecurityViolationError
 from app.routes.explore import router as explore_router
-from app.routes.analysis_explore import router as analysis_explore_router
 from app.routes.investigation import router as investigation_router
 from app.routes.intelligence import router as intelligence_router
 from app.routes.workspace import router as workspace_router
@@ -47,8 +46,6 @@ app = FastAPI(
 
 # Exploration & Tile Service Router
 app.include_router(explore_router)
-# Exploration Analytical Intelligence Engine Router (Phase 5)
-app.include_router(analysis_explore_router)
 # Exploration Semantic EO Intelligence & Investigation Router (Phase 6)
 app.include_router(investigation_router)
 # Exploration Persistent EO Intelligence & Discovery Router (Phase 7)

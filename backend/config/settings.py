@@ -162,6 +162,13 @@ class Settings(BaseSettings):
     llm_base_url: Optional[str] = Field(default=None, description="Custom base URL for OpenAI-compatible endpoint")
     llm_timeout: float = Field(default=25.0, description="Cloud LLM request timeout in seconds")
 
+    # -------------------------------------------------------------------------
+    # 13. Global Geocoding Engine (Zero-key OSM by default, Mapbox/Google optional)
+    # -------------------------------------------------------------------------
+    geocoding_provider: str = Field(default="auto", description="Geocoding provider: auto | osm | mapbox | google")
+    geocoding_api_key: Optional[str] = Field(default=None, description="Optional API key for Google Geocoding")
+    mapbox_access_token: Optional[str] = Field(default=None, description="Optional Mapbox access token for geocoding")
+
     def get_config_hash(self) -> str:
         """
         Computes a deterministic SHA-256 hash of all runtime configurations.

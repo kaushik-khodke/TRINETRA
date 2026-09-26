@@ -8,7 +8,7 @@
 
 import React, { useState, useCallback } from "react"
 import Link from "next/link"
-import { ArrowLeft, BrainCircuit, Briefcase, Calendar, Compass, Database, GitCompare, Layers, MapPin, Navigation, PanelLeftClose, Satellite, Sparkles } from "lucide-react"
+import { ArrowLeft, Briefcase, Compass, Database, Layers, MapPin, Navigation, PanelLeftClose, Satellite, Sparkles } from "lucide-react"
 import { globeCommandBus } from "@/lib/explore/globe-command-bus"
 import { useGlobeState, globeState } from "@/lib/explore/globe-state"
 import { DEFAULT_CAMERA_STATE, ISRO_HQ_LOCATION } from "@/lib/explore/constants"
@@ -16,24 +16,15 @@ import { ViewModeSwitcher } from "./ViewModeSwitcher"
 import DataSourcePanel from "./DataSourcePanel"
 import CatalogResults from "./CatalogResults"
 import ActiveLayers from "./ActiveLayers"
-import { TemporalToolbar } from "./TemporalToolbar"
-import { ObservationCard } from "./ObservationCard"
-import { ObservationDetails } from "./ObservationDetails"
-import { ComparisonPanel } from "./ComparisonPanel"
-import { AnalysisPanel } from "./AnalysisPanel"
 import { InvestigationPanel } from "./InvestigationPanel"
 import { IntelligenceWorkspace } from "./IntelligenceWorkspace"
 import { WorkspaceShell } from "@/components/workspace/WorkspaceShell"
-import { useTemporalState } from "@/lib/explore/temporal-state"
-import { useComparisonState } from "@/lib/explore/comparison-state"
 import { useAOIState } from "@/lib/explore/aoi-state"
 
 export function ExploreSidebar() {
   const { sidebarOpen, sidebarWidth } = useGlobeState()
-  const { observations, selectedObservation } = useTemporalState()
-  const comparisonState = useComparisonState()
   const { activeAOI } = useAOIState()
-  const [activeTab, setActiveTab] = useState<"catalog" | "temporal" | "compare" | "analysis" | "investigate" | "intelligence" | "workspace" | "layers" | "waypoints">("catalog")
+  const [activeTab, setActiveTab] = useState<"catalog" | "layers" | "investigate" | "intelligence" | "workspace" | "waypoints">("catalog")
   const [isResizing, setIsResizing] = useState(false)
 
   const startResizing = useCallback((e: React.MouseEvent) => {
@@ -145,30 +136,6 @@ export function ExploreSidebar() {
           <span>Layers</span>
         </button>
         <button
-          className={`tab-btn ${activeTab === "temporal" ? "active" : ""}`}
-          onClick={() => setActiveTab("temporal")}
-          title="Temporal Observations"
-        >
-          <Calendar size={12} />
-          <span>Temporal</span>
-        </button>
-        <button
-          className={`tab-btn ${activeTab === "compare" ? "active" : ""}`}
-          onClick={() => setActiveTab("compare")}
-          title="Dual Observation Comparison"
-        >
-          <GitCompare size={12} />
-          <span>Compare</span>
-        </button>
-        <button
-          className={`tab-btn ${activeTab === "analysis" ? "active" : ""}`}
-          onClick={() => setActiveTab("analysis")}
-          title="EO Analytical Intelligence Engine"
-        >
-          <BrainCircuit size={12} />
-          <span>Analysis</span>
-        </button>
-        <button
           className={`tab-btn ${activeTab === "investigate" ? "active" : ""}`}
           onClick={() => setActiveTab("investigate")}
           title="Semantic EO Intelligence & Evidence Fusion"
@@ -204,7 +171,7 @@ export function ExploreSidebar() {
 
 
       {/* 4. Tab Contents */}
-      <div className="tab-content-container">
+      <div className={`tab-content-container ${activeTab === "investigate" ? "!p-0 !overflow-hidden !gap-0" : ""}`}>
         {activeTab === "catalog" && (
           <div className="catalog-tab-pane">
             <DataSourcePanel />
@@ -212,46 +179,9 @@ export function ExploreSidebar() {
           </div>
         )}
 
-        {activeTab === "temporal" && (
-          <div className="temporal-tab-pane space-y-3">
-            <TemporalToolbar />
-            <ObservationDetails />
-            {observations.length > 0 && (
-              <div className="space-y-2">
-                <span className="text-[11px] uppercase tracking-wider font-mono text-slate-400 block px-1">
-                  Acquisitions ({observations.length})
-                </span>
-                <div className="space-y-2 max-h-[380px] overflow-y-auto pr-1 scrollbar-thin scrollbar-thumb-orange-500/20">
-                  {observations.map((obs) => (
-                    <ObservationCard key={obs.id} observation={obs} />
-                  ))}
-                </div>
-              </div>
-            )}
-          </div>
-        )}
-
-        {activeTab === "compare" && (
-          <div className="compare-tab-pane">
-            <ComparisonPanel />
-          </div>
-        )}
-
-        {activeTab === "analysis" && (
-          <div className="analysis-tab-pane h-full">
-            <AnalysisPanel
-              selectedObservation={selectedObservation}
-              comparisonObservationA={comparisonState.observationA}
-              comparisonObservationB={comparisonState.observationB}
-              aoiGeometry={activeAOI?.geometry}
-            />
-          </div>
-        )}
-
         {activeTab === "investigate" && (
-          <div className="investigation-tab-pane h-full">
+          <div className="investigation-tab-pane h-full w-full flex flex-col min-h-0 overflow-hidden">
             <InvestigationPanel
-              availableObservationIds={observations.map((o) => o.id)}
               aoiGeometry={activeAOI?.geometry}
             />
           </div>
@@ -259,9 +189,7 @@ export function ExploreSidebar() {
 
         {activeTab === "intelligence" && (
           <div className="intelligence-tab-pane h-full">
-            <IntelligenceWorkspace
-              availableObservationIds={observations.map((o) => o.id)}
-            />
+            <IntelligenceWorkspace />
           </div>
         )}
 

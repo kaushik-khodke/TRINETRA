@@ -44,7 +44,7 @@ export const HypothesisCard: React.FC<Props> = ({ hypothesis, isPrimary = false 
               )}
             </div>
             <h3 className="text-sm font-bold text-slate-100 uppercase tracking-tight">
-              {hypothesis.semantic_class.replace(/_/g, " ")}
+              {(hypothesis.semantic_class || (hypothesis as any).label || "HYPOTHESIS").replace(/_/g, " ")}
             </h3>
           </div>
         </div>
@@ -56,7 +56,7 @@ export const HypothesisCard: React.FC<Props> = ({ hypothesis, isPrimary = false 
       </div>
 
       <p className="text-xs text-slate-300 leading-relaxed mb-3">
-        {hypothesis.description}
+        {hypothesis.description || (hypothesis as any).statement || ""}
       </p>
 
       {/* Alternative hypotheses */}
@@ -67,19 +67,23 @@ export const HypothesisCard: React.FC<Props> = ({ hypothesis, isPrimary = false 
             <span>Alternative Interpretations Evaluated:</span>
           </div>
           <div className="space-y-1.5">
-            {hypothesis.alternative_hypotheses.map((alt) => (
-              <div
-                key={alt.semantic_class}
-                className="flex items-center justify-between text-[11px] bg-slate-950/60 px-2 py-1 rounded border border-slate-800/50"
-              >
-                <span className="text-slate-300 capitalize">
-                  {alt.semantic_class.replace(/_/g, " ").toLowerCase()}
-                </span>
-                <span className="font-mono text-slate-400 font-medium">
-                  {Math.round(alt.probability * 100)}%
-                </span>
-              </div>
-            ))}
+            {hypothesis.alternative_hypotheses.map((alt: any, idx: number) => {
+              const rawClass = alt?.semantic_class || alt?.class || alt?.label || `Alternative ${idx + 1}`
+              const prob = typeof alt?.probability === "number" ? alt.probability : (typeof alt?.confidence === "number" ? alt.confidence : 0)
+              return (
+                <div
+                  key={alt?.semantic_class || alt?.class || idx}
+                  className="flex items-center justify-between text-[11px] bg-slate-950/60 px-2 py-1 rounded border border-slate-800/50"
+                >
+                  <span className="text-slate-300 capitalize">
+                    {String(rawClass).replace(/_/g, " ").toLowerCase()}
+                  </span>
+                  <span className="font-mono text-slate-400 font-medium">
+                    {Math.round(prob * 100)}%
+                  </span>
+                </div>
+              )
+            })}
           </div>
         </div>
       )}

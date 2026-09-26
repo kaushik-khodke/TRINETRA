@@ -244,7 +244,8 @@ class CommandExecutor:
                 if cmd.location_query:
                     target = GeoResolver.resolve(cmd.location_query)
                     if target and getattr(target, "bbox", None):
-                        bbox = target.bbox
+                        if abs(target.latitude - lat) < 1.0 and abs(target.longitude - lon) < 1.0:
+                            bbox = target.bbox
 
             # If bbox is missing, generate an appropriate bounding box around the target coordinates
             if not bbox and lat is not None and lon is not None:
@@ -254,6 +255,8 @@ class CommandExecutor:
 
             aoi_geom = None
             if bbox:
+                clean_bbox = GeoResolver._sanitize_bbox(bbox, lat, lon) or bbox
+                bbox = clean_bbox
                 min_lon, min_lat, max_lon, max_lat = bbox
                 aoi_geom = {
                     "type": "Polygon",
@@ -285,8 +288,11 @@ class CommandExecutor:
             if aoi_geom:
                 details["aoi"] = aoi_geom
                 details["bbox"] = bbox
+            elif bbox:
+                details["bbox"] = bbox
 
-            return CommandExecutionStatus.EXECUTED, f"Centered map on {name} and delineated target region.", details, None
+            msg = f"Centered map on {name} and delineated target region." if aoi_geom else f"Centered map on {name}."
+            return CommandExecutionStatus.EXECUTED, msg, details, None
 
         # 2. ZOOM_IN
         elif isinstance(cmd, ZoomInCommand):
@@ -369,16 +375,21 @@ class CommandExecutor:
         elif isinstance(cmd, SetAOICommand):
             geom = cmd.geometry
             if not geom and cmd.bbox:
-                min_lon, min_lat, max_lon, max_lat = cmd.bbox
+                clean_bbox = GeoResolver._sanitize_bbox(
+                    cmd.bbox,
+                    (cmd.bbox[1] + cmd.bbox[3]) / 2,
+                    (cmd.bbox[0] + cmd.bbox[2]) / 2,
+                ) or cmd.bbox
+                min_lon, min_lat, max_lon, max_lat = clean_bbox
                 geom = {
                     "type": "Polygon",
                     "coordinates": [
                         [
-                            [min_lon, min_lat],
-                            [max_lon, min_lat],
-                            [max_lon, max_lat],
-                            [min_lon, max_lat],
-                            [min_lon, min_lat],
+                            [round(min_lon, 5), round(min_lat, 5)],
+                            [round(max_lon, 5), round(min_lat, 5)],
+                            [round(max_lon, 5), round(max_lat, 5)],
+                            [round(min_lon, 5), round(max_lat, 5)],
+                            [round(min_lon, 5), round(min_lat, 5)],
                         ]
                     ],
                 }

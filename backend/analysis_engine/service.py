@@ -30,6 +30,7 @@ from analysis_engine.reasoning.engine import ReasoningEngine
 from analysis_engine.reports.formatter import ArtifactFormatter
 from analysis_engine.reports.generator import ReportGenerator
 from analysis_engine.provenance import ProvenanceTracker
+from analysis_engine.dataset_resolver import DatasetAvailabilityResolver
 from analysis_engine.errors import (
     AnalysisEngineException,
     ResourceFailureError,
@@ -182,25 +183,45 @@ class AnalysisEngineService:
 
         context.aoi_bounds = aoi_bounds
 
+        # Stage 2b: Strict Dataset Availability Resolution
+        ds_res = DatasetAvailabilityResolver.resolve(
+            mode=mode,
+            request_aoi=aoi_bounds,
+            resolved_observations=resolved_obs,
+            planned_task=plan.get("task", "vqa"),
+        )
+
+        if not ds_res.data_available:
+            raise DataFailureError(
+                f"No verified satellite raster imagery available for spatial bounds {aoi_bounds}. "
+                "Ensure local sample rasters exist or target observations provide valid raster assets."
+            )
+
+        if ds_res.degraded:
+            mode = ds_res.effective_mode
+            run.mode = mode
+            context.mode = mode
+
         # Stage 3: Windowed Raster Preprocessing
         self._update_progress(run, AnalysisProgressStage.PREPROCESSING, "Extracting windowed pixel subsets and aligning grids", 3)
         if run.cancel_requested:
             raise AnalysisEngineException(None, "Cancelled")
 
-        # Read windowed arrays using local fixtures or sample rasters
-        fixtures_dir = os.path.join(settings.backend_dir, "sample_data", "explore")
-        sample_s2 = os.path.join(fixtures_dir, "sentinel2_nagpur_truecolor.tif")
-        sample_s1 = os.path.join(fixtures_dir, "sentinel1_nagpur_sar.tif")
-
-        if os.path.exists(sample_s2):
-            arr_a, meta_a = RasterPreprocessor.read_window_array(sample_s2, aoi_bounds, (256, 256))
-            # If bi-temporal, create slightly perturbed t2 array if only one scene exists
-            if os.path.exists(sample_s1) and mode == "SAR_OPTICAL":
-                arr_b, meta_b = RasterPreprocessor.read_window_array(sample_s1, aoi_bounds, (256, 256))
+        if mode == "SAR_OPTICAL" and ds_res.opt_path and ds_res.sar_path:
+            arr_a, meta_a = RasterPreprocessor.read_window_array(ds_res.opt_path, aoi_bounds, (256, 256))
+            arr_b, meta_b = RasterPreprocessor.read_window_array(ds_res.sar_path, aoi_bounds, (256, 256))
+        elif mode == "BI_TEMPORAL" and ds_res.t1_path:
+            arr_a, meta_a = RasterPreprocessor.read_window_array(ds_res.t1_path, aoi_bounds, (256, 256))
+            if ds_res.t2_path and ds_res.t2_path != ds_res.t1_path and os.path.exists(ds_res.t2_path):
+                arr_b, meta_b = RasterPreprocessor.read_window_array(ds_res.t2_path, aoi_bounds, (256, 256))
             else:
                 arr_b = arr_a.copy()
-                arr_b[100:150, 100:150] = np.clip(arr_b[100:150, 100:150] * 1.5, 0.0, 255.0)
                 meta_b = meta_a
+        elif ds_res.opt_path or ds_res.sar_path:
+            target_path = ds_res.opt_path or ds_res.sar_path
+            arr_a, meta_a = RasterPreprocessor.read_window_array(target_path, aoi_bounds, (256, 256))
+            arr_b = arr_a.copy()
+            meta_b = meta_a
         else:
             arr_a = np.zeros((256, 256, 3), dtype=np.float32)
             arr_b = np.zeros((256, 256, 3), dtype=np.float32)
@@ -230,6 +251,7 @@ class AnalysisEngineService:
             raise AnalysisEngineException(None, "Cancelled")
 
         limitations: List[AnalysisLimitation] = []
+        limitations.extend(ds_res.limitations)
         if pack.statistics.get("contamination_ratio", 0.0) > 0.05:
             limitations.append(
                 AnalysisLimitation(

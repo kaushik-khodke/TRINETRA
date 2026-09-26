@@ -4,7 +4,7 @@ Pydantic schemas for API contracts, findings, hypotheses, evidence, and LLM stru
 """
 
 from typing import Dict, Any, List, Optional
-from pydantic import BaseModel, Field
+from pydantic import BaseModel, Field, root_validator
 
 
 class InvestigationRequest(BaseModel):
@@ -52,6 +52,7 @@ class StructuredFinding(BaseModel):
 class SemanticHypothesis(BaseModel):
     hypothesis_id: str = Field(..., description="Hypothesis ID e.g. H01")
     statement: str
+    description: Optional[str] = None
     semantic_class: str
     confidence: float = Field(..., ge=0.0, le=1.0)
     supporting_evidence_ids: List[str] = Field(default_factory=list)
@@ -61,9 +62,15 @@ class SemanticHypothesis(BaseModel):
     confidence_breakdown: Dict[str, float] = Field(default_factory=dict)
     alternative_hypotheses: List[Dict[str, Any]] = Field(default_factory=list)
 
-    @property
-    def description(self) -> str:
-        return self.statement
+    @root_validator(pre=True)
+    def align_description(cls, values):
+        stmt = values.get("statement")
+        desc = values.get("description")
+        if stmt and not desc:
+            values["description"] = stmt
+        elif desc and not stmt:
+            values["statement"] = desc
+        return values
 
     def to_dict(self) -> Dict[str, Any]:
         return {

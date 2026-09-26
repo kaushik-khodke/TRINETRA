@@ -10,6 +10,13 @@ from investigation.errors import PlanningFailureError, GovernanceFailureError
 
 
 INTENT_RULES: Dict[str, Dict[str, Any]] = {
+    "LOCATION_IDENTIFICATION": {
+        "keywords": ["location", "where", "coordinate", "coordinates", "place", "region", "area", "bounds", "latitude", "longitude", "city", "situated", "gps", "which area"],
+        "required": ["SPATIAL", "METADATA"],
+        "preferred": ["OPTICAL", "GIS_STATISTIC"],
+        "specialists": ["gis_statistics"],
+        "cost": "LOW",
+    },
     "BUILT_UP_CHANGE": {
         "keywords": ["built", "construction", "building", "urban", "development", "structure", "city", "expansion"],
         "required": ["CHANGE", "SPATIAL", "GIS_STATISTIC"],

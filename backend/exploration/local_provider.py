@@ -27,13 +27,10 @@ class LocalRasterProvider(EODataProvider):
 
     def __init__(self, data_dirs: Optional[List[str]] = None):
         if data_dirs is None:
-            base_dir = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
-            self.data_dirs = [
-                os.path.join(base_dir, "sample_data", "explore"),
-                os.path.join(base_dir, "sample_data"),
-            ]
+            custom_dir = os.environ.get("TRINETRA_DATA_DIR") or os.environ.get("LOCAL_RASTER_DIR")
+            self.data_dirs = [custom_dir] if (custom_dir and os.path.exists(custom_dir)) else []
         else:
-            self.data_dirs = data_dirs
+            self.data_dirs = [d for d in data_dirs if os.path.exists(d)]
 
         self._index: Dict[str, EOItem] = {}
         self._asset_map: Dict[str, str] = {}  # asset_id -> local_filepath

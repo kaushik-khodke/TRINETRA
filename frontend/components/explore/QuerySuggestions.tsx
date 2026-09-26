@@ -37,8 +37,9 @@ export function QuerySuggestions({ onSelectSuggestion }: QuerySuggestionsProps) 
       list.push("Hide boundaries")
     }
 
-    if (!hasRadar) {
-      list.push("Show radar imagery")
+    const hasNight = selectedLayerIds.includes("layer-nasa-viirs")
+    if (!hasNight) {
+      list.push("Show VIIRS true color")
     }
 
     list.push("Go to Nagpur")

@@ -61,5 +61,12 @@ class AnalysisContext:
     evidence_items: List[Dict[str, Any]] = field(default_factory=list)
     limitations: List[Dict[str, Any]] = field(default_factory=list)
     
+    # LLM Planning & Tool Selection
+    planned_task: Optional[str] = None
+    target_feature: Optional[str] = None
+    tool_reasoning: Optional[str] = None
+    required_modality: Optional[str] = None
+    data_availability: Dict[str, Any] = field(default_factory=dict)
+    
     # Telemetry
     stage_latencies: Dict[str, float] = field(default_factory=dict)

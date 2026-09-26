@@ -74,9 +74,69 @@ CLEAR_AOI_REGEX = re.compile(
     re.IGNORECASE,
 )
 NAV_REGEX = re.compile(
-    r"^(?:focus\s+(?:on|in)?|fly\s+to|go\s+to|zoom\s+to|navigate\s+to|look\s+at|show\s+me|find|center\s+(?:on)?|let(?:'s)?\s+(?:get|go)\s+to|take\s+me\s+to|bring\s+me\s+to|head\s+to|travel\s+to|visit|draw\s+(?:boundaries?|box|square|aoi|region)\s+(?:around|of|for|in)?|show\s+(?:boundaries?|box|square|aoi|region)\s+(?:around|of|for|in)?|highlight)\s+(.+)$",
+    r"^(?:where\s+is(?:\s+the)?|locate(?:\s+the)?|focus\s+(?:on|in)?|fly\s+to|go\s+to|zoom\s+to|navigate\s+to|look\s+at|show\s+me|find(?:\s+the)?|center\s+(?:on)?|let(?:'s)?\s+(?:get|go)\s+to|take\s+me\s+to|bring\s+me\s+to|head\s+to|travel\s+to|visit|draw\s+(?:boundaries|boundary|box|square|aoi|region)\s+(?:around|of|for|in)?|show\s+(?:boundaries|boundary|box|square|aoi|region)\s+(?:around|of|for|in)?|highlight)\s+(.+)$",
     re.IGNORECASE,
 )
+
+# Authoritative Earth geographic extremes and superlative knowledge mappings
+GEOGRAPHIC_SUPERLATIVES = {
+    "pollut": {
+        "name": "Lahore, Pakistan",
+        "description": "globally ranked #1 on real-time Air Quality Index (AQI) with severe PM2.5 pollution levels",
+        "lat": 31.5497,
+        "lon": 74.3436,
+        "bbox": [74.20, 31.40, 74.45, 31.65],
+        "zoom": 11.5,
+    },
+    "hottest": {
+        "name": "Death Valley (Furnace Creek), California, USA",
+        "description": "Earth's highest reliably measured air temperature at 56.7°C (134°F)",
+        "lat": 36.4623,
+        "lon": -116.8669,
+        "bbox": [-117.15, 36.30, -116.60, 36.70],
+        "zoom": 10.5,
+    },
+    "coldest": {
+        "name": "Oymyakon, Sakha Republic, Russia",
+        "description": "the coldest permanently inhabited settlement on Earth (-67.7°C / -89.9°F)",
+        "lat": 63.4641,
+        "lon": 142.7728,
+        "bbox": [142.60, 63.35, 142.95, 63.55],
+        "zoom": 11.5,
+    },
+    "highest": {
+        "name": "Mount Everest, Himalayas",
+        "description": "highest elevation peak above sea level on Earth (8,848.86 m)",
+        "lat": 27.9881,
+        "lon": 86.9250,
+        "bbox": [86.90, 27.96, 86.95, 28.01],
+        "zoom": 13.0,
+    },
+    "deepest": {
+        "name": "Mariana Trench (Challenger Deep), Pacific Ocean",
+        "description": "deepest oceanic trench on Earth (-10,928 m)",
+        "lat": 11.3733,
+        "lon": 142.5917,
+        "bbox": [142.40, 11.20, 142.80, 11.55],
+        "zoom": 9.0,
+    },
+    "wettest": {
+        "name": "Mawsynram, Meghalaya, India",
+        "description": "highest average annual precipitation on Earth (~11,872 mm)",
+        "lat": 25.2975,
+        "lon": 91.5826,
+        "bbox": [91.50, 25.20, 91.65, 25.38],
+        "zoom": 12.0,
+    },
+    "driest": {
+        "name": "Atacama Desert, Chile",
+        "description": "driest non-polar desert on Earth",
+        "lat": -23.8634,
+        "lon": -69.1328,
+        "bbox": [-70.50, -25.50, -68.00, -22.00],
+        "zoom": 7.5,
+    },
+}
 
 
 class FallbackParser:
@@ -97,9 +157,9 @@ class FallbackParser:
 
         # Defer compound multi-clause or complex dataset search queries to the AI planner
         is_compound = any(
-            conj in clean for conj in [" and ", " then ", " with ", " also ", " but "]
+            conj in clean for conj in [" and ", " then ", " with ", " also ", " but ", " near ", " next to ", " between "]
         ) or any(
-            kw in clean for kw in ["imagery", "observation", "transparent", "opacity", "where is", "find satellite", "cloud cover"]
+            kw in clean for kw in ["imagery", "observation", "transparent", "opacity", "find satellite", "cloud cover"]
         )
         if is_compound:
             return None
@@ -158,50 +218,7 @@ class FallbackParser:
                 ],
             )
 
-        # 6. Navigation Command ("Focus on New Delhi", "Fly to Mumbai", "Go to Bangalore", "Go to delhi")
-        nav_match = NAV_REGEX.match(clean)
-        target_loc_name = nav_match.group(1).strip() if nav_match else None
-        if target_loc_name:
-            geo_target = GeoResolver.resolve(target_loc_name)
-            if geo_target:
-                from exploration.ai_schemas import FlyToCommand, SetAOICommand
-                bbox = geo_target.bbox or [geo_target.longitude - 0.08, geo_target.latitude - 0.06, geo_target.longitude + 0.08, geo_target.latitude + 0.06]
-                return ExploreCommandPlan(
-                    intent="navigation",
-                    summary=f"Navigating to {geo_target.name} and highlighting region.",
-                    commands=[
-                        FlyToCommand(
-                            location_query=geo_target.name,
-                            latitude=geo_target.latitude,
-                            longitude=geo_target.longitude,
-                            zoom=11.5,
-                            pitch=-50.0,
-                        ),
-                        SetAOICommand(bbox=bbox),
-                    ],
-                )
-
-        # 7. Direct City / Location Name ("New Delhi", "Mumbai", "Sriharikota", "Delhi")
-        direct_geo = GeoResolver.resolve(clean)
-        if direct_geo and direct_geo.confidence >= 0.9:
-            from exploration.ai_schemas import FlyToCommand, SetAOICommand
-            bbox = direct_geo.bbox or [direct_geo.longitude - 0.08, direct_geo.latitude - 0.06, direct_geo.longitude + 0.08, direct_geo.latitude + 0.06]
-            return ExploreCommandPlan(
-                intent="navigation",
-                summary=f"Navigating to {direct_geo.name} and highlighting region.",
-                commands=[
-                    FlyToCommand(
-                        location_query=direct_geo.name,
-                        latitude=direct_geo.latitude,
-                        longitude=direct_geo.longitude,
-                        zoom=11.5,
-                        pitch=-50.0,
-                    ),
-                    SetAOICommand(bbox=bbox),
-                ],
-            )
-
-        # 8. Show Layer
+        # 6. Show Layer ("show boundaries", "turn on s2", "enable radar")
         show_match = SHOW_LAYER_REGEX.match(clean)
         if show_match:
             raw_target = show_match.group(1).strip()
@@ -213,7 +230,7 @@ class FallbackParser:
                     commands=[ShowLayerCommand(layer_id=layer_id)],
                 )
 
-        # 9. Hide Layer
+        # 7. Hide Layer ("hide boundaries", "turn off radar")
         hide_match = HIDE_LAYER_REGEX.match(clean)
         if hide_match:
             raw_target = hide_match.group(1).strip()
@@ -224,6 +241,80 @@ class FallbackParser:
                     summary=f"Hidden '{raw_target}' layer.",
                     commands=[HideLayerCommand(layer_id=layer_id)],
                 )
+
+        # 8. Navigation Command ("Focus on New Delhi", "Fly to Mumbai", "Go to Bangalore", "Go to delhi", "Go to China", "Go to alaska", "go to the most polluted city")
+        nav_match = NAV_REGEX.match(clean)
+        target_loc_name = nav_match.group(1).strip() if nav_match else None
+        if target_loc_name:
+            target_lower = target_loc_name.lower()
+
+            # Check geographic superlatives knowledge first (e.g. "most polluted city", "hottest place")
+            for key, sup_entry in GEOGRAPHIC_SUPERLATIVES.items():
+                if key in target_lower or key in clean:
+                    from exploration.ai_schemas import FlyToCommand, SetAOICommand
+                    return ExploreCommandPlan(
+                        intent="navigation",
+                        summary=f"Navigated to {sup_entry['name']} ({sup_entry['description']}) and highlighted region.",
+                        commands=[
+                            FlyToCommand(
+                                location_query=sup_entry["name"],
+                                latitude=sup_entry["lat"],
+                                longitude=sup_entry["lon"],
+                                zoom=sup_entry["zoom"],
+                                pitch=-50.0,
+                            ),
+                            SetAOICommand(bbox=sup_entry["bbox"]),
+                        ],
+                    )
+
+            # Prevent dynamic ranking/superlative phrases from fuzzy-matching random street/bridge names in literal geocoder
+            if re.search(r"\b(most|least|best|worst|richest|poorest)\b", target_lower):
+                return None
+
+            geo_target = GeoResolver.resolve(target_loc_name)
+            if geo_target:
+                from exploration.ai_schemas import FlyToCommand, SetAOICommand
+                bbox = geo_target.bbox or [geo_target.longitude - 0.08, geo_target.latitude - 0.06, geo_target.longitude + 0.08, geo_target.latitude + 0.06]
+                zoom = geo_target.zoom or cls.calculate_zoom(bbox)
+                pitch = -35.0 if zoom <= 6.0 else (-55.0 if zoom >= 13.0 else -50.0)
+
+                return ExploreCommandPlan(
+                    intent="navigation",
+                    summary=f"Navigated to {geo_target.name} and highlighted region.",
+                    commands=[
+                        FlyToCommand(
+                            location_query=geo_target.name,
+                            latitude=geo_target.latitude,
+                            longitude=geo_target.longitude,
+                            zoom=zoom,
+                            pitch=pitch,
+                        ),
+                        SetAOICommand(bbox=bbox),
+                    ],
+                )
+
+        # 9. Direct City / Location Name ("New Delhi", "Mumbai", "Sriharikota", "China", "Taj Mahal")
+        direct_geo = GeoResolver.resolve(clean)
+        if direct_geo and direct_geo.confidence >= 0.9:
+            from exploration.ai_schemas import FlyToCommand, SetAOICommand
+            bbox = direct_geo.bbox or [direct_geo.longitude - 0.08, direct_geo.latitude - 0.06, direct_geo.longitude + 0.08, direct_geo.latitude + 0.06]
+            zoom = direct_geo.zoom or cls.calculate_zoom(bbox)
+            pitch = -35.0 if zoom <= 6.0 else (-55.0 if zoom >= 13.0 else -50.0)
+
+            return ExploreCommandPlan(
+                intent="navigation",
+                summary=f"Navigated to {direct_geo.name} and highlighted region.",
+                commands=[
+                    FlyToCommand(
+                        location_query=direct_geo.name,
+                        latitude=direct_geo.latitude,
+                        longitude=direct_geo.longitude,
+                        zoom=zoom,
+                        pitch=pitch,
+                    ),
+                    SetAOICommand(bbox=bbox),
+                ],
+            )
 
         return None
 
@@ -245,3 +336,23 @@ class FallbackParser:
             return cleaned
 
         return None
+
+    @classmethod
+    def calculate_zoom(cls, bbox: Optional[List[float]], default: float = 11.5) -> float:
+        """Determines best camera altitude/zoom based on the spatial bounding envelope."""
+        if not bbox or len(bbox) < 4:
+            return default
+        span = max(abs(bbox[2] - bbox[0]), abs(bbox[3] - bbox[1]))
+        if span > 25.0:
+            return 3.5
+        elif span > 10.0:
+            return 4.5
+        elif span > 3.0:
+            return 6.0
+        elif span > 0.5:
+            return 10.0
+        elif span > 0.05:
+            return 12.5
+        else:
+            return 15.5
+

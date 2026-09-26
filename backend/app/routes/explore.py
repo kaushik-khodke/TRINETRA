@@ -156,7 +156,21 @@ def query_explore_ai(request: ExploreAIQueryRequest):
     Interprets natural-language Earth exploration commands and returns a validated,
     structured execution patch without permitting direct LLM renderer access.
     """
-    return explore_ai_service.process_query(request)
+    try:
+        return explore_ai_service.process_query(request)
+    except Exception as exc:
+        logger.exception(f"Unhandled error in query_explore_ai: {exc}")
+        return ExploreAIQueryResponse(
+            request_id="err_unhandled",
+            status="error",
+            summary=f"Unable to process query: {str(exc)}",
+            intent="error",
+            fast_path=False,
+            commands=[],
+            state_patch=ExploreStatePatch(),
+            error_code="INTERNAL_SERVER_ERROR",
+            latency_ms=0.0,
+        )
 
 
 # --- Phase 4: Temporal Exploration, AOI & Observation Comparison ---

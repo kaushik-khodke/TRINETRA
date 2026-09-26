@@ -125,8 +125,12 @@ function loadCesiumGlobal(): Promise<any> {
       script.onerror = () => reject(new Error("Failed to load /cesium/Cesium.js"))
       document.body.appendChild(script)
     } else {
-      script.addEventListener("load", () => resolve((window as any).Cesium))
-      script.addEventListener("error", () => reject(new Error("Failed to load /cesium/Cesium.js")))
+      if ((window as any).Cesium) {
+        resolve((window as any).Cesium)
+      } else {
+        script.addEventListener("load", () => resolve((window as any).Cesium))
+        script.addEventListener("error", () => reject(new Error("Failed to load /cesium/Cesium.js")))
+      }
     }
   })
 }
@@ -165,23 +169,6 @@ export default function GlobeView() {
             return
           }
 
-          // Check for credentials in localStorage or process.env
-          const ionToken =
-            (typeof window !== "undefined" && localStorage.getItem("trinetra_cesium_ion_token")) ||
-            process.env.NEXT_PUBLIC_CESIUM_ION_TOKEN ||
-            ""
-          const googleApiKey =
-            (typeof window !== "undefined" && localStorage.getItem("trinetra_google_maps_api_key")) ||
-            process.env.NEXT_PUBLIC_GOOGLE_MAPS_API_KEY ||
-            ""
-
-          if (ionToken) {
-            Cesium.Ion.defaultAccessToken = ionToken
-          }
-          if (googleApiKey) {
-            Cesium.GoogleMaps.defaultApiKey = googleApiKey
-          }
-
           // Provider credit container
           const creditDiv = document.createElement("div")
           creditDiv.id = "cesium-credits"
@@ -207,16 +194,36 @@ export default function GlobeView() {
             baseLayerPicker: false,
             baseLayer: false, // Critical: Disables Cesium Ion default imagery token requirement
             creditContainer: creditDiv,
-            shouldAnimate: false,
-            requestRenderMode: true,
-            maximumRenderTimeChange: Infinity,
+            shouldAnimate: true,
+            requestRenderMode: false,
             msaaSamples: 4,
             contextOptions: { webgl: { preserveDrawingBuffer: true } },
           })
 
           viewerRef.current = viewer
 
-          // Atmospheric lighting and realism matching Shatnetra
+          // Add resilient render error recovery to prevent WebGL scene freezing
+          try {
+            viewer.scene.renderError.addEventListener((scene: any, error: any) => {
+              console.warn("[GlobeView] Intercepted Cesium render error, clearing corrupt geometries:", error)
+              try {
+                const existingPoly = viewer.entities.getById("trinetra-aoi-entity")
+                if (existingPoly) viewer.entities.remove(existingPoly)
+                const existingOutline = viewer.entities.getById("trinetra-aoi-outline")
+                if (existingOutline) viewer.entities.remove(existingOutline)
+              } catch {}
+              viewer.useDefaultRenderLoop = true
+            })
+            if (viewer.cesiumWidget) {
+              ;(viewer.cesiumWidget as any).showErrorPanel = (title: string, message: string, err: any) => {
+                console.warn("[GlobeView] Cesium error panel suppressed:", title, message, err)
+              }
+            }
+          } catch (e) {
+            // Non-blocking
+          }
+
+          // Atmospheric lighting and realism matching Shanetra
           try {
             viewer.scene.globe.show = true
             if (viewer.scene.skyAtmosphere) {
@@ -229,90 +236,19 @@ export default function GlobeView() {
             // Non-blocking scene enhancement
           }
 
-          // Attach Keyless 3D Global Terrain (Re:Earth ellipsoidal quantized-mesh)
-          try {
-            Cesium.CesiumTerrainProvider.fromUrl(REEARTH_TERRAIN_URL)
-              .then((terrainProvider: any) => {
-                if (viewerRef.current && !viewerRef.current.isDestroyed()) {
-                  viewerRef.current.terrainProvider = terrainProvider
-                  viewerRef.current.scene.requestRender()
-                }
-              })
-              .catch((err: any) => {
-                console.warn("[GlobeView] Keyless 3D terrain fallback to flat ellipsoid:", err)
-                if (viewerRef.current && !viewerRef.current.isDestroyed()) {
-                  viewerRef.current.terrainProvider = new Cesium.EllipsoidTerrainProvider()
-                }
-              })
-          } catch {
-            if (viewerRef.current && !viewerRef.current.isDestroyed()) {
-              viewerRef.current.terrainProvider = new Cesium.EllipsoidTerrainProvider()
-            }
-          }
+          // Use default reliable ellipsoid terrain
+          viewer.terrainProvider = new Cesium.EllipsoidTerrainProvider()
 
-          // Add Default Authentic Esri World Satellite Imagery via ArcGisMapServerImageryProvider
-          // Fetches official ArcGIS MapServer tile scheme up to sub-meter LOD without missing tile errors!
+          // Add Default Authentic High-Resolution Esri World Satellite Imagery
           viewer.imageryLayers.removeAll()
-          if (Cesium.ArcGisMapServerImageryProvider && Cesium.ArcGisMapServerImageryProvider.fromUrl) {
-            Cesium.ArcGisMapServerImageryProvider.fromUrl(
-              "https://services.arcgisonline.com/ArcGIS/rest/services/World_Imagery/MapServer",
-              {
-                credit: "Powered by Esri — Source: Esri, Maxar, Earthstar Geographics, and the GIS User Community",
-                enablePickFeatures: false,
-              }
-            ).then((esriProvider: any) => {
-              if (viewerRef.current && !viewerRef.current.isDestroyed()) {
-                viewerRef.current.imageryLayers.removeAll()
-                const layer = viewerRef.current.imageryLayers.addImageryProvider(esriProvider, 0)
-                layer.alpha = 1.0
-                layer.show = true
-                viewerRef.current.scene.requestRender()
-              }
-            }).catch((err: any) => {
-              console.warn("[GlobeView] ArcGisMapServerImageryProvider error, fallback to UrlTemplate:", err)
-              if (viewerRef.current && !viewerRef.current.isDestroyed()) {
-                viewerRef.current.imageryLayers.removeAll()
-                const fallbackLayer = viewerRef.current.imageryLayers.addImageryProvider(
-                  new Cesium.UrlTemplateImageryProvider({
-                    url: "https://services.arcgisonline.com/ArcGIS/rest/services/World_Imagery/MapServer/tile/{z}/{y}/{x}",
-                    credit: "Powered by Esri — Source: Esri, Maxar, Earthstar Geographics",
-                    maximumLevel: 18,
-                  }),
-                  0
-                )
-                fallbackLayer.alpha = 1.0
-                fallbackLayer.show = true
-                viewerRef.current.scene.requestRender()
-              }
-            })
-          } else {
-            const fallbackLayer = viewer.imageryLayers.addImageryProvider(
-              new Cesium.UrlTemplateImageryProvider({
-                url: "https://services.arcgisonline.com/ArcGIS/rest/services/World_Imagery/MapServer/tile/{z}/{y}/{x}",
-                credit: "Powered by Esri — Source: Esri, Maxar, Earthstar Geographics",
-                maximumLevel: 18,
-              }),
-              0
-            )
-            fallbackLayer.alpha = 1.0
-            fallbackLayer.show = true
-          }
-
-          // Unsharp Mask Sharpening Post-Process Stage for crisp satellite details
-          try {
-            if (Cesium.PostProcessStage) {
-              const sharpenStage = new Cesium.PostProcessStage({
-                name: "trinetra_sharpen",
-                fragmentShader: SHARPEN_SHADER,
-                uniforms: {
-                  amount: 1.08,
-                },
-              })
-              viewer.scene.postProcessStages.add(sharpenStage)
-            }
-          } catch (postErr) {
-            console.warn("[GlobeView] Sharpen shader attachment error:", postErr)
-          }
+          const esriProvider = new Cesium.UrlTemplateImageryProvider({
+            url: "https://services.arcgisonline.com/ArcGIS/rest/services/World_Imagery/MapServer/tile/{z}/{y}/{x}",
+            credit: "Powered by Esri — Source: Esri, Maxar, Earthstar Geographics",
+            maximumLevel: 19,
+          })
+          const baseLayer = viewer.imageryLayers.addImageryProvider(esriProvider, 0)
+          baseLayer.alpha = 1.0
+          baseLayer.show = true
 
           // Set initial camera to India / Central subcontinent
           const currentCam = globeState.getState().camera
@@ -320,7 +256,7 @@ export default function GlobeView() {
             destination: Cesium.Cartesian3.fromDegrees(
               currentCam.longitude,
               currentCam.latitude,
-              15000000 / Math.pow(2, currentCam.zoom - 2)
+              15000000 / Math.pow(2, Math.max(1, currentCam.zoom - 2))
             ),
             orientation: {
               heading: Cesium.Math.toRadians(currentCam.heading || 0),
@@ -373,17 +309,25 @@ export default function GlobeView() {
 
               // If bounding box provided, use Cesium.Rectangle for ideal framing
               if (target.bounds && target.bounds.length === 4) {
-                const [w, s, e, n] = target.bounds
-                viewerRef.current.camera.flyTo({
-                  destination: CesiumGlobal.Rectangle.fromDegrees(w, s, e, n),
-                  orientation: {
-                    heading: headingRad,
-                    pitch: pitchRad,
-                    roll: 0,
-                  },
-                  duration: target.duration ?? 1.5,
-                })
-                return
+                const [rawW, rawS, rawE, rawN] = target.bounds
+                const w = Math.max(-179.9, Math.min(179.9, rawW))
+                const s = Math.max(-85.0, Math.min(85.0, rawS))
+                const e = Math.min(179.9, Math.max(-179.9, rawE))
+                const n = Math.min(85.0, Math.max(-85.0, rawN))
+
+                // If bounds span > 180 deg or wrap abnormally, fall back to coordinate centering below
+                if (Math.abs(e - w) < 180 && w <= e && s <= n) {
+                  viewerRef.current.camera.flyTo({
+                    destination: CesiumGlobal.Rectangle.fromDegrees(w, s, e, n),
+                    orientation: {
+                      heading: headingRad,
+                      pitch: pitchRad,
+                      roll: 0,
+                    },
+                    duration: target.duration ?? 1.5,
+                  })
+                  return
+                }
               }
 
               // Calculate camera offset so line-of-sight centers exactly on target ground point
@@ -470,58 +414,16 @@ export default function GlobeView() {
               if (!CesiumGlobal) return
 
               try {
-                if (basemapId === "google-3d") {
-                  const gKey =
-                    localStorage.getItem("trinetra_google_maps_api_key") ||
-                    process.env.NEXT_PUBLIC_GOOGLE_MAPS_API_KEY ||
-                    ""
-                  const ionTok =
-                    localStorage.getItem("trinetra_cesium_ion_token") ||
-                    process.env.NEXT_PUBLIC_CESIUM_ION_TOKEN ||
-                    ""
-                  if (ionTok) CesiumGlobal.Ion.defaultAccessToken = ionTok
-                  if (gKey) CesiumGlobal.GoogleMaps.defaultApiKey = gKey
-
-                  try {
-                    const tileset = await CesiumGlobal.createGooglePhotorealistic3DTileset({
-                      onlyUsingWithGoogleGeocoder: true,
-                    })
-                    viewerRef.current.scene.primitives.add(tileset)
-                    viewerRef.current.scene.globe.show = false
-                    viewerRef.current.scene.requestRender()
-                    return
-                  } catch (err) {
-                    console.warn("[GlobeView] Google 3D Tiles failed, reverting to globe surface:", err)
-                  }
-                }
-
                 viewerRef.current.scene.globe.show = true
                 const preset = BASEMAP_PRESETS[basemapId]
                 const credit = preset?.attribution || "TRINETRA Earth Observation"
+                const resolvedUrl = tileUrl || preset?.tileUrl || BASEMAP_PRESETS.satellite.tileUrl
 
-                let newProvider: any = null
-                if (basemapId === "satellite" && CesiumGlobal.ArcGisMapServerImageryProvider?.fromUrl) {
-                  try {
-                    newProvider = await CesiumGlobal.ArcGisMapServerImageryProvider.fromUrl(
-                      "https://services.arcgisonline.com/ArcGIS/rest/services/World_Imagery/MapServer",
-                      {
-                        credit: "Powered by Esri — Source: Esri, Maxar, Earthstar Geographics, and the GIS User Community",
-                        enablePickFeatures: false,
-                      }
-                    )
-                  } catch (eArc) {
-                    console.warn("[GlobeView] ArcGisMapServerImageryProvider switch fallback:", eArc)
-                  }
-                }
-
-                if (!newProvider) {
-                  const resolvedUrl = tileUrl || preset?.tileUrl || BASEMAP_PRESETS.satellite.tileUrl
-                  newProvider = new CesiumGlobal.UrlTemplateImageryProvider({
-                    url: resolvedUrl,
-                    credit: credit,
-                    maximumLevel: preset?.maxZoom || 18,
-                  })
-                }
+                const newProvider = new CesiumGlobal.UrlTemplateImageryProvider({
+                  url: resolvedUrl,
+                  credit: credit,
+                  maximumLevel: preset?.maxZoom || 19,
+                })
 
                 if (viewerRef.current.imageryLayers.length > 0) {
                   viewerRef.current.imageryLayers.remove(viewerRef.current.imageryLayers.get(0), true)
@@ -571,16 +473,43 @@ export default function GlobeView() {
                 if (existingOutline) viewerRef.current.entities.remove(existingOutline)
 
                 if (!geom) return
-                const coords = geom.coordinates ? (geom.coordinates[0] || []) : []
-                const flatHierarchy = coords.flatMap((pt: [number, number]) => [pt[0], pt[1]])
+                const rawCoords = geom.coordinates ? (geom.coordinates[0] || []) : []
+                if (!rawCoords || rawCoords.length < 3) return
+
+                let minLon = 180, maxLon = -180
+                const sanitizedCoords: [number, number][] = []
+                for (const pt of rawCoords) {
+                  if (!Array.isArray(pt) || pt.length < 2) continue
+                  const lon = Math.max(-179.9, Math.min(179.9, Number(pt[0]) || 0))
+                  const lat = Math.max(-85.0, Math.min(85.0, Number(pt[1]) || 0))
+                  if (lon < minLon) minLon = lon
+                  if (lon > maxLon) maxLon = lon
+                  sanitizedCoords.push([lon, lat])
+                }
+
+                if (sanitizedCoords.length < 3) return
+
+                // Check if polygon spans or touches the antimeridian (+-180)
+                const crossesOrNearMeridian =
+                  Math.abs(maxLon - minLon) >= 180 ||
+                  Math.abs(minLon) >= 175 ||
+                  Math.abs(maxLon) >= 175
+
+                const flatHierarchy = sanitizedCoords.flatMap((pt) => [pt[0], pt[1]])
                 if (flatHierarchy.length >= 6) {
+                  // Only use ClassificationType.BOTH if away from antimeridian to avoid Cesium splitLongitude DeveloperError
+                  const classificationType =
+                    !crossesOrNearMeridian && CesiumGlobal.ClassificationType
+                      ? CesiumGlobal.ClassificationType.BOTH
+                      : undefined
+
                   // Semi-transparent glowing cyan polygon fill clamped to terrain
                   viewerRef.current.entities.add({
                     id: "trinetra-aoi-entity",
                     polygon: {
                       hierarchy: CesiumGlobal.Cartesian3.fromDegreesArray(flatHierarchy),
                       material: CesiumGlobal.Color.fromCssColorString("#06b6d4").withAlpha(0.22),
-                      classificationType: CesiumGlobal.ClassificationType ? CesiumGlobal.ClassificationType.BOTH : undefined,
+                      classificationType: classificationType,
                     },
                   })
                   // Sharp vibrant cyan boundary border clamped to ground
@@ -590,7 +519,7 @@ export default function GlobeView() {
                       positions: CesiumGlobal.Cartesian3.fromDegreesArray(flatHierarchy),
                       width: 3.5,
                       material: CesiumGlobal.Color.fromCssColorString("#22d3ee"),
-                      clampToGround: true,
+                      clampToGround: !crossesOrNearMeridian,
                     },
                   })
                   viewerRef.current.scene.requestRender()
@@ -889,10 +818,16 @@ export default function GlobeView() {
             if (!viewerRef.current || !Cesium) return
             if (cmd.type === "FOCUS_ANALYSIS_REGION" && cmd.bounds && cmd.bounds.length === 4) {
               const b = cmd.bounds
-              viewerRef.current.camera.flyTo({
-                destination: Cesium.Rectangle.fromDegrees(b[0], b[1], b[2], b[3]),
-                duration: 1.5,
-              })
+              const w = Math.max(-179.9, Math.min(179.9, b[0]))
+              const s = Math.max(-85.0, Math.min(85.0, b[1]))
+              const e = Math.min(179.9, Math.max(-179.9, b[2]))
+              const n = Math.min(85.0, Math.max(-85.0, b[3]))
+              if (Math.abs(e - w) < 180 && w <= e && s <= n) {
+                viewerRef.current.camera.flyTo({
+                  destination: Cesium.Rectangle.fromDegrees(w, s, e, n),
+                  duration: 1.5,
+                })
+              }
             } else if (cmd.type === "SET_AOI") {
               adapter.setAOI?.(cmd.geometry)
             } else if (cmd.type === "CLEAR_AOI") {

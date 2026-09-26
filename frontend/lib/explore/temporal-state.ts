@@ -28,8 +28,8 @@ export interface TemporalState {
 
 class TemporalStateManager {
   private state: TemporalState = {
-    startDate: "2026-01-01",
-    endDate: "2026-09-20",
+    startDate: "2024-06-01",
+    endDate: "2024-09-20",
     cloudCoverMax: 30,
     collections: ["sentinel-2-l2a"],
     sort: "datetime_desc",

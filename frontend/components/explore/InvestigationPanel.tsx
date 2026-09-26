@@ -105,9 +105,9 @@ export const InvestigationPanel: React.FC<Props> = ({
   })
 
   return (
-    <div className="flex flex-col h-full bg-slate-950 text-slate-100 space-y-3 p-3 overflow-y-auto">
-      {/* Workspace Header */}
-      <div className="flex items-center justify-between border-b border-slate-800 pb-2.5">
+    <div className="flex flex-col h-full bg-slate-950 text-slate-100 overflow-hidden">
+      {/* Workspace Header - Fixed at Top */}
+      <div className="shrink-0 flex items-center justify-between border-b border-slate-800 p-3 bg-slate-950 z-20">
         <div className="flex flex-col">
           <span className="text-[10px] font-mono text-orange-400 font-bold uppercase tracking-wider">
             TRINETRA Phase 6
@@ -138,69 +138,72 @@ export const InvestigationPanel: React.FC<Props> = ({
         </div>
       </div>
 
-      {error && (
-        <div className="p-2.5 rounded bg-rose-950/60 border border-rose-800 text-xs text-rose-300">
-          {error}
+      {/* Pinned Tab Bar (Always Visible, Never Hidden or Clipped) */}
+      {currentInvestigation && (
+        <div className="shrink-0 flex items-center gap-1.5 overflow-x-auto px-3 py-2 bg-slate-900/90 border-b border-slate-800 text-xs font-mono z-10">
+          {[
+            { id: "findings" as WorkspaceTab, label: "Findings", icon: FileText, count: findings.length },
+            { id: "evidence" as WorkspaceTab, label: "Evidence Graph", icon: Share2, count: evidenceCards.length },
+            { id: "timeline" as WorkspaceTab, label: "Timeline", icon: Calendar, count: timeline.length },
+            { id: "objects" as WorkspaceTab, label: "Objects", icon: Box },
+            { id: "notes" as WorkspaceTab, label: "Notes", icon: StickyNote, count: notes.length },
+            { id: "provenance" as WorkspaceTab, label: "Provenance", icon: Hash },
+            { id: "history" as WorkspaceTab, label: "History", icon: History },
+          ].map((tab) => {
+            const Icon = tab.icon
+            const isActive = activeTab === tab.id
+            return (
+              <button
+                key={tab.id}
+                onClick={() => setActiveTab(tab.id)}
+                className={`flex items-center gap-1.5 px-2.5 py-1.5 rounded-md transition-all shrink-0 select-none ${
+                  isActive
+                    ? "bg-orange-950 text-orange-300 font-bold border border-orange-700/80 shadow-sm"
+                    : "text-slate-400 hover:text-slate-200 hover:bg-slate-800/60"
+                }`}
+              >
+                <Icon className="w-3.5 h-3.5" />
+                <span>{tab.label}</span>
+                {tab.count !== undefined && tab.count > 0 && (
+                  <span className="text-[10px] px-1 rounded-full bg-slate-800 text-slate-300 font-normal">
+                    {tab.count}
+                  </span>
+                )}
+              </button>
+            )
+          })}
         </div>
       )}
 
-      {/* Query Composer (Collapsible) */}
-      {showComposer && (
-        <InvestigationComposer
-          isSubmitting={isSubmitting}
-          validation={validation}
-          availableObservationIds={availableObservationIds}
-          onSubmit={handleLaunch}
-          onValidate={(q, obs) => validateEnquiry({ question: q, observation_ids: obs, aoi: aoiGeometry || undefined })}
-        />
-      )}
-
-      {/* Real-time Progress Bar */}
-      {currentInvestigation && currentInvestigation.status !== "completed" && (
-        <InvestigationProgress
-          progress={currentInvestigation.progress}
-          status={currentInvestigation.status}
-        />
-      )}
-
-      {/* Workspace Navigation Tabs */}
-      {currentInvestigation && (
-        <>
-          <div className="flex items-center gap-1 overflow-x-auto pb-1 border-b border-slate-800 text-xs font-mono">
-            {[
-              { id: "findings" as WorkspaceTab, label: "Findings", icon: FileText, count: findings.length },
-              { id: "evidence" as WorkspaceTab, label: "Evidence Graph", icon: Share2, count: evidenceCards.length },
-              { id: "timeline" as WorkspaceTab, label: "Timeline", icon: Calendar, count: timeline.length },
-              { id: "objects" as WorkspaceTab, label: "Objects", icon: Box },
-              { id: "notes" as WorkspaceTab, label: "Notes", icon: StickyNote, count: notes.length },
-              { id: "provenance" as WorkspaceTab, label: "Provenance", icon: Hash },
-              { id: "history" as WorkspaceTab, label: "History", icon: History },
-            ].map((tab) => {
-              const Icon = tab.icon
-              const isActive = activeTab === tab.id
-              return (
-                <button
-                  key={tab.id}
-                  onClick={() => setActiveTab(tab.id)}
-                  className={`flex items-center gap-1.5 px-2.5 py-1.5 rounded-md transition-all shrink-0 ${
-                    isActive
-                      ? "bg-orange-950 text-orange-300 font-bold border border-orange-700/80 shadow-sm"
-                      : "text-slate-400 hover:text-slate-200 hover:bg-slate-900"
-                  }`}
-                >
-                  <Icon className="w-3.5 h-3.5" />
-                  <span>{tab.label}</span>
-                  {tab.count !== undefined && tab.count > 0 && (
-                    <span className="text-[10px] px-1 rounded-full bg-slate-800 text-slate-300">
-                      {tab.count}
-                    </span>
-                  )}
-                </button>
-              )
-            })}
+      {/* Scrollable Content Body */}
+      <div className="flex-1 overflow-y-auto p-3 space-y-3 min-h-0">
+        {error && (
+          <div className="p-2.5 rounded bg-rose-950/60 border border-rose-800 text-xs text-rose-300">
+            {error}
           </div>
+        )}
 
-          {/* Active Tab Views */}
+        {/* Query Composer (Collapsible) */}
+        {showComposer && (
+          <InvestigationComposer
+            isSubmitting={isSubmitting}
+            validation={validation}
+            availableObservationIds={availableObservationIds}
+            onSubmit={handleLaunch}
+            onValidate={(q, obs) => validateEnquiry({ question: q, observation_ids: obs, aoi: aoiGeometry || undefined })}
+          />
+        )}
+
+        {/* Real-time Progress Bar */}
+        {currentInvestigation && currentInvestigation.status !== "completed" && (
+          <InvestigationProgress
+            progress={currentInvestigation.progress}
+            status={currentInvestigation.status}
+          />
+        )}
+
+        {/* Active Tab Views */}
+        {currentInvestigation && (
           <div className="space-y-3">
             {activeTab === "findings" && (
               <FindingsDashboard
@@ -294,17 +297,17 @@ export const InvestigationPanel: React.FC<Props> = ({
             {/* Always visible legend at bottom of findings/evidence tabs */}
             {(activeTab === "findings" || activeTab === "evidence") && <SemanticLegend />}
           </div>
-        </>
-      )}
+        )}
 
-      {/* If no investigation selected yet, show history directly */}
-      {!currentInvestigation && (
-        <InvestigationHistory
-          history={investigationHistory}
-          activeInvestigationId={activeInvestigationId}
-          onSelectInvestigation={loadInvestigation}
-        />
-      )}
+        {/* If no investigation selected yet, show history directly */}
+        {!currentInvestigation && (
+          <InvestigationHistory
+            history={investigationHistory}
+            activeInvestigationId={activeInvestigationId}
+            onSelectInvestigation={loadInvestigation}
+          />
+        )}
+      </div>
     </div>
   )
 }

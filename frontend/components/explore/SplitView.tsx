@@ -37,6 +37,20 @@ export const SplitView: React.FC = () => {
       onMouseUp={handleMouseUp}
       className="relative w-full h-full overflow-hidden select-none"
     >
+      {/* Floating Exit Comparison Capsule */}
+      <div className="absolute top-4 left-1/2 -translate-x-1/2 z-40">
+        <button
+          type="button"
+          onClick={() => comparisonStateManager.setMode("none")}
+          className="flex items-center gap-2 px-4 py-2 rounded-full bg-[#0a0e17]/90 hover:bg-rose-950/90 text-white hover:text-rose-200 border border-white/20 hover:border-rose-500/50 backdrop-blur-xl shadow-2xl text-xs font-bold tracking-wider transition-all duration-200 cursor-pointer active:scale-95 group"
+          title="Exit Dual Observation Split Comparison"
+        >
+          <span className="w-2 h-2 rounded-full bg-rose-500 animate-pulse" />
+          <span>EXIT COMPARISON</span>
+          <span className="text-slate-400 group-hover:text-rose-300 font-mono text-xs ml-1">✕</span>
+        </button>
+      </div>
+
       {/* View A Container (Left) */}
       <div
         className="absolute inset-y-0 left-0 overflow-hidden border-r border-orange-500/50"

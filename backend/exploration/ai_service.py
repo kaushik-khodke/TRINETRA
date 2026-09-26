@@ -174,7 +174,10 @@ class ExploreAIService:
         if not intent_obj:
             # Fallback heuristic: check if query contains any known location in GeoResolver
             from exploration.geo_resolver import GeoResolver
-            geo_match = GeoResolver.resolve(raw_query)
+            from exploration.fallback_parser import NAV_REGEX
+            nav_match = NAV_REGEX.match(raw_query)
+            target_loc = nav_match.group(1).strip() if nav_match else raw_query
+            geo_match = GeoResolver.resolve(target_loc) or GeoResolver.resolve(raw_query)
             if geo_match:
                 intent_obj = ExploreIntent(
                     intent=ExploreIntentType.NAVIGATION,
@@ -182,11 +185,18 @@ class ExploreAIService:
                     location_query=geo_match.name,
                     requested_actions=["fly_to"],
                 )
+            elif nav_match:
+                return self._build_error_response(
+                    req_id=req_id,
+                    error_code="LOCATION_NOT_FOUND",
+                    summary=f"Location '{target_loc}' could not be resolved from offline gazetteer. Try major countries (e.g. 'Go to China', 'Go to India', 'Go to USA') or exact coordinates ('21.14, 79.08').",
+                    t0=t0,
+                )
             else:
                 return self._build_error_response(
                     req_id=req_id,
                     error_code=EXPLORE_LLM_INVALID_OUTPUT,
-                    summary="Failed to classify exploration intent. Try: 'Focus on New Delhi', 'Show radar imagery', or 'Reset globe'.",
+                    summary="Failed to classify exploration intent. Try: 'Go to China', 'Focus on New Delhi', 'Show radar imagery', or 'Reset globe'.",
                     t0=t0,
                 )
 
