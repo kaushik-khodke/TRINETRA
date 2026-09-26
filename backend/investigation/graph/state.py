@@ -23,6 +23,7 @@ class InvestigationGraphState(TypedDict, total=False):
     hypotheses: List[Dict[str, Any]]
     conclusion: Dict[str, Any]
     artifacts: List[Dict[str, Any]]
+    chain_of_thought: List[Dict[str, Any]]
     errors: List[str]
     warnings: List[str]
     limitations: List[Dict[str, Any]]
