@@ -1,0 +1,95 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://example.invalid/schemas/analysis-plan.schema.json",
+  "title": "AnalysisPlan",
+  "type": "object",
+  "additionalProperties": false,
+  "required": [
+    "schemaVersion",
+    "missionId",
+    "questionId",
+    "aoiId",
+    "pipeline",
+    "inputs",
+    "timeRange",
+    "parameters",
+    "assumptions",
+    "blockingErrors",
+    "warnings",
+    "expectedOutputs",
+    "limitations"
+  ],
+  "properties": {
+    "schemaVersion": {"type": "string", "const": "1.0"},
+    "missionId": {"type": "string", "minLength": 1, "maxLength": 128},
+    "questionId": {"type": "string", "minLength": 1, "maxLength": 128},
+    "aoiId": {"type": "string", "minLength": 1, "maxLength": 128},
+    "pipeline": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["key", "version"],
+      "properties": {
+        "key": {
+          "type": "string",
+          "enum": ["rgb_false_color", "optical_change", "sar_change"]
+        },
+        "version": {"type": "string", "pattern": "^[0-9]+\\.[0-9]+\\.[0-9]+$"}
+      }
+    },
+    "inputs": {
+      "type": "array",
+      "minItems": 1,
+      "maxItems": 10,
+      "items": {
+        "type": "object",
+        "additionalProperties": false,
+        "required": ["role", "assetVersionId"],
+        "properties": {
+          "role": {
+            "type": "string",
+            "enum": ["source_scene", "before_scene", "after_scene", "mask", "optional_mask"]
+          },
+          "assetVersionId": {"type": "string", "minLength": 1, "maxLength": 128}
+        }
+      }
+    },
+    "timeRange": {
+      "type": ["object", "null"],
+      "additionalProperties": false,
+      "properties": {
+        "before": {"$ref": "#/$defs/window"},
+        "after": {"$ref": "#/$defs/window"},
+        "start": {"type": "string", "format": "date-time"},
+        "end": {"type": "string", "format": "date-time"}
+      }
+    },
+    "parameters": {
+      "type": "object",
+      "additionalProperties": false,
+      "properties": {
+        "index": {"type": "string", "enum": ["NDVI", "NDWI", "NDBI"]},
+        "cloudMask": {"type": "string", "enum": ["s2cloudless", "qa60", "provided_mask", "none"]},
+        "polarization": {"type": "string", "enum": ["VV", "VH"]},
+        "threshold": {"type": "number", "minimum": -1, "maximum": 1},
+        "thresholdDb": {"type": "number", "minimum": -30, "maximum": 30},
+        "resampling": {"type": "string", "enum": ["nearest", "bilinear", "average"]}
+      }
+    },
+    "assumptions": {"type": "array", "maxItems": 30, "items": {"type": "string", "maxLength": 500}},
+    "blockingErrors": {"type": "array", "maxItems": 30, "items": {"type": "string", "maxLength": 500}},
+    "warnings": {"type": "array", "maxItems": 30, "items": {"type": "string", "maxLength": 500}},
+    "expectedOutputs": {"type": "array", "maxItems": 20, "items": {"type": "string", "maxLength": 128}},
+    "limitations": {"type": "array", "maxItems": 30, "items": {"type": "string", "maxLength": 500}}
+  },
+  "$defs": {
+    "window": {
+      "type": ["object", "null"],
+      "additionalProperties": false,
+      "required": ["start", "end"],
+      "properties": {
+        "start": {"type": "string", "format": "date-time"},
+        "end": {"type": "string", "format": "date-time"}
+      }
+    }
+  }
+}

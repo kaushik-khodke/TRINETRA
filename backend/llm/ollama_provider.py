@@ -202,3 +202,90 @@ class OllamaProvider:
             return schema.model_validate(parsed) if hasattr(schema, "model_validate") else schema.parse_obj(parsed)
         except Exception:
             return None
+
+    @classmethod
+    def generate_structured_native(
+        cls,
+        prompt: str,
+        schema: Type[BaseModel],
+        role: ModelRole = "planner",
+        system_prompt: Optional[str] = None,
+        timeout: float = 30.0,
+        temperature: float = 0.0,
+    ) -> Optional[BaseModel]:
+        """
+        Phase 3: Native Ollama structured generation using schema constraint parameter.
+        Uses Ollama's 'format' parameter passing the raw Pydantic JSON Schema dictionary,
+        forcing the local model to emit strictly valid schema instances without streaming.
+        """
+        model_tag, available = LocalModelRegistry.resolve_model_for_role(role)
+        t0 = time.time()
+
+        if not LocalModelRegistry.is_ollama_online() or not available:
+            return None
+
+        try:
+            schema_dict = schema.model_json_schema() if hasattr(schema, "model_json_schema") else schema.schema()
+            payload: Dict[str, Any] = {
+                "model": model_tag,
+                "prompt": prompt,
+                "format": schema_dict,
+                "stream": False,
+                "options": {
+                    "temperature": temperature,
+                    "num_predict": 400,
+                },
+            }
+            if system_prompt:
+                payload["system"] = system_prompt
+
+            req_data = json.dumps(payload).encode("utf-8")
+            url = f"{LocalModelRegistry.get_ollama_host()}/api/generate"
+            req = urllib.request.Request(
+                url,
+                data=req_data,
+                headers={"Content-Type": "application/json", "User-Agent": "SatQuery-AI/ExploreAI-Native"},
+            )
+
+            with urllib.request.urlopen(req, timeout=timeout) as resp:
+                data = json.loads(resp.read().decode("utf-8"))
+                latency = (time.time() - t0) * 1000.0
+                raw_text = data.get("response", "").strip()
+                clean = cls._clean_text(raw_text)
+
+                # Token usage
+                prompt_tokens = data.get("prompt_eval_count", 0)
+                completion_tokens = data.get("eval_count", 0)
+                usage = {
+                    "input": prompt_tokens,
+                    "output": completion_tokens,
+                    "total": prompt_tokens + completion_tokens,
+                }
+
+                # Telemetry into active Langfuse trace
+                try:
+                    from observability.langfuse_tracer import LangfuseTracer
+                    trace_ctx = LangfuseTracer.get_current_context()
+                    if trace_ctx:
+                        trace_ctx.record_generation(
+                            name=f"ollama-native-structured-{role}",
+                            model=model_tag,
+                            prompt=prompt,
+                            completion=clean or raw_text,
+                            latency_ms=round(latency, 2),
+                            usage=usage,
+                            metadata={"role": role, "structured": True},
+                        )
+                except Exception:
+                    pass
+
+                if not clean and not raw_text:
+                    return None
+
+                parsed = json.loads(clean or raw_text)
+                return schema.model_validate(parsed) if hasattr(schema, "model_validate") else schema.parse_obj(parsed)
+
+        except Exception as e:
+            print(f"[OllamaProvider] Native structured generation notice ({model_tag}): {e}")
+            return None
+

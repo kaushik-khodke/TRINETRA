@@ -1,0 +1,48 @@
+{
+  "fixtures": {
+    "optical_a": {
+      "file": "optical_a.tif",
+      "crs": "EPSG:4326",
+      "modality": "optical",
+      "bounds": [
+        79.0,
+        21.0,
+        79.1,
+        21.1
+      ]
+    },
+    "optical_b": {
+      "file": "optical_b.tif",
+      "crs": "EPSG:4326",
+      "modality": "optical",
+      "bounds": [
+        79.0,
+        21.0,
+        79.1,
+        21.1
+      ]
+    },
+    "sar_a": {
+      "file": "sar_a.tif",
+      "crs": "EPSG:4326",
+      "modality": "sar",
+      "bounds": [
+        79.0,
+        21.0,
+        79.1,
+        21.1
+      ]
+    },
+    "nodata_scene": {
+      "file": "nodata_scene.tif",
+      "crs": "EPSG:4326",
+      "nodata": -9999,
+      "bounds": [
+        79.0,
+        21.0,
+        79.1,
+        21.1
+      ]
+    }
+  }
+}

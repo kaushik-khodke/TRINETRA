@@ -1,0 +1,40 @@
+[
+  {
+    "key": "rgb_false_color",
+    "version": "1.0.0",
+    "supportedCollections": ["sentinel-2-l2a", "user-multispectral"],
+    "requiredBands": ["red", "green", "blue"],
+    "inputRoles": ["source_scene"],
+    "outputTypes": ["raster", "thumbnail"],
+    "parameterBounds": {
+      "resampling": ["nearest", "bilinear"]
+    }
+  },
+  {
+    "key": "optical_change",
+    "version": "1.0.0",
+    "supportedCollections": ["sentinel-2-l2a", "user-multispectral"],
+    "requiredBands": ["red", "nir"],
+    "inputRoles": ["before_scene", "after_scene", "optional_mask"],
+    "outputTypes": ["raster", "table", "report"],
+    "parameterBounds": {
+      "index": ["NDVI", "NDWI", "NDBI"],
+      "threshold": {"min": -1, "max": 1},
+      "cloudMask": ["s2cloudless", "qa60", "provided_mask"],
+      "resampling": ["nearest", "bilinear"]
+    }
+  },
+  {
+    "key": "sar_change",
+    "version": "1.0.0",
+    "supportedCollections": ["sentinel-1-grd", "user-sar"],
+    "requiredBands": ["VV"],
+    "inputRoles": ["before_scene", "after_scene"],
+    "outputTypes": ["raster", "table", "report"],
+    "parameterBounds": {
+      "polarization": ["VV", "VH"],
+      "thresholdDb": {"min": -30, "max": 30},
+      "resampling": ["nearest", "bilinear"]
+    }
+  }
+]

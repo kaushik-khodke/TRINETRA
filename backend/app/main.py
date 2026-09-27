@@ -33,6 +33,9 @@ from qml.research_buffer import research_buffer
 from app.middleware import RequestIDMiddleware, format_rfc7807_error
 from core.security import SecurityValidator
 from core.exceptions import TRINETRABaseException, SecurityViolationError
+from app.routes.explore import router as explore_router
+from app.routes.investigation import router as investigation_router
+from workstation import workstation_router
 
 app = FastAPI(
     title="SatQuery AI — Vision-Language Assistant API",
@@ -40,21 +43,33 @@ app = FastAPI(
     description="100% Local Agentic Remote-Sensing Intelligence Platform for Multimodal Satellite Analysis"
 )
 
+# Exploration & Tile Service Router
+app.include_router(explore_router)
+# Exploration Semantic EO Intelligence & Investigation Router (Phase 6)
+app.include_router(investigation_router)
+# Scientific Satellite Research Workstation Router
+app.include_router(workstation_router)
+
 # Reliability: Request ID & audit tracing middleware
 app.add_middleware(RequestIDMiddleware)
 
-# CORS configuration
-app.add_middleware(
-    CORSMiddleware,
-    allow_origins=[
+# CORS configuration for local and cloud deployment
+cors_origins_env = os.environ.get("CORS_ORIGINS", "")
+cors_origins = [o.strip() for o in cors_origins_env.split(",") if o.strip()]
+if not cors_origins:
+    cors_origins = [
         "http://localhost:3000",
         "http://127.0.0.1:3000",
         "http://localhost:4173",
         "http://127.0.0.1:4173",
         "http://localhost:5173",
         "http://127.0.0.1:5173",
-    ],
-    allow_origin_regex=r"^https?://(localhost|127\.0\.0\.1)(:\d+)?$",
+    ]
+
+app.add_middleware(
+    CORSMiddleware,
+    allow_origins=cors_origins if cors_origins_env else ["*"],
+    allow_origin_regex=r"^https?://.*$",
     allow_credentials=True,
     allow_methods=["*"],
     allow_headers=["*"],
