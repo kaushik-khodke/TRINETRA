@@ -1,0 +1,55 @@
+{
+  "schemaVersion": "1.0",
+  "missionId": "mission_123",
+  "questionId": "question_123",
+  "aoiId": "aoi_123",
+  "pipeline": {
+    "key": "optical_change",
+    "version": "1.0.0"
+  },
+  "inputs": [
+    {
+      "role": "before_scene",
+      "assetVersionId": "asset_version_s2_before"
+    },
+    {
+      "role": "after_scene",
+      "assetVersionId": "asset_version_s2_after"
+    },
+    {
+      "role": "mask",
+      "assetVersionId": "asset_version_boundary"
+    }
+  ],
+  "timeRange": {
+    "before": {
+      "start": "2024-07-01T00:00:00Z",
+      "end": "2024-07-10T23:59:59Z"
+    },
+    "after": {
+      "start": "2024-07-20T00:00:00Z",
+      "end": "2024-07-30T23:59:59Z"
+    }
+  },
+  "parameters": {
+    "index": "NDVI",
+    "cloudMask": "s2cloudless",
+    "threshold": 0.2,
+    "resampling": "bilinear"
+  },
+  "assumptions": [
+    "Both scenes are Sentinel-2 Level-2A products.",
+    "The selected scenes overlap the AOI.",
+    "Cloud masking will remove invalid pixels before comparison."
+  ],
+  "blockingErrors": [],
+  "warnings": [],
+  "expectedOutputs": [
+    "change_raster",
+    "summary_statistics",
+    "quality_report"
+  ],
+  "limitations": [
+    "The result indicates spectral change and does not establish causality."
+  ]
+}

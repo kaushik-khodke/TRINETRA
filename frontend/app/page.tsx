@@ -23,6 +23,7 @@ import {
   type ClassicalVsQMLComparison,
   type QMLAnalysisResult,
   type QMLBenchmarkData,
+  synthesizeAnalysisCoT,
 } from "@/lib/types"
 import { I18nProvider, useTranslation, type SupportedLanguage } from "@/lib/i18n"
 import { HsiViewer } from "@/components/hyperspectral/HsiViewer"
@@ -82,8 +83,9 @@ function Header({ path, navigate }: { path: string; navigate: (path: string) => 
   }, [])
 
   const navItems = [
-    { href: "/analysis", label: t("nav.workspace") },
+    { href: "/workstation", label: "Workstation" },
     { href: "/explore", label: "Explore" },
+    { href: "/analysis", label: t("nav.workspace") },
     { href: "/dashboard", label: t("nav.history") },
     { href: "/evaluation", label: t("nav.evaluation") },
   ]
@@ -1200,7 +1202,12 @@ function ResultView({
   const confidenceText = t(confidenceKey)
   const [activeTab, setActiveTab] = useState<"evidence" | "cot" | "unified">("evidence")
 
-  const cotSteps = result.chain_of_thought || []
+  const cotSteps = useMemo(() => {
+    if (result.chain_of_thought && result.chain_of_thought.length > 0) {
+      return result.chain_of_thought
+    }
+    return synthesizeAnalysisCoT(result)
+  }, [result])
 
   return (
     <div className="result-view">

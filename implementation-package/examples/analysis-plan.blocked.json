@@ -1,0 +1,45 @@
+{
+  "schemaVersion": "1.0",
+  "missionId": "mission_123",
+  "questionId": "question_124",
+  "aoiId": "aoi_123",
+  "pipeline": {
+    "key": "optical_change",
+    "version": "1.0.0"
+  },
+  "inputs": [
+    {
+      "role": "before_scene",
+      "assetVersionId": "asset_version_s1_sar"
+    },
+    {
+      "role": "after_scene",
+      "assetVersionId": "asset_version_unknown"
+    }
+  ],
+  "timeRange": {
+    "before": {
+      "start": "2024-07-01T00:00:00Z",
+      "end": "2024-07-10T23:59:59Z"
+    },
+    "after": null
+  },
+  "parameters": {
+    "index": "NDVI",
+    "cloudMask": "none",
+    "threshold": 2.5,
+    "resampling": "average"
+  },
+  "assumptions": [],
+  "blockingErrors": [
+    "before_scene is Sentinel-1 SAR and does not provide the optical bands required by optical_change",
+    "after_scene is not an authorized mission asset",
+    "after time window is missing",
+    "NDVI requires compatible red and near-infrared bands",
+    "threshold is outside the pipeline's allowed range",
+    "cloudMask is required for this pipeline"
+  ],
+  "warnings": [],
+  "expectedOutputs": [],
+  "limitations": []
+}

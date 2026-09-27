@@ -4,6 +4,7 @@ FastAPI Explore Router
 Phase 2: Exposes REST endpoints for EO discovery, metadata inspection, layer registry, and tile streaming.
 """
 
+import asyncio
 import hashlib
 from typing import List, Optional, Dict, Any
 from fastapi import APIRouter, HTTPException, Query, Response, Path
@@ -145,9 +146,21 @@ def get_tile(
 # --- Phase 3: AI Natural-Language Exploration Gateway ---
 
 @router.get("/ai/status", response_model=ExploreAIStatusResponse)
-def get_ai_status():
+async def get_ai_status():
     """Returns local LLM availability, active models, and structured generation status."""
-    return explore_ai_service.get_status()
+    try:
+        loop = asyncio.get_event_loop()
+        return await loop.run_in_executor(None, explore_ai_service.get_status)
+    except Exception as exc:
+        logger.warning("Error fetching AI status: %s", exc)
+        return ExploreAIStatusResponse(
+            available=False,
+            model="offline",
+            router_model="offline",
+            planner_model="offline",
+            structured_output=False,
+            offline_fallback_active=True,
+        )
 
 
 @router.post("/ai/query", response_model=ExploreAIQueryResponse)

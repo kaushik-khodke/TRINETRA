@@ -57,6 +57,15 @@ export function ExploreHeader() {
 
       {/* Header Actions: AI Status, 2D/3D switcher & Reset */}
       <div className="explore-header-actions">
+        <Link
+          href="/workstation"
+          className="btn-tactical-icon"
+          title="Open Scientific Research Workstation"
+          style={{ borderColor: "rgba(6, 182, 212, 0.4)", color: "#22d3ee" }}
+        >
+          <Sparkles size={13} />
+          <span>Workstation</span>
+        </Link>
         <AIStatus />
         <ViewModeSwitcher />
 

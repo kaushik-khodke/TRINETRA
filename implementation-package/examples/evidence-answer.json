@@ -1,0 +1,35 @@
+{
+  "answer": "The approved run found a negative NDVI change in 34% of the selected boundary during the after period.",
+  "confidence": "medium",
+  "facts": [
+    {
+      "statement": "34% of the selected boundary fell below the configured NDVI change threshold.",
+      "evidenceIds": ["run_output_change_raster", "run_output_statistics"]
+    }
+  ],
+  "interpretations": [
+    "The pattern is consistent with vegetation stress or land-cover change in the selected period."
+  ],
+  "limitations": [
+    "The output does not establish the cause of the change.",
+    "Cloud masking and temporal compositing assumptions should be reviewed before publication."
+  ],
+  "evidence": [
+    {
+      "type": "run_output",
+      "id": "run_output_change_raster",
+      "label": "NDVI change raster",
+      "runId": "run_123"
+    },
+    {
+      "type": "asset",
+      "id": "asset_version_s2_after",
+      "label": "Sentinel-2 scene 2024-07-28",
+      "acquiredAt": "2024-07-28T04:21:00Z"
+    }
+  ],
+  "suggestedNextActions": [
+    "Compare against the pre-event baseline.",
+    "Inspect cloud-mask coverage and the quality report."
+  ]
+}
