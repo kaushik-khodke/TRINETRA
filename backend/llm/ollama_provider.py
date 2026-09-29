@@ -100,7 +100,7 @@ class OllamaProvider:
                 "stream": False,
                 "options": {
                     "temperature": 0.2,
-                    "num_predict": min(max_tokens, 120)
+                    "num_predict": min(max_tokens, 512)
                 }
             }
             req_data = json.dumps(payload).encode("utf-8")

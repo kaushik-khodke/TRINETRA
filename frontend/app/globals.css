@@ -57,7 +57,7 @@ button, textarea, input { font: inherit; } button { cursor: pointer; } button:di
   border-bottom: 1px solid var(--line);
   display: flex;
   align-items: center;
-  padding: 0 4vw;
+  padding: 0 28px;
   gap: 32px;
   position: sticky;
   top: 0;
@@ -261,6 +261,20 @@ nav button.active {
   margin: auto;
   padding: 42px 4vw 90px;
 }
+
+/* Full-bleed tactical workspace layout */
+.workspace.page {
+  max-width: 100% !important;
+  width: 100% !important;
+  margin: 0 !important;
+  padding: 20px 28px 36px !important;
+  min-height: calc(100vh - 72px) !important;
+  display: flex !important;
+  flex-direction: column !important;
+  box-sizing: border-box !important;
+  flex: 1 !important;
+}
+
 .page-intro {
   display: flex;
   align-items: end;
@@ -286,18 +300,43 @@ nav button.active {
 
 .workspace-grid {
   display: grid;
-  grid-template-columns: minmax(350px, 0.85fr) minmax(480px, 1.15fr);
-  gap: 20px;
-  align-items: start;
+  grid-template-columns: minmax(430px, 490px) 1fr;
+  gap: 24px;
+  align-items: stretch;
+  flex: 1;
+  width: 100%;
+  min-height: 0;
 }
+
+@media (min-width: 1650px) {
+  .workspace-grid {
+    grid-template-columns: 500px 1fr;
+    gap: 28px;
+  }
+}
+
 .input-panel, .result-panel, .history-card, .evaluation-card {
-  border: 1px solid var(--line);
-  border-radius: 4px;
-  background: rgba(28, 29, 28, 0.75);
-  backdrop-filter: blur(16px);
-  box-shadow: 0 10px 32px rgba(0, 0, 0, 0.38);
+  border: 1px solid rgba(255, 255, 255, 0.08);
+  border-radius: 8px;
+  background: rgba(20, 22, 26, 0.8);
+  backdrop-filter: blur(20px);
+  box-shadow: 0 16px 40px rgba(0, 0, 0, 0.45), inset 0 1px 0 rgba(255, 255, 255, 0.05);
 }
-.input-panel { padding: 26px; }
+
+.input-panel {
+  padding: 28px;
+  display: flex;
+  flex-direction: column;
+}
+
+.result-panel {
+  height: 100%;
+  min-height: calc(100vh - 130px);
+  display: flex;
+  flex-direction: column;
+  position: relative;
+  overflow: hidden;
+}
 
 .section-heading {
   display: flex;
@@ -481,45 +520,302 @@ textarea:focus {
 .analyze { width: 100%; }
 .local-note { justify-content: center; margin: 13px 0 0; }
 
-.result-panel { min-height: 700px; }
-.empty-result {
-  min-height: 700px;
+/* Full-screen Tactical Mission Console Empty State */
+.empty-result-console {
+  flex: 1;
+  width: 100%;
+  height: 100%;
+  min-height: calc(100vh - 140px);
+  display: flex;
+  flex-direction: column;
+  justify-content: space-between;
+  padding: 24px 28px;
+  position: relative;
+  background-image: 
+    radial-gradient(ellipse at 50% 40%, rgba(199, 92, 64, 0.05) 0%, transparent 65%),
+    linear-gradient(to right, rgba(255, 255, 255, 0.02) 1px, transparent 1px),
+    linear-gradient(to bottom, rgba(255, 255, 255, 0.02) 1px, transparent 1px);
+  background-size: 100% 100%, 36px 36px, 36px 36px;
+  box-sizing: border-box;
+}
+
+.corner-marker {
+  position: absolute;
+  font-family: monospace;
+  font-size: 16px;
+  font-weight: 700;
+  color: rgba(255, 140, 66, 0.4);
+  pointer-events: none;
+  user-select: none;
+  line-height: 1;
+}
+.corner-marker.top-left { top: 10px; left: 12px; }
+.corner-marker.top-right { top: 10px; right: 12px; }
+.corner-marker.bottom-left { bottom: 10px; left: 12px; }
+.corner-marker.bottom-right { bottom: 10px; right: 12px; }
+
+/* Top HUD telemetry strip */
+.empty-hud-strip {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  padding-bottom: 16px;
+  border-bottom: 1px solid rgba(255, 255, 255, 0.06);
+  flex-wrap: wrap;
+  gap: 12px;
+}
+.empty-hud-left {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+}
+.pulse-indicator {
+  display: inline-flex;
+  position: relative;
+  width: 8px;
+  height: 8px;
+}
+.pulse-dot {
+  width: 8px;
+  height: 8px;
+  border-radius: 50%;
+  background: var(--acid);
+  box-shadow: 0 0 10px var(--acid);
+  animation: pulseBeacon 2s infinite ease-in-out;
+}
+@keyframes pulseBeacon {
+  0%, 100% { opacity: 1; transform: scale(1); }
+  50% { opacity: 0.35; transform: scale(0.8); }
+}
+.hud-title {
+  font: 11px monospace;
+  letter-spacing: 0.12em;
+  color: rgba(222, 221, 211, 0.7);
+  text-transform: uppercase;
+}
+.empty-hud-right {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  font: 11px monospace;
+  letter-spacing: 0.06em;
+  color: rgba(222, 221, 211, 0.45);
+}
+.hud-badge-ready {
+  color: #38bdf8;
+  background: rgba(56, 189, 248, 0.08);
+  border: 1px solid rgba(56, 189, 248, 0.25);
+  padding: 2px 7px;
+  border-radius: 2px;
+  font-size: 10px;
+}
+.hud-sep {
+  color: rgba(255, 255, 255, 0.15);
+}
+
+/* Centerpiece */
+.empty-main-stage {
   display: flex;
   flex-direction: column;
   align-items: center;
   justify-content: center;
   text-align: center;
-  padding: 40px;
+  padding: 24px 20px;
+  flex: 1;
 }
-.empty-orbit {
-  width: 88px;
-  height: 88px;
-  border: 1px solid rgba(222, 221, 211, 0.22);
+.radar-telemetry-cluster {
+  position: relative;
+  margin-bottom: 22px;
+}
+.radar-circle-outer {
+  width: 170px;
+  height: 170px;
   border-radius: 50%;
+  border: 1px solid rgba(222, 221, 211, 0.2);
+  position: relative;
   display: grid;
   place-items: center;
-  color: var(--acid);
-  margin-bottom: 24px;
-  box-shadow: 0 0 40px rgba(199, 92, 64, 0.12);
+  box-shadow: 0 0 50px rgba(199, 92, 64, 0.1), inset 0 0 30px rgba(0, 0, 0, 0.6);
+  background: rgba(14, 16, 20, 0.7);
+  overflow: hidden;
 }
-.empty-orbit svg { width: 28px; }
-.empty-result h2 {
-  margin: 14px 0 10px;
+.radar-sweep-beam {
+  position: absolute;
+  inset: 0;
+  border-radius: 50%;
+  background: conic-gradient(from 0deg, rgba(199, 92, 64, 0.3) 0deg, rgba(199, 92, 64, 0) 65deg, transparent 65deg);
+  animation: radarSweep 4s linear infinite;
+  pointer-events: none;
+}
+@keyframes radarSweep {
+  from { transform: rotate(0deg); }
+  to { transform: rotate(360deg); }
+}
+.radar-ring {
+  position: absolute;
+  border-radius: 50%;
+  border: 1px dashed rgba(222, 221, 211, 0.14);
+}
+.radar-ring.r1 { width: 120px; height: 120px; }
+.radar-ring.r2 { width: 70px; height: 70px; }
+.radar-ring.r3 { width: 30px; height: 30px; border-style: solid; border-color: rgba(199, 92, 64, 0.3); }
+.radar-axis-h {
+  position: absolute;
+  width: 100%;
+  height: 1px;
+  background: rgba(222, 221, 211, 0.1);
+}
+.radar-axis-v {
+  position: absolute;
+  height: 100%;
+  width: 1px;
+  background: rgba(222, 221, 211, 0.1);
+}
+.radar-center-blip {
+  position: relative;
+  z-index: 2;
+  display: grid;
+  place-items: center;
+  filter: drop-shadow(0 0 8px rgba(199, 92, 64, 0.6));
+}
+.azimuth-mark {
+  position: absolute;
+  font: 9px monospace;
+  color: rgba(222, 221, 211, 0.35);
+  letter-spacing: 0.08em;
+  text-transform: uppercase;
+}
+.azimuth-mark.top { top: 4px; }
+.azimuth-mark.bottom { bottom: 4px; }
+.azimuth-mark.left { left: 6px; }
+.azimuth-mark.right { right: 6px; }
+
+.empty-prompt-copy {
+  max-width: 620px;
+}
+.empty-prompt-copy h2 {
+  margin: 12px 0 10px;
   font-size: 26px;
-  letter-spacing: -0.04em;
+  letter-spacing: -0.035em;
   font-weight: 500;
   color: #fffdf6;
+  line-height: 1.25;
 }
-.empty-result p {
-  max-width: 320px;
+.empty-prompt-copy p {
   color: var(--muted-ink);
-  font-size: 13px;
+  font-size: 14px;
   line-height: 1.6;
+  margin: 0 auto;
 }
-.empty-lines { display: flex; flex-direction: column; gap: 7px; margin-top: 26px; width: 180px; }
-.empty-lines span { height: 4px; border-radius: 2px; background: rgba(222, 221, 211, 0.08); }
-.empty-lines span:nth-child(2) { width: 75%; }
-.empty-lines span:nth-child(3) { width: 50%; }
+
+/* 4-Step Pipeline Flow */
+.empty-pipeline-flow {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  gap: 12px;
+  margin-top: 28px;
+  flex-wrap: wrap;
+  max-width: 860px;
+}
+.pipe-node {
+  background: rgba(255, 255, 255, 0.025);
+  border: 1px solid rgba(255, 255, 255, 0.07);
+  border-radius: 6px;
+  padding: 10px 14px;
+  text-align: left;
+  display: flex;
+  flex-direction: column;
+  gap: 3px;
+  min-width: 160px;
+  transition: all 0.2s ease;
+}
+.pipe-node:hover {
+  background: rgba(255, 255, 255, 0.04);
+  border-color: rgba(255, 255, 255, 0.15);
+}
+.pipe-node.active {
+  background: rgba(6, 182, 212, 0.05);
+  border-color: rgba(6, 182, 212, 0.35);
+}
+.pipe-node-header {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  margin-bottom: 2px;
+}
+.pipe-num {
+  font: 10px monospace;
+  font-weight: 700;
+  color: rgba(222, 221, 211, 0.4);
+}
+.pipe-label {
+  font-size: 11px;
+  font-weight: 600;
+  color: #fffdf6;
+  letter-spacing: 0.04em;
+}
+.pipe-hint {
+  font-size: 10px;
+  color: var(--muted-ink);
+  white-space: nowrap;
+}
+.pipe-arrow {
+  color: rgba(255, 255, 255, 0.2);
+  font-size: 13px;
+}
+
+/* Bottom Sensor Matrix */
+.empty-sensor-matrix {
+  display: grid;
+  grid-template-columns: repeat(4, 1fr);
+  gap: 12px;
+  padding-top: 20px;
+  border-top: 1px solid rgba(255, 255, 255, 0.06);
+}
+.sensor-chip {
+  background: rgba(20, 22, 28, 0.6);
+  border: 1px solid rgba(255, 255, 255, 0.06);
+  border-radius: 6px;
+  padding: 12px 14px;
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
+  text-align: left;
+  transition: all 0.2s ease;
+}
+.sensor-chip:hover {
+  border-color: rgba(255, 140, 66, 0.35);
+  background: rgba(255, 140, 66, 0.04);
+}
+.chip-header {
+  display: flex;
+  align-items: center;
+  gap: 7px;
+}
+.chip-badge {
+  font: 9px monospace;
+  letter-spacing: 0.1em;
+  font-weight: 700;
+  color: rgba(222, 221, 211, 0.6);
+  text-transform: uppercase;
+}
+.chip-name {
+  font-size: 12px;
+  font-weight: 600;
+  color: #fffdf6;
+}
+.chip-sub {
+  font-size: 10px;
+  color: var(--muted-ink);
+  line-height: 1.4;
+}
+
+@media (max-width: 1200px) {
+  .empty-sensor-matrix {
+    grid-template-columns: repeat(2, 1fr);
+  }
+}
 
 .trace-card { padding: 28px; }
 .trace-header { display: flex; justify-content: space-between; align-items: start; }
@@ -616,7 +912,7 @@ textarea:focus {
   box-shadow: 0 0 12px rgba(199, 92, 64, 0.2);
 }
 
-.viewer { height: 320px; position: relative; overflow: hidden; background: #141514; }
+.viewer { height: 480px; position: relative; overflow: hidden; background: #141514; border-radius: 4px; }
 .viewer img { width: 100%; height: 100%; object-fit: cover; }
 
 .annotation {
@@ -1616,13 +1912,14 @@ footer {
 
 /* Slidable Curtain Overlay Window */
 .curtain-viewer {
-  height: 350px;
+  height: 480px;
   position: relative;
   overflow: hidden;
   background: #141514;
   user-select: none;
   cursor: ew-resize;
   border: 1px solid var(--line);
+  border-radius: 4px;
 }
 .curtain-base-img {
   position: absolute;

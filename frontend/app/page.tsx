@@ -693,24 +693,129 @@ function Workspace({ navigate, initialDemo = false }: { navigate: (path: string)
 function EmptyResult() {
   const { t } = useTranslation()
   return (
-    <div className="empty-result">
-      <div className="empty-orbit">
-        <Radar />
-      </div>
-      <span className="eyebrow">{t("empty.eyebrow")}</span>
-      <h2>
-        {t("empty.title").split("\n").map((line, i) => (
-          <span key={i}>
-            {line}
-            {i === 0 && <br />}
+    <div className="empty-result-console">
+      {/* Corner crosshairs */}
+      <span className="corner-marker top-left">+</span>
+      <span className="corner-marker top-right">+</span>
+      <span className="corner-marker bottom-left">+</span>
+      <span className="corner-marker bottom-right">+</span>
+
+      {/* Top HUD Telemetry Strip */}
+      <div className="empty-hud-strip">
+        <div className="empty-hud-left">
+          <span className="pulse-indicator">
+            <span className="pulse-dot" />
           </span>
-        ))}
-      </h2>
-      <p>{t("empty.desc")}</p>
-      <div className="empty-lines">
-        <span />
-        <span />
-        <span />
+          <span className="hud-title">MISSION CONSOLE STANDBY // MULTIMODAL SENSOR INGEST READY</span>
+        </div>
+        <div className="empty-hud-right">
+          <span className="hud-badge-ready">VLM PIPELINE ONLINE</span>
+          <span className="hud-sep">•</span>
+          <span>QML CO-PROCESSOR ACTIVE</span>
+          <span className="hud-sep">•</span>
+          <span>GEO-AI ENGINE</span>
+        </div>
+      </div>
+
+      {/* Main Center Telemetry & Call to Action */}
+      <div className="empty-main-stage">
+        <div className="radar-telemetry-cluster">
+          <div className="radar-circle-outer">
+            <div className="radar-sweep-beam" />
+            <div className="radar-ring r1" />
+            <div className="radar-ring r2" />
+            <div className="radar-ring r3" />
+            <div className="radar-axis-h" />
+            <div className="radar-axis-v" />
+            <div className="radar-center-blip">
+              <Radar size={32} style={{ color: "var(--acid)" }} />
+            </div>
+            <span className="azimuth-mark top">000° N</span>
+            <span className="azimuth-mark right">090° E</span>
+            <span className="azimuth-mark bottom">180° S</span>
+            <span className="azimuth-mark left">270° W</span>
+          </div>
+        </div>
+
+        <div className="empty-prompt-copy">
+          <span className="eyebrow">{t("empty.eyebrow")}</span>
+          <h2>
+            {t("empty.title").split("\n").map((line, i) => (
+              <span key={i}>
+                {line}
+                {i === 0 && <br />}
+              </span>
+            ))}
+          </h2>
+          <p>{t("empty.desc")}</p>
+        </div>
+
+        {/* 4-Step Pipeline Flow */}
+        <div className="empty-pipeline-flow">
+          <div className="pipe-node active">
+            <div className="pipe-node-header">
+              <span className="pipe-num">01</span>
+              <span className="pipe-label">WORKFLOW</span>
+            </div>
+            <span className="pipe-hint">Single, Temporal, or Optical+SAR</span>
+          </div>
+          <ArrowRight className="pipe-arrow" size={14} />
+          <div className="pipe-node">
+            <div className="pipe-node-header">
+              <span className="pipe-num">02</span>
+              <span className="pipe-label">EVIDENCE</span>
+            </div>
+            <span className="pipe-hint">Optical, Radar, or Hyperspectral</span>
+          </div>
+          <ArrowRight className="pipe-arrow" size={14} />
+          <div className="pipe-node">
+            <div className="pipe-node-header">
+              <span className="pipe-num">03</span>
+              <span className="pipe-label">INTENT</span>
+            </div>
+            <span className="pipe-hint">Query land cover, change, or objects</span>
+          </div>
+          <ArrowRight className="pipe-arrow" size={14} />
+          <div className="pipe-node">
+            <div className="pipe-node-header">
+              <span className="pipe-num">04</span>
+              <span className="pipe-label">GROUNDED AI</span>
+            </div>
+            <span className="pipe-hint">Inspect annotations & QML telemetry</span>
+          </div>
+        </div>
+      </div>
+
+      {/* Bottom Sensor Matrix */}
+      <div className="empty-sensor-matrix">
+        <div className="sensor-chip">
+          <div className="chip-header">
+            <span className="chip-badge">MSI / OPT</span>
+          </div>
+          <span className="chip-name">Sentinel-2 / Landsat-9</span>
+          <span className="chip-sub">10m VNIR bands, NDVI vegetation & urban index</span>
+        </div>
+        <div className="sensor-chip">
+          <div className="chip-header">
+            <span className="chip-badge">SAR / RADAR</span>
+          </div>
+          <span className="chip-name">Sentinel-1 C-Band</span>
+          <span className="chip-sub">All-weather cloud penetration, flood & deformation</span>
+        </div>
+        <div className="sensor-chip">
+          <div className="chip-header">
+            <span className="chip-badge">HSI / CUBE</span>
+          </div>
+          <span className="chip-name">EnMAP / PRISMA (.mat)</span>
+          <span className="chip-sub">224 contiguous spectral bands & mineralogy</span>
+        </div>
+        <div className="sensor-chip">
+          <div className="chip-header">
+            <span className="chip-badge">QML / KERNEL</span>
+          </div>
+          <span className="chip-name">Quantum Co-Processor</span>
+          <span className="chip-sub">PennyLane VQC, quantum feature space separation</span>
+        </div>
       </div>
     </div>
   )
@@ -1167,6 +1272,69 @@ function QuantumResearchWidget({
   )
 }
 
+function FormattedTextAnswer({ text }: { text: string }) {
+  if (!text) return null
+  const lines = text.split("\n")
+  return (
+    <div className="answer" style={{ lineHeight: 1.75, fontSize: "14.5px" }}>
+      {lines.map((line, lineIdx) => {
+        const trimmed = line.trim()
+        if (!trimmed) {
+          return <div key={lineIdx} style={{ height: "6px" }} />
+        }
+        if (trimmed.startsWith("## ")) {
+          return (
+            <h3
+              key={lineIdx}
+              style={{
+                fontSize: "13px",
+                fontWeight: 700,
+                letterSpacing: "0.08em",
+                textTransform: "uppercase",
+                color: "var(--acid)",
+                margin: "14px 0 6px",
+              }}
+            >
+              {trimmed.slice(3)}
+            </h3>
+          )
+        }
+        const isBullet = trimmed.startsWith("•") || trimmed.startsWith("- ") || trimmed.startsWith("* ")
+        const parts = line.split(/(\*\*.*?\*\*)/g)
+        return (
+          <div
+            key={lineIdx}
+            style={{
+              paddingLeft: isBullet ? "8px" : "0",
+              marginBottom: "3px",
+              display: isBullet ? "flex" : "block",
+              alignItems: "flex-start",
+              gap: isBullet ? "6px" : "0",
+            }}
+          >
+            {isBullet && <span style={{ color: "var(--acid)", fontWeight: "bold" }}>•</span>}
+            <div>
+              {parts.map((part, pIdx) => {
+                let cleanPart = part
+                if (isBullet && pIdx === 0) {
+                  cleanPart = cleanPart.replace(/^[•\-\*]\s*/, "")
+                }
+                return cleanPart.startsWith("**") && cleanPart.endsWith("**") ? (
+                  <strong key={pIdx} style={{ color: "#ffffff", fontWeight: 600 }}>
+                    {cleanPart.slice(2, -2)}
+                  </strong>
+                ) : (
+                  <span key={pIdx}>{cleanPart}</span>
+                )
+              })}
+            </div>
+          </div>
+        )
+      })}
+    </div>
+  )
+}
+
 function ResultView({
   result,
   technical,
@@ -1177,10 +1345,9 @@ function ResultView({
   setTechnical: (value: boolean) => void
 }) {
   const { t } = useTranslation()
-  const parts = result.answer.split(/(\*\*.*?\*\*)/g)
   const confidenceKey = `confidence.${result.confidence}` as const
   const confidenceText = t(confidenceKey)
-  const [activeTab, setActiveTab] = useState<"evidence" | "cot" | "unified">("evidence")
+  const [activeTab, setActiveTab] = useState<"evidence" | "cot" | "unified" | "report">("evidence")
 
   const cotSteps = useMemo(() => {
     if (result.chain_of_thought && result.chain_of_thought.length > 0) {
@@ -1201,17 +1368,9 @@ function ResultView({
           <small>{confidenceText}</small>
         </div>
       </div>
-      <div className="answer" style={{ whiteSpace: "pre-wrap" }}>
-        {parts.map((part, index) =>
-          part.startsWith("**") ? (
-            <strong key={index}>{part.slice(2, -2)}</strong>
-          ) : (
-            <span key={index}>{part}</span>
-          )
-        )}
-      </div>
+      <FormattedTextAnswer text={result.answer} />
 
-      {/* Analysis View Mode Selector: Visual Evidence vs Chain of Thought vs Unified */}
+      {/* Analysis View Mode Selector: Visual Evidence vs Chain of Thought vs Unified vs Report */}
       <div
         className="analysis-tab-bar"
         style={{
@@ -1304,6 +1463,31 @@ function ResultView({
         >
           <Workflow size={15} /> Unified View
         </button>
+
+        {result.structured_answer && (
+          <button
+            type="button"
+            onClick={() => setActiveTab("report")}
+            id="tab-tactical-report"
+            style={{
+              display: "inline-flex",
+              alignItems: "center",
+              gap: "0.45rem",
+              padding: "0.5rem 0.95rem",
+              borderRadius: "6px",
+              fontSize: "0.82rem",
+              fontFamily: "monospace",
+              fontWeight: 600,
+              cursor: "pointer",
+              transition: "all 0.2s ease",
+              background: activeTab === "report" ? "rgba(52, 211, 153, 0.16)" : "rgba(255, 255, 255, 0.03)",
+              color: activeTab === "report" ? "#34d399" : "rgba(255, 255, 255, 0.65)",
+              border: activeTab === "report" ? "1px solid rgba(52, 211, 153, 0.4)" : "1px solid rgba(255, 255, 255, 0.08)",
+            }}
+          >
+            <BarChart3 size={15} /> Intelligence Report
+          </button>
+        )}
       </div>
 
       {/* Main Content Area based on Active Tab */}
@@ -1333,6 +1517,28 @@ function ResultView({
             title="TIFF Multimodal LangGraph Chain of Thought"
             subtitle="Chronological multi-specialist telemetry, internal reasoning traces, and sensor fusion deductions for this raster scene."
           />
+        </div>
+      )}
+
+      {activeTab === "report" && result.structured_answer && (
+        <div
+          style={{
+            background: "rgba(18, 20, 24, 0.8)",
+            border: "1px solid rgba(255, 255, 255, 0.08)",
+            borderRadius: "6px",
+            padding: "20px 24px",
+            marginBottom: "1rem",
+            color: "#deddd3",
+            lineHeight: 1.7,
+          }}
+        >
+          <div style={{ display: "flex", alignItems: "center", gap: "8px", marginBottom: "14px", borderBottom: "1px solid rgba(255,255,255,0.06)", paddingBottom: "10px" }}>
+            <BarChart3 size={16} style={{ color: "#34d399" }} />
+            <strong style={{ fontSize: "12px", letterSpacing: "0.08em", textTransform: "uppercase", color: "#34d399" }}>
+              Analyst-Grade Structured Mission Intelligence Brief
+            </strong>
+          </div>
+          <FormattedTextAnswer text={result.structured_answer} />
         </div>
       )}
       {/* Quantum Research Mode & Comparative Telemetry Widget */}

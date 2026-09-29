@@ -8,7 +8,7 @@ import { DEFAULT_CAMERA_STATE } from "./constants"
 import { ExploreViewMode, GlobeCameraState, RendererAdapter } from "./types"
 
 export class GlobeController {
-  private activeMode: ExploreViewMode = "2d"
+  private activeMode: ExploreViewMode = "3d"
   private adapters: Map<ExploreViewMode, RendererAdapter> = new Map()
 
   registerAdapter(mode: ExploreViewMode, adapter: RendererAdapter): void {
@@ -32,7 +32,7 @@ export class GlobeController {
   }
 
   setViewMode(mode: ExploreViewMode): void {
-    this.activeMode = mode
+    this.activeMode = "3d"
   }
 
   flyTo(target: {

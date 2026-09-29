@@ -7,7 +7,7 @@
  */
 
 import React, { useEffect, useRef, useState } from "react"
-import { BASEMAP_PRESETS, DEFAULT_CAMERA_STATE, REEARTH_TERRAIN_URL } from "@/lib/explore/constants"
+import { BASEMAP_PRESETS, DEFAULT_CAMERA_STATE, REEARTH_TERRAIN_URL, BORDERS_OVERLAY_URL } from "@/lib/explore/constants"
 import { globeController } from "@/lib/explore/globe-controller"
 import { globeState } from "@/lib/explore/globe-state"
 import { performanceMonitor } from "@/lib/explore/performance"
@@ -15,7 +15,41 @@ import { GlobeCameraState, RendererAdapter } from "@/lib/explore/types"
 import { globeCommandBus } from "@/lib/explore/globe-command-bus"
 import { aoiStateManager } from "@/lib/explore/aoi-state"
 import { AreaOfInterest } from "@/lib/workstation/types"
+import { workstationLayersState, WorkstationLayersSnapshot } from "@/lib/explore/workstation-layers-state"
 import { Check, X } from "lucide-react"
+
+const WORKSTATION_BASEMAP_URLS: Record<string, { url: string; maxZoom: number; credit: string }> = {
+  "esri-satellite": {
+    url: "https://services.arcgisonline.com/ArcGIS/rest/services/World_Imagery/MapServer/tile/{z}/{y}/{x}",
+    maxZoom: 19,
+    credit: "Powered by Esri — Source: Esri, Maxar, Earthstar Geographics",
+  },
+  "carto-dark": {
+    url: "https://a.basemaps.cartocdn.com/rastertiles/dark_all/{z}/{x}/{y}.png",
+    maxZoom: 19,
+    credit: "© CartoDB / © OpenStreetMap contributors",
+  },
+  "carto-positron": {
+    url: "https://a.basemaps.cartocdn.com/rastertiles/light_all/{z}/{x}/{y}.png",
+    maxZoom: 19,
+    credit: "© CartoDB / © OpenStreetMap contributors",
+  },
+  "osm-standard": {
+    url: "https://tile.openstreetmap.org/{z}/{x}/{y}.png",
+    maxZoom: 19,
+    credit: "© OpenStreetMap contributors",
+  },
+  "esri-topo": {
+    url: "https://services.arcgisonline.com/ArcGIS/rest/services/World_Topo_Map/MapServer/tile/{z}/{y}/{x}",
+    maxZoom: 19,
+    credit: "Powered by Esri — Sources: Esri, HERE, Garmin, Intermap, USGS",
+  },
+  "blank-canvas": {
+    url: "",
+    maxZoom: 19,
+    credit: "Pure Dark Canvas",
+  },
+}
 
 const SHARPEN_SHADER = `
   uniform sampler2D colorTexture;
@@ -147,6 +181,14 @@ export interface GlobeViewProps {
   onFinishDrawingAOI?: (geometry: any, keepDrawing?: boolean) => void
   onCancelDrawing?: () => void
   fitBoundsBbox?: [number, number, number, number] | null
+  baseMap?: string
+  onSelectBaseMap?: (id: any) => void
+  showLabels?: boolean
+  onToggleLabels?: (show: boolean) => void
+  labelsOpacity?: number
+  onChangeLabelsOpacity?: (val: number) => void
+  showGraticule?: boolean
+  onToggleGraticule?: (show: boolean) => void
 }
 
 export default function GlobeView({
@@ -159,6 +201,14 @@ export default function GlobeView({
   onFinishDrawingAOI,
   onCancelDrawing,
   fitBoundsBbox,
+  baseMap,
+  onSelectBaseMap,
+  showLabels,
+  onToggleLabels,
+  labelsOpacity,
+  onChangeLabelsOpacity,
+  showGraticule,
+  onToggleGraticule,
 }: GlobeViewProps = {}) {
   const containerRef = useRef<HTMLDivElement>(null)
   const viewerRef = useRef<any>(null)
@@ -168,6 +218,10 @@ export default function GlobeView({
   const isMouseDownRef = useRef<boolean>(false)
   const polygonPointsRef = useRef<[number, number][]>([])
   const aoiHandlerRef = useRef<any>(null)
+  const mountedCesiumImageryLayersRef = useRef<Map<string, any>>(new Map())
+  const mountedCesiumEntitiesRef = useRef<Map<string, any>>(new Map())
+  const baseImageryLayerRef = useRef<any>(null)
+  const labelsImageryLayerRef = useRef<any>(null)
 
   // Workstation and Drawing Refs to avoid stale closures
   const drawingModeRef = React.useRef(drawingMode)
@@ -287,6 +341,7 @@ export default function GlobeView({
           const baseLayer = viewer.imageryLayers.addImageryProvider(esriProvider, 0)
           baseLayer.alpha = 1.0
           baseLayer.show = true
+          baseImageryLayerRef.current = baseLayer
 
           // Set initial camera to India / Central subcontinent
           const currentCam = globeState.getState().camera
@@ -965,9 +1020,136 @@ export default function GlobeView({
             }
           })
 
+          // Workstation Layers Synchronization for 3D Globe
+          const syncWorkstationLayersToCesium = (snap: WorkstationLayersSnapshot) => {
+            if (!viewerRef.current || viewerRef.current.isDestroyed() || !Cesium) return
+
+            const currentKeys = new Set<string>()
+            const activeLayers = snap.layers.filter((l) => !l.isDeloaded)
+
+            activeLayers.forEach((layer) => {
+              // 1. Unified Mosaic
+              if (layer.isMosaic && layer.tiles && layer.tiles.length > 0) {
+                layer.tiles.forEach((tile) => {
+                  if (!tile.sourceUrl || !tile.bbox || tile.bbox.length !== 4) return
+                  const tileKey = `tile_${tile.id}`
+                  currentKeys.add(tileKey)
+
+                  if (!mountedCesiumImageryLayersRef.current.has(tileKey)) {
+                    try {
+                      const [w, s, e, n] = tile.bbox
+                      const provider = new Cesium.SingleTileImageryProvider({
+                        url: tile.sourceUrl,
+                        rectangle: Cesium.Rectangle.fromDegrees(w, s, e, n),
+                      })
+                      const imgLayer = viewerRef.current.imageryLayers.addImageryProvider(provider)
+                      imgLayer.alpha = layer.opacity
+                      imgLayer.show = layer.visible
+                      mountedCesiumImageryLayersRef.current.set(tileKey, imgLayer)
+                    } catch (err) {
+                      console.warn("[GlobeView] Tile layer attach error:", err)
+                    }
+                  } else {
+                    const imgLayer = mountedCesiumImageryLayersRef.current.get(tileKey)
+                    if (imgLayer) {
+                      imgLayer.alpha = layer.opacity
+                      imgLayer.show = layer.visible
+                    }
+                  }
+                })
+              } else {
+                // 2. Single Raster
+                if (layer.sourceUrl && layer.bbox && layer.bbox.length === 4) {
+                  const layerKey = `raster_${layer.id}`
+                  currentKeys.add(layerKey)
+
+                  if (!mountedCesiumImageryLayersRef.current.has(layerKey)) {
+                    try {
+                      const [w, s, e, n] = layer.bbox
+                      const provider = new Cesium.SingleTileImageryProvider({
+                        url: layer.sourceUrl,
+                        rectangle: Cesium.Rectangle.fromDegrees(w, s, e, n),
+                      })
+                      const imgLayer = viewerRef.current.imageryLayers.addImageryProvider(provider)
+                      imgLayer.alpha = layer.opacity
+                      imgLayer.show = layer.visible
+                      mountedCesiumImageryLayersRef.current.set(layerKey, imgLayer)
+                    } catch (err) {
+                      console.warn("[GlobeView] Raster layer attach error:", err)
+                    }
+                  } else {
+                    const imgLayer = mountedCesiumImageryLayersRef.current.get(layerKey)
+                    if (imgLayer) {
+                      imgLayer.alpha = layer.opacity
+                      imgLayer.show = layer.visible
+                    }
+                  }
+                }
+              }
+
+              // Vector Footprint Entity
+              if (layer.bbox && layer.bbox.length === 4) {
+                const entityKey = `fp_${layer.id}`
+                currentKeys.add(entityKey)
+
+                if (!mountedCesiumEntitiesRef.current.has(entityKey)) {
+                  try {
+                    const [w, s, e, n] = layer.bbox
+                    const entity = viewerRef.current.entities.add({
+                      id: entityKey,
+                      rectangle: {
+                        coordinates: Cesium.Rectangle.fromDegrees(w, s, e, n),
+                        material: Cesium.Color.fromCssColorString(layer.modalityColor || "#06b6d4").withAlpha(0.08),
+                        outline: true,
+                        outlineColor: Cesium.Color.fromCssColorString(layer.modalityColor || "#06b6d4"),
+                        outlineWidth: 1.5,
+                      },
+                    })
+                    mountedCesiumEntitiesRef.current.set(entityKey, entity)
+                  } catch (err) {}
+                } else {
+                  const entity = mountedCesiumEntitiesRef.current.get(entityKey)
+                  if (entity) {
+                    entity.show = layer.visible
+                  }
+                }
+              }
+            })
+
+            // Deload and cleanup
+            mountedCesiumImageryLayersRef.current.forEach((imgLayer, key) => {
+              if (!currentKeys.has(key)) {
+                try {
+                  viewerRef.current.imageryLayers.remove(imgLayer, true)
+                } catch (e) {}
+                mountedCesiumImageryLayersRef.current.delete(key)
+              }
+            })
+
+            mountedCesiumEntitiesRef.current.forEach((entity, key) => {
+              if (!currentKeys.has(key)) {
+                try {
+                  viewerRef.current.entities.remove(entity)
+                } catch (e) {}
+                mountedCesiumEntitiesRef.current.delete(key)
+              }
+            })
+
+            viewerRef.current.scene?.requestRender()
+          }
+
+          // Initial sync
+          syncWorkstationLayersToCesium(workstationLayersState.getSnapshot())
+
+          // Subscribe to live updates
+          const unsubWorkstation = workstationLayersState.subscribe((snap) => {
+            syncWorkstationLayersToCesium(snap)
+          })
+
           // Save unsub functions on viewer for unmount
           ;(viewerRef.current as any).__unsubBus = unsubBus
           ;(viewerRef.current as any).__unsubAOI = unsubAOI
+          ;(viewerRef.current as any).__unsubWorkstation = unsubWorkstation
           ;(viewerRef.current as any).__aoiHandler = aoiHandler
         } catch (initErr: any) {
           console.error("[GlobeView] Cesium initialization error:", initErr)
@@ -1004,6 +1186,9 @@ export default function GlobeView({
           }
           if ((viewerRef.current as any).__unsubBus) {
             ;(viewerRef.current as any).__unsubBus()
+          }
+          if ((viewerRef.current as any).__unsubWorkstation) {
+            ;(viewerRef.current as any).__unsubWorkstation()
           }
           viewerRef.current.destroy()
         } catch (e) {
@@ -1166,6 +1351,78 @@ export default function GlobeView({
       })
     } catch {}
   }, [fitBoundsBbox])
+
+  // Workstation Mode: Sync Base Map changes seamlessly on 3D Globe
+  useEffect(() => {
+    if (!viewerRef.current || viewerRef.current.isDestroyed() || !baseMap) return
+    const CesiumGlobal = (window as any).Cesium
+    if (!CesiumGlobal) return
+
+    try {
+      const config = WORKSTATION_BASEMAP_URLS[baseMap] || {
+        url: BASEMAP_PRESETS[baseMap]?.tileUrl || "https://services.arcgisonline.com/ArcGIS/rest/services/World_Imagery/MapServer/tile/{z}/{y}/{x}",
+        maxZoom: 19,
+        credit: "TRINETRA Earth Observation",
+      }
+
+      if (baseMap === "blank-canvas" || !config.url) {
+        if (baseImageryLayerRef.current) {
+          baseImageryLayerRef.current.show = false
+        }
+      } else {
+        const newProvider = new CesiumGlobal.UrlTemplateImageryProvider({
+          url: config.url,
+          credit: config.credit,
+          maximumLevel: config.maxZoom || 19,
+        })
+        if (baseImageryLayerRef.current) {
+          try {
+            viewerRef.current.imageryLayers.remove(baseImageryLayerRef.current, true)
+          } catch (e) {}
+        }
+        const newBase = viewerRef.current.imageryLayers.addImageryProvider(newProvider, 0)
+        newBase.alpha = 1.0
+        newBase.show = true
+        baseImageryLayerRef.current = newBase
+      }
+      viewerRef.current.scene?.requestRender()
+    } catch (err) {
+      console.warn("[GlobeView] Failed to switch baseMap prop:", err)
+    }
+  }, [baseMap])
+
+  // Workstation Mode: Sync Labels Overlay Visibility and Opacity on 3D Globe
+  useEffect(() => {
+    if (!viewerRef.current || viewerRef.current.isDestroyed()) return
+    const CesiumGlobal = (window as any).Cesium
+    if (!CesiumGlobal) return
+
+    try {
+      const labelLayerKey = "workstation_labels_overlay"
+      let labelLayer = mountedCesiumImageryLayersRef.current.get(labelLayerKey)
+
+      if (showLabels) {
+        if (!labelLayer) {
+          const provider = new CesiumGlobal.UrlTemplateImageryProvider({
+            url: "https://services.arcgisonline.com/ArcGIS/rest/services/Reference/World_Boundaries_and_Places/MapServer/tile/{z}/{y}/{x}",
+            credit: "Esri Places & Boundaries",
+            maximumLevel: 19,
+          })
+          labelLayer = viewerRef.current.imageryLayers.addImageryProvider(provider)
+          mountedCesiumImageryLayersRef.current.set(labelLayerKey, labelLayer)
+        }
+        labelLayer.show = true
+        labelLayer.alpha = typeof labelsOpacity === "number" ? labelsOpacity : 0.85
+      } else {
+        if (labelLayer) {
+          labelLayer.show = false
+        }
+      }
+      viewerRef.current.scene?.requestRender()
+    } catch (err) {
+      console.warn("[GlobeView] Failed to sync labels overlay:", err)
+    }
+  }, [showLabels, labelsOpacity])
 
   return (
     <div className="relative w-full h-full overflow-hidden">

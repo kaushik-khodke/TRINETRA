@@ -108,6 +108,8 @@ async def get_investigation_details(
         "hypotheses": res_data.get("hypotheses", []),
         "conflicts": res_data.get("conflicts", []),
         "conclusion": res_data.get("conclusion"),
+        "deep_analysis": res_data.get("deep_analysis"),
+        "mode": (inv.options or {}).get("mode", "normal"),
         "chain_of_thought": res_data.get("chain_of_thought", []),
         "limitations": res_data.get("limitations", []),
         "artifacts": [a.dict() for a in inv.artifacts],

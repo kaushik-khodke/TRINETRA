@@ -15,7 +15,6 @@ import {
   Plus,
   Compass,
   Globe2,
-  Map as MapIcon,
   ShieldCheck,
   Cpu,
   ChevronDown,
@@ -30,8 +29,8 @@ interface Props {
   onCreateMission: (name: string, description: string) => Promise<void>
   activeAOI: AreaOfInterest | null
   onClearAOI?: () => void
-  viewMode: "2d" | "3d"
-  onToggleViewMode: (mode: "2d" | "3d") => void
+  viewMode?: "2d" | "3d"
+  onToggleViewMode?: (mode: "2d" | "3d") => void
   onExportClick: () => void
 }
 
@@ -229,30 +228,13 @@ export const WorkstationHeader: React.FC<Props> = ({
 
         {/* Right: View Mode Toggle & Export CTA */}
         <div className="flex items-center gap-2">
-          {/* 2D / 3D Toggle */}
-          <div className="flex bg-white/[0.03] border border-white/[0.08] p-0.5 rounded-lg backdrop-blur-md">
-            <button
-              onClick={() => onToggleViewMode("2d")}
-              className={`flex items-center gap-1.5 px-2.5 py-1 rounded-md text-xs font-medium transition-all cursor-pointer ${
-                viewMode === "2d"
-                  ? "bg-cyan-500/20 text-cyan-300 border border-cyan-500/40 shadow-sm"
-                  : "text-slate-400 hover:text-slate-200"
-              }`}
-            >
-              <MapIcon className="w-3.5 h-3.5" />
-              <span>2D</span>
-            </button>
-            <button
-              onClick={() => onToggleViewMode("3d")}
-              className={`flex items-center gap-1.5 px-2.5 py-1 rounded-md text-xs font-medium transition-all cursor-pointer ${
-                viewMode === "3d"
-                  ? "bg-cyan-500/20 text-cyan-300 border border-cyan-500/40 shadow-sm"
-                  : "text-slate-400 hover:text-slate-200"
-              }`}
-            >
-              <Globe2 className="w-3.5 h-3.5" />
-              <span>3D</span>
-            </button>
+          {/* 3D Cesium Globe Indicator */}
+          <div
+            className="flex items-center gap-1.5 px-2.5 py-1 rounded-lg bg-cyan-950/40 border border-cyan-500/30 text-xs font-mono text-cyan-300 shadow-sm select-none"
+            title="Cesium 3D Earth Globe Engine Active"
+          >
+            <Globe2 className="w-3.5 h-3.5 text-cyan-400" />
+            <span>3D GLOBE</span>
           </div>
 
           {/* Export Manifest */}

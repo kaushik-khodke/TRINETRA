@@ -14,6 +14,7 @@ class InvestigationRequest(BaseModel):
     temporal_range: Optional[Dict[str, str]] = Field(None, description="ISO datetime start and end bounds")
     temporal_scope: Optional[Dict[str, Any]] = Field(default_factory=dict, description="ISO datetime start and end bounds or scope dictionary")
     options: Dict[str, Any] = Field(default_factory=dict, description="Execution overrides and tuning knobs")
+    mode: Optional[str] = Field("normal", description="Investigation analysis depth: 'normal' or 'deep'")
 
 
 class StructuredFinding(BaseModel):

@@ -650,6 +650,10 @@ class LangGraphOrchestrator:
         if struct_intel.get("structured_answer"):
             out["structured_answer"] = struct_intel["structured_answer"]
 
+        # Ensure primary textual answer is populated from specialist answer, caption, or structured summary
+        effective_answer = out.get("answer") or out.get("caption") or struct_intel.get("summary") or "Analysis completed successfully."
+        out["answer"] = effective_answer
+
         cot = list(state.get("chain_of_thought") or [])
         comp_conf = float(struct_intel.get("composite_confidence", out.get("confidence", 0.90)))
         cot.append({
@@ -662,7 +666,7 @@ class LangGraphOrchestrator:
             "input_summary": "Aggregating outputs from domain specialist models, GIS topology layers, and sensory evidence.",
             "observation": f"Synthesized final tactical intelligence assessment. Composite confidence: {round(comp_conf * 100)}%.",
             "thought_process": "Corroborated visual detections against spectral indices and spatial constraints. Calibrated confidence and formulated concise mission explanation.",
-            "prediction": (out.get("answer") or "Analysis completed.")[:200],
+            "prediction": effective_answer[:200],
             "confidence": comp_conf,
             "metrics": {
                 "composite_confidence": comp_conf,
@@ -684,7 +688,7 @@ class LangGraphOrchestrator:
             "selected_tools": state["selected_tools"],
             "confidence": struct_intel.get("composite_confidence", out.get("confidence", 0.90)),
             "result": out,
-            "answer": out.get("answer", "Analysis completed."),
+            "answer": effective_answer,
             "structured_answer": struct_intel.get("structured_answer"),
             "structured_intelligence": struct_intel,
             "regions": struct_intel.get("regions", out.get("regions", [])),

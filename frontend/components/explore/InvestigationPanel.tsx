@@ -18,6 +18,7 @@ import { ProvenancePanel } from "./ProvenancePanel"
 import { AnalystNotes } from "./AnalystNotes"
 import { InvestigationHistory } from "./InvestigationHistory"
 import { SemanticLegend } from "./SemanticLegend"
+import { DeepResearchReport } from "./DeepResearchReport"
 import {
   FileText,
   BrainCircuit,
@@ -30,6 +31,7 @@ import {
   XCircle,
   PlusCircle,
   Filter,
+  Microscope,
 } from "lucide-react"
 import { useAOIState } from "@/lib/explore/aoi-state"
 import { useGlobeState } from "@/lib/explore/globe-state"
@@ -41,6 +43,7 @@ interface Props {
 }
 
 type WorkspaceTab =
+  | "deep_report"
   | "findings"
   | "cot"
   | "evidence"
@@ -87,7 +90,7 @@ export const InvestigationPanel: React.FC<Props> = ({
   const [showComposer, setShowComposer] = useState<boolean>(!currentInvestigation)
   const [evidenceFilter, setEvidenceFilter] = useState<string>("ALL")
 
-  const handleLaunch = async (question: string, observationIds: string[]) => {
+  const handleLaunch = async (question: string, observationIds: string[], mode: "normal" | "deep" = "normal") => {
     try {
       const rawAOI = aoiGeometry || (activeAOI ? (activeAOI.geometry || activeAOI) : null)
       await startInvestigation({
@@ -95,6 +98,7 @@ export const InvestigationPanel: React.FC<Props> = ({
         observation_ids: observationIds,
         aoi: rawAOI || undefined,
         options: {
+          mode,
           viewport: camera ? {
             latitude: camera.latitude,
             longitude: camera.longitude,
@@ -103,7 +107,11 @@ export const InvestigationPanel: React.FC<Props> = ({
         },
       })
       setShowComposer(false)
-      setActiveTab("findings")
+      if (mode === "deep") {
+        setActiveTab("deep_report")
+      } else {
+        setActiveTab("findings")
+      }
     } catch (e) {
       console.error(e)
     }
@@ -158,6 +166,7 @@ export const InvestigationPanel: React.FC<Props> = ({
       {currentInvestigation && (
         <div className="shrink-0 flex items-center gap-1.5 overflow-x-auto px-3 py-2 bg-slate-900/90 border-b border-slate-800 text-xs font-mono z-10">
           {[
+            { id: "deep_report" as WorkspaceTab, label: "Deep Report", icon: Microscope, isSpecial: true },
             { id: "findings" as WorkspaceTab, label: "Findings", icon: FileText, count: findings.length },
             { id: "cot" as WorkspaceTab, label: "Chain of Thoughts", icon: BrainCircuit, count: currentInvestigation.chain_of_thought?.length },
             { id: "evidence" as WorkspaceTab, label: "Evidence Graph", icon: Share2, count: evidenceCards.length },
@@ -175,7 +184,11 @@ export const InvestigationPanel: React.FC<Props> = ({
                 onClick={() => setActiveTab(tab.id)}
                 className={`flex items-center gap-1.5 px-2.5 py-1.5 rounded-md transition-all shrink-0 select-none ${
                   isActive
-                    ? "bg-orange-950 text-orange-300 font-bold border border-orange-700/80 shadow-sm"
+                    ? tab.isSpecial
+                      ? "bg-cyan-950 text-cyan-300 font-bold border border-cyan-700 shadow-sm"
+                      : "bg-orange-950 text-orange-300 font-bold border border-orange-700/80 shadow-sm"
+                    : tab.isSpecial
+                    ? "text-cyan-400 hover:text-cyan-200 hover:bg-cyan-950/40"
                     : "text-slate-400 hover:text-slate-200 hover:bg-slate-800/60"
                 }`}
               >
@@ -222,6 +235,20 @@ export const InvestigationPanel: React.FC<Props> = ({
         {/* Active Tab Views */}
         {currentInvestigation && (
           <div className="space-y-3">
+            {activeTab === "deep_report" && (
+              currentInvestigation.deep_analysis || currentInvestigation.result_data?.deep_analysis ? (
+                <DeepResearchReport
+                  data={currentInvestigation.deep_analysis || currentInvestigation.result_data?.deep_analysis}
+                  query={currentInvestigation.question}
+                />
+              ) : (
+                <div className="p-4 rounded-lg bg-slate-900 border border-slate-800 text-center text-xs text-slate-400 font-mono space-y-2">
+                  <p>Deep Research Intelligence Dossier is compiling or not yet available for this investigation.</p>
+                  <p className="text-[11px] text-slate-500">Launch an enquiry with "Deep Research" selected to generate dual-pass satellite imagery and dynamic biophysical charts.</p>
+                </div>
+              )
+            )}
+
             {activeTab === "findings" && (
               <FindingsDashboard
                 investigation={currentInvestigation}

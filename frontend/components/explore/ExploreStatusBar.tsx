@@ -13,7 +13,7 @@ import { performanceMonitor } from "@/lib/explore/performance"
 import { PerformanceMetrics } from "@/lib/explore/types"
 
 export function ExploreStatusBar() {
-  const { rendererStatus, viewMode, webglSupported, errorMessage, sidebarOpen, sidebarWidth } = useGlobeState()
+  const { rendererStatus, webglSupported, errorMessage, sidebarOpen, sidebarWidth } = useGlobeState()
   const [perf, setPerf] = useState<PerformanceMetrics>(performanceMonitor.getMetrics())
 
   useEffect(() => {
@@ -24,7 +24,7 @@ export function ExploreStatusBar() {
     if (!webglSupported) return "WEBGL NOT AVAILABLE"
     if (rendererStatus === "loading") return "INITIALIZING RENDERER..."
     if (rendererStatus === "error") return `RENDERER FAULT: ${errorMessage || "UNKNOWN"}`
-    return `${viewMode.toUpperCase()} ${viewMode === "2d" ? "MAPLIBRE" : "CESIUM"} READY`
+    return "3D CESIUM GLOBE READY"
   }
 
   return (

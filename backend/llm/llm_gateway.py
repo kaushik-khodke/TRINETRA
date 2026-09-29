@@ -7,6 +7,7 @@ with automatic fallback to Option 2 (Local Air-Gapped Ollama: llama3.2).
 import os
 import time
 import json
+import socket
 import urllib.request
 import urllib.error
 from typing import Optional, Any, Dict, Type, Tuple
@@ -158,6 +159,64 @@ class UnifiedLLMGateway:
             timeout=req_timeout,
             temperature=temperature,
         )
+
+    @classmethod
+    def generate_text(
+        cls,
+        prompt: str,
+        role: ModelRole = "planner",
+        system_prompt: Optional[str] = None,
+        timeout: Optional[float] = None,
+        temperature: float = 0.2,
+        max_tokens: int = 512,
+    ) -> Optional[str]:
+        """
+        Generates free-form natural language text using Cloud API or Local Ollama.
+        """
+        api_key, base_url, model = cls.resolve_cloud_config()
+        req_timeout = timeout or settings.llm_timeout
+
+        if api_key and base_url and model:
+            try:
+                payload = {
+                    "model": model,
+                    "messages": [
+                        {"role": "system", "content": system_prompt or "You are TRINETRA's Senior Geospatial Intelligence Analyst."},
+                        {"role": "user", "content": prompt}
+                    ],
+                    "temperature": temperature,
+                    "max_tokens": max_tokens,
+                }
+                endpoint = f"{base_url}/chat/completions"
+                req = urllib.request.Request(
+                    endpoint,
+                    data=json.dumps(payload).encode("utf-8"),
+                    headers={
+                        "Content-Type": "application/json",
+                        "Authorization": f"Bearer {api_key}",
+                        "User-Agent": "TRINETRA-ExploreAI/2.2",
+                    }
+                )
+                with urllib.request.urlopen(req, timeout=req_timeout) as resp:
+                    data = json.loads(resp.read().decode("utf-8"))
+                    choices = data.get("choices", [])
+                    if choices:
+                        txt = choices[0].get("message", {}).get("content", "").strip()
+                        if txt:
+                            return txt
+            except Exception as e:
+                print(f"[UnifiedLLMGateway] Cloud text generation notice: {e}. Falling back to Ollama...")
+
+        # Fallback to local Ollama
+        resp = OllamaProvider.generate(
+            prompt=prompt,
+            role=role,
+            system_prompt=system_prompt,
+            max_tokens=max_tokens,
+        )
+        if resp.success and resp.text:
+            return resp.text.strip()
+        return None
 
     @classmethod
     def _call_cloud_openai_compatible(

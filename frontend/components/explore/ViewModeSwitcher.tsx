@@ -13,37 +13,15 @@ import { useGlobeState } from "@/lib/explore/globe-state"
 import { ExploreViewMode } from "@/lib/explore/types"
 
 export function ViewModeSwitcher() {
-  const { viewMode } = useGlobeState()
-
-  const handleSwitch = (mode: ExploreViewMode) => {
-    if (mode !== viewMode) {
-      globeCommandBus.dispatch({ type: "SET_VIEW_MODE", mode })
-    }
-  }
-
   return (
-    <div className="view-mode-switcher" role="radiogroup" aria-label="Earth Visualization Dimension">
-      <button
-        type="button"
-        role="radio"
-        aria-checked={viewMode === "2d"}
-        className={`view-mode-btn ${viewMode === "2d" ? "active" : ""}`}
-        onClick={() => handleSwitch("2d")}
-      >
-        <Map size={13} />
-        <span>2D Map</span>
-      </button>
-
-      <button
-        type="button"
-        role="radio"
-        aria-checked={viewMode === "3d"}
-        className={`view-mode-btn ${viewMode === "3d" ? "active" : ""}`}
-        onClick={() => handleSwitch("3d")}
-      >
-        <Globe size={13} />
-        <span>3D Globe</span>
-      </button>
+    <div
+      className="flex items-center gap-1.5 px-2.5 py-1 rounded-lg bg-cyan-950/40 border border-cyan-500/30 text-[11px] font-mono text-cyan-300 select-none shadow-sm"
+      title="Cesium 3D Earth Globe Engine Active"
+      role="status"
+      aria-label="3D Earth Globe Active"
+    >
+      <Globe size={13} className="text-cyan-400" />
+      <span>3D GLOBE</span>
     </div>
   )
 }

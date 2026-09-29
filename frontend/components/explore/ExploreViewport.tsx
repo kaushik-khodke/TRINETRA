@@ -10,7 +10,6 @@ import React, { Suspense } from "react"
 import dynamic from "next/dynamic"
 import { PanelLeftClose, PanelLeftOpen } from "lucide-react"
 import { useGlobeState, globeState } from "@/lib/explore/globe-state"
-import { MapErrorBoundary } from "./MapErrorBoundary"
 import { GlobeErrorBoundary } from "./GlobeErrorBoundary"
 import { ViewStatePanel } from "./ViewStatePanel"
 
@@ -18,17 +17,7 @@ import { AOIToolbar } from "./AOIToolbar"
 import { SpectralPresetBar } from "./SpectralPresetBar"
 import { CoordinateHUD } from "./CoordinateHUD"
 
-// Dynamic client-side only renderer loading with zero SSR overhead
-const MapView = dynamic(() => import("./MapView"), {
-  ssr: false,
-  loading: () => (
-    <div className="renderer-fallback">
-      <div className="status-dot loading" style={{ width: 12, height: 12, marginBottom: 12 }} />
-      <span>INITIALIZING 2D MAPLIBRE ENGINE...</span>
-    </div>
-  ),
-})
-
+// Dynamic client-side only 3D Cesium globe loader with zero SSR overhead
 const GlobeView = dynamic(() => import("./GlobeView"), {
   ssr: false,
   loading: () => (
@@ -40,7 +29,7 @@ const GlobeView = dynamic(() => import("./GlobeView"), {
 })
 
 export function ExploreViewport() {
-  const { viewMode, sidebarOpen, sidebarWidth } = useGlobeState()
+  const { sidebarOpen, sidebarWidth } = useGlobeState()
 
   return (
     <main className="explore-viewport relative" role="region" aria-label="Earth Observation Viewport">
@@ -65,20 +54,12 @@ export function ExploreViewport() {
         <SpectralPresetBar />
       </div>
 
-      {/* Active Renderer Isolation (Section 27: Never run both renderers simultaneously) */}
-      {viewMode === "2d" ? (
-        <MapErrorBoundary>
-          <Suspense fallback={null}>
-            <MapView />
-          </Suspense>
-        </MapErrorBoundary>
-      ) : (
-        <GlobeErrorBoundary>
-          <Suspense fallback={null}>
-            <GlobeView />
-          </Suspense>
-        </GlobeErrorBoundary>
-      )}
+      {/* 3D Cesium Globe Engine */}
+      <GlobeErrorBoundary>
+        <Suspense fallback={null}>
+          <GlobeView />
+        </Suspense>
+      </GlobeErrorBoundary>
 
       {/* Live Geospatial Coordinate & Telemetry HUD */}
       <CoordinateHUD />

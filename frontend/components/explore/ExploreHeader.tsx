@@ -8,10 +8,9 @@
 
 import React from "react"
 import Link from "next/link"
-import { ArrowLeft, RotateCcw, Search, Sparkles } from "lucide-react"
+import { ArrowLeft, Globe, RotateCcw, Search, Sparkles } from "lucide-react"
 import { globeCommandBus } from "@/lib/explore/globe-command-bus"
 import { useGlobeState } from "@/lib/explore/globe-state"
-import { ViewModeSwitcher } from "./ViewModeSwitcher"
 import { QueryBar } from "./QueryBar"
 import { AIStatus } from "./AIStatus"
 
@@ -67,7 +66,13 @@ export function ExploreHeader() {
           <span>Workstation</span>
         </Link>
         <AIStatus />
-        <ViewModeSwitcher />
+        <div
+          className="flex items-center gap-1.5 px-2.5 py-1 rounded-lg bg-[#0a0e18]/80 border border-cyan-500/30 text-[11px] font-mono text-cyan-300 select-none shadow-sm"
+          title="Cesium 3D Earth Globe Engine Active"
+        >
+          <Globe size={13} className="text-cyan-400" />
+          <span>3D GLOBE</span>
+        </div>
 
         <button
           type="button"

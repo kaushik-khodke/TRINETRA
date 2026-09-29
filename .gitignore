@@ -73,9 +73,24 @@ data/**
 dataset/
 datasets/
 **/datasets/
+test_data/
+test_dataset/
+test_datasets/
+sample_datasets/
+raw_data/
+**/test_data/
+**/test_dataset/
+**/test_datasets/
+**/sample_datasets/
+**/raw_data/
+backend/test_data/
+backend/test_dataset/
+backend/test_datasets/
 **/manifests/*.json
 **/manifests/*.txt
+backend/training/**/manifests/*.jsonl
 !backend/models/checkpoints/**/rsvqa_vocab.json
+!backend/training/**/manifests/rsvqa_vocab.json
 
 # Block all raw raster, hyperspectral, and spatial archive files
 *.mat
@@ -96,6 +111,7 @@ datasets/
 
 # Whitelist ONLY lightweight sample demonstration files in backend/sample_data
 !backend/sample_data/
+!backend/sample_data/**
 !backend/sample_data/*.tif
 !backend/sample_data/*.jpg
 !backend/sample_data/*.jpeg
@@ -155,6 +171,7 @@ uploads/*
 
 backend/outputs/reports/*
 !backend/outputs/reports/.gitkeep
+backend/outputs/workstation_store.json
 outputs/*
 !outputs/.gitkeep
 

@@ -477,7 +477,8 @@ Instructions:
         modality: str,
         metrics: Dict[str, Any],
         dimensions: str,
-        response_language: str = "en"
+        response_language: str = "en",
+        query: Optional[str] = None
     ) -> str:
         """
         Generates an extensive scene caption using Local Ollama if online,
@@ -486,18 +487,22 @@ Instructions:
         lang_directive = cls._get_lang_directive(response_language)
 
         if LocalModelRegistry.is_ollama_online():
+            query_section = f"Analyst Query: \"{query}\"\nAnswer the analyst's query directly and thoroughly based on the remote sensing evidence." if query else "Generate a comprehensive, professional scene assessment for this satellite image."
             prompt = f"""You are SatQuery AI, an ISRO remote-sensing specialist.
-Generate a concise, professional, 2-sentence scene description for this satellite image:
-- Modality: {modality.upper()}
-- Dimensions: {dimensions}
-- Vegetation Cover: {metrics.get('vegetation_cover_pct', 0)}% (NDVI: {metrics.get('mean_ndvi', 0)})
-- Water Cover: {metrics.get('water_body_pct', 0)}% (NDWI: {metrics.get('mean_ndwi', 0)})
-- Built-Up Density: {metrics.get('built_up_density_pct', 0)}%
-- Bare Ground: {metrics.get('bare_soil_pct', 0)}%
+{query_section}
 
-Describe the landscape composition and prominent land-cover features accurately.{lang_directive}"""
+Satellite Imagery Telemetry & Radiometric Measurements:
+- Sensor Modality: {modality.upper()}
+- Raster Dimensions: {dimensions}
+- Vegetative Canopy: {metrics.get('vegetation_cover_pct', 0)}% (Mean NDVI: {metrics.get('mean_ndvi', 0)})
+- Hydrological Water Bodies: {metrics.get('water_body_pct', 0)}% (Mean NDWI: {metrics.get('mean_ndwi', 0)})
+- Built-Up Infrastructure Density: {metrics.get('built_up_density_pct', 0)}%
+- Bare Soil / Open Substrate: {metrics.get('bare_soil_pct', 0)}%
 
-            resp = OllamaProvider.generate(prompt, role="lightweight", max_tokens=180)
+Provide a clear, professional, analyst-grade answer directly addressing the question.
+Cover all requested features (e.g. vegetation distribution, water reservoirs, infrastructure) concisely and completely within 2-3 structured paragraphs or bullet points. State quantitative percentages and spectral index insights.{lang_directive}"""
+
+            resp = OllamaProvider.generate(prompt, role="lightweight", max_tokens=450)
             if resp.success and resp.text:
                 return resp.text
 
@@ -506,6 +511,32 @@ Describe the landscape composition and prominent land-cover features accurately.
         water = metrics.get('water_body_pct', 0)
         urban = metrics.get('built_up_density_pct', 0)
         bare = metrics.get('bare_soil_pct', 0)
+        ndvi = metrics.get('mean_ndvi', 0)
+        ndwi = metrics.get('mean_ndwi', 0)
+
+        q_lower = (query or "").lower()
+        if "water" in q_lower or "vegetat" in q_lower or "land" in q_lower:
+            if response_language == "hi":
+                return (
+                    f"उपग्रह छवि ({dimensions}, {modality.upper()}) का विश्लेषणात्मक विवरण:\n\n"
+                    f"• **वनस्पति छत्र**: कुल क्षेत्र का {veg}% भाग हरे-भरे वनस्पति छत्र से आच्छादित है (औसत NDVI: {ndvi})।\n"
+                    f"• **जलीय निकाय**: दृश्य में {water}% जलीय सतह/जलमार्ग दर्ज किए गए हैं (औसत NDWI: {ndwi})।\n"
+                    f"• **निर्मित ढांचा एवं खुली भूमि**: मानव निर्मित ढांचा {urban}% तथा खुली मिट्टी/सब्सट्रेट {bare}% दर्ज हुआ है।"
+                )
+            elif response_language == "mr":
+                return (
+                    f"उपग्रह प्रतिमा ({dimensions}, {modality.upper()}) चे विश्लेषणात्मक विवरण:\n\n"
+                    f"• **वनस्पती छत्र**: एकूण क्षेत्राचा {veg}% भाग वनस्पती छत्राने व्यापलेला आहे (सरासरी NDVI: {ndvi})।\n"
+                    f"• **जलसाठे**: दृश्यात {water}% जलीय पृष्ठभाग/प्रवाह नोंदवले गेले आहेत (सरासरी NDWI: {ndwi})।\n"
+                    f"• **पायाभूत सुविधा व मोकळी जमीन**: मानवनिर्मित बांधकाम {urban}% व मोकळी माती {bare}% नोंदवली आहे."
+                )
+            else:
+                return (
+                    f"Remote sensing analysis of the {dimensions} {modality.upper()} scene confirms the following land cover distribution:\n\n"
+                    f"• **Vegetation Coverage**: Occupies approximately **{veg}%** of the surveyed scene (Mean NDVI: {ndvi}), demonstrating active chlorophyll reflectance across canopy clusters.\n"
+                    f"• **Water Bodies**: Identified hydrological surface water accounts for **{water}%** of the raster (Mean NDWI: {ndwi}), characterized by strong near-infrared attenuation.\n"
+                    f"• **Built-Up & Open Substrate**: Anthropogenic built infrastructure comprises **{urban}%**, while bare soil/open substrate spans **{bare}%** of the surface."
+                )
 
         if response_language == "hi":
             classes = []
@@ -517,7 +548,7 @@ Describe the landscape composition and prominent land-cover features accurately.
             return (
                 f"यह छवि {dimensions} {modality.upper()} अवलोकन को दर्शाती है। "
                 f"दृश्य में {', '.join(classes) if classes else 'मिश्रित भूभाग'} दिखाई देता है, "
-                f"जिसमें सत्यापित माध्य NDVI {metrics.get('mean_ndvi', 0)} और माध्य NDWI {metrics.get('mean_ndwi', 0)} है।"
+                f"जिसमें सत्यापित माध्य NDVI {ndvi} और माध्य NDWI {ndwi} है।"
             )
         elif response_language == "mr":
             classes = []
@@ -529,7 +560,7 @@ Describe the landscape composition and prominent land-cover features accurately.
             return (
                 f"ही प्रतिमा {dimensions} {modality.upper()} निरीक्षण दर्शवते. "
                 f"या दृश्यात {', '.join(classes) if classes else 'मिश्र भूप्रदेश'} दिसून येतो, "
-                f"ज्यामध्ये सत्यापित सरासरी NDVI {metrics.get('mean_ndvi', 0)} आणि सरासरी NDWI {metrics.get('mean_ndwi', 0)} आहे."
+                f"ज्यामध्ये सत्यापित सरासरी NDVI {ndvi} आणि सरासरी NDWI {ndwi} आहे."
             )
         else:
             classes = []
@@ -541,7 +572,7 @@ Describe the landscape composition and prominent land-cover features accurately.
             return (
                 f"The image depicts a {dimensions} {modality.upper()} observation. "
                 f"The scene exhibits {', '.join(classes) if classes else 'mixed terrain'}, "
-                f"with verified mean NDVI of {metrics.get('mean_ndvi', 0)} and mean NDWI of {metrics.get('mean_ndwi', 0)}."
+                f"with verified mean NDVI of {ndvi} and mean NDWI of {ndwi}."
             )
 
     # ==========================================

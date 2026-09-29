@@ -122,7 +122,8 @@ interface Props {
   onToggleAOIVisibility?: (aoiId: string) => void
   onToggleAllAOIsVisibility?: (showAll: boolean) => void
   onDeleteAOI?: (aoiId: string) => Promise<void>
-  onStartDrawAOI: (type: "box" | "polygon") => void
+  onStartDrawAOI?: (type: "box" | "polygon") => void
+  hideAoiTab?: boolean
   layers: LayerState[]
   onUpdateLayer: (layerId: string, updates: Partial<LayerState>) => void
   onDeloadLayer?: (layerId: string) => void
@@ -161,7 +162,8 @@ export const WorkstationDataRail: React.FC<Props> = ({
   onToggleAOIVisibility,
   onToggleAllAOIsVisibility,
   onDeleteAOI,
-  onStartDrawAOI,
+  onStartDrawAOI = () => {},
+  hideAoiTab = false,
   layers,
   onUpdateLayer,
   onDeloadLayer,
@@ -375,25 +377,27 @@ export const WorkstationDataRail: React.FC<Props> = ({
           >
             <HardDrive className="w-4 h-4" />
           </button>
-          <button
-            onClick={() => {
-              setIsCollapsed(false)
-              setActiveTab("aois")
-            }}
-            className={`p-2 rounded-lg text-xs cursor-pointer transition-colors ${
-              activeTab === "aois" ? "text-cyan-400 bg-white/[0.05]" : "text-slate-400 hover:text-slate-200"
-            }`}
-            title="AOIs"
-          >
-            <Square className="w-4 h-4" />
-          </button>
+          {!hideAoiTab && (
+            <button
+              onClick={() => {
+                setIsCollapsed(false)
+                setActiveTab("aois")
+              }}
+              className={`p-2 rounded-lg text-xs cursor-pointer transition-colors ${
+                activeTab === "aois" ? "text-cyan-400 bg-white/[0.05]" : "text-slate-400 hover:text-slate-200"
+              }`}
+              title="AOIs"
+            >
+              <Square className="w-4 h-4" />
+            </button>
+          )}
         </div>
       </div>
     )
   }
 
   return (
-    <div className="w-84 bg-slate-950/70 border-r border-white/[0.08] backdrop-blur-2xl flex flex-col h-full select-none z-20 transition-all text-slate-200">
+    <div className="w-full bg-slate-950/70 border-r border-white/[0.08] backdrop-blur-2xl flex flex-col h-full select-none z-20 transition-all text-slate-200">
       {/* Rail Navigation Tabs */}
       <div className="flex items-center justify-between border-b border-white/[0.08] px-3 pt-2">
         <div className="flex gap-1">
@@ -435,17 +439,19 @@ export const WorkstationDataRail: React.FC<Props> = ({
               </span>
             )}
           </button>
-          <button
-            onClick={() => setActiveTab("aois")}
-            className={`flex items-center gap-1.5 px-2.5 py-2 text-xs font-medium border-b-2 cursor-pointer transition-colors ${
-              activeTab === "aois"
-                ? "border-cyan-400 text-cyan-300 bg-white/[0.02]"
-                : "border-transparent text-slate-400 hover:text-slate-200"
-            }`}
-          >
-            <Square className="w-3.5 h-3.5" />
-            <span>AOIs</span>
-          </button>
+          {!hideAoiTab && (
+            <button
+              onClick={() => setActiveTab("aois")}
+              className={`flex items-center gap-1.5 px-2.5 py-2 text-xs font-medium border-b-2 cursor-pointer transition-colors ${
+                activeTab === "aois"
+                  ? "border-cyan-400 text-cyan-300 bg-white/[0.02]"
+                  : "border-transparent text-slate-400 hover:text-slate-200"
+              }`}
+            >
+              <Square className="w-3.5 h-3.5" />
+              <span>AOIs</span>
+            </button>
+          )}
         </div>
         <button
           onClick={() => setIsCollapsed(true)}

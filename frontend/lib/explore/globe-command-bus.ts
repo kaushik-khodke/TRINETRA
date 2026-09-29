@@ -32,8 +32,8 @@ export class GlobeCommandBus {
     // 2. Execution phase via GlobeController & GlobeState
     switch (cmd.type) {
       case "SET_VIEW_MODE":
-        globeState.setViewMode(cmd.mode)
-        globeController.setViewMode(cmd.mode)
+        globeState.setViewMode("3d")
+        globeController.setViewMode("3d")
         break
 
       case "FLY_TO":

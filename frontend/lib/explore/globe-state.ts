@@ -11,7 +11,7 @@ import { ExploreDataset, ExploreState, ExploreViewMode, GlobeCameraState } from 
 
 class GlobeStateManager {
   private state: ExploreState = {
-    viewMode: "2d",
+    viewMode: "3d",
     sidebarOpen: true,
     camera: { ...DEFAULT_CAMERA_STATE },
     selectedLayerIds: layerRegistry.getDefaultVisibleIds(),
@@ -39,8 +39,8 @@ class GlobeStateManager {
   }
 
   setViewMode(viewMode: ExploreViewMode): void {
-    if (this.state.viewMode !== viewMode) {
-      this.setState({ viewMode, rendererStatus: "loading" })
+    if (this.state.viewMode !== "3d") {
+      this.setState({ viewMode: "3d", rendererStatus: "loading" })
     }
   }
 

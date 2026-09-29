@@ -6,13 +6,13 @@
 
 import React, { useState } from "react"
 import { InvestigationValidationResponse } from "@/lib/explore/investigation-types"
-import { Sparkles, Play, ShieldAlert, CheckCircle2, Clock, AlertTriangle } from "lucide-react"
+import { Sparkles, Play, ShieldAlert, CheckCircle2, Clock, AlertTriangle, Zap, Microscope } from "lucide-react"
 
 interface Props {
   isSubmitting: boolean
   validation: InvestigationValidationResponse | null
   availableObservationIds: string[]
-  onSubmit: (question: string, observationIds: string[]) => void
+  onSubmit: (question: string, observationIds: string[], mode: "normal" | "deep") => void
   onValidate: (question: string, observationIds: string[]) => void
 }
 
@@ -33,6 +33,7 @@ export const InvestigationComposer: React.FC<Props> = ({
 }) => {
   const [question, setQuestion] = useState("")
   const [selectedObsIds, setSelectedObsIds] = useState<string[]>(availableObservationIds)
+  const [analysisMode, setAnalysisMode] = useState<"normal" | "deep">("normal")
 
   const handleTextChange = (text: string) => {
     setQuestion(text)
@@ -54,15 +55,60 @@ export const InvestigationComposer: React.FC<Props> = ({
   const handleSubmit = (e: React.FormEvent) => {
     e.preventDefault()
     if (!question.trim()) return
-    onSubmit(question.trim(), selectedObsIds)
+    onSubmit(question.trim(), selectedObsIds, analysisMode)
   }
 
   return (
     <form onSubmit={handleSubmit} className="space-y-3 bg-slate-900/90 border border-slate-800 rounded-lg p-3.5">
-      <div className="flex items-center gap-1.5 text-xs text-slate-200 font-bold font-mono">
-        <Sparkles className="w-4 h-4 text-orange-400" />
-        <span>Semantic Earth-Observation Investigation</span>
+      <div className="flex items-center justify-between">
+        <div className="flex items-center gap-1.5 text-xs text-slate-200 font-bold font-mono">
+          <Sparkles className="w-4 h-4 text-orange-400" />
+          <span>Semantic Earth-Observation Investigation</span>
+        </div>
+        <span className="text-[10px] font-mono px-1.5 py-0.5 rounded bg-slate-800 text-slate-300">
+          Dual-Tier
+        </span>
       </div>
+
+      {/* Analysis Tier Selector: Normal vs Deep Research */}
+      <div className="grid grid-cols-2 gap-1.5 p-1 bg-slate-950/90 rounded-lg border border-slate-800 text-xs font-mono">
+        <button
+          type="button"
+          onClick={() => setAnalysisMode("normal")}
+          className={`flex items-center justify-center gap-1.5 py-1.5 px-2 rounded-md transition-all ${
+            analysisMode === "normal"
+              ? "bg-slate-800 text-orange-400 font-bold shadow border border-orange-500/30"
+              : "text-slate-400 hover:text-slate-200"
+          }`}
+        >
+          <Zap className="w-3.5 h-3.5 text-amber-400" />
+          <span>Normal Analysis</span>
+        </button>
+        <button
+          type="button"
+          onClick={() => setAnalysisMode("deep")}
+          className={`flex items-center justify-center gap-1.5 py-1.5 px-2 rounded-md transition-all ${
+            analysisMode === "deep"
+              ? "bg-gradient-to-r from-blue-950 to-indigo-900 text-cyan-300 font-bold shadow border border-cyan-500/40"
+              : "text-slate-400 hover:text-slate-200"
+          }`}
+        >
+          <Microscope className="w-3.5 h-3.5 text-cyan-400" />
+          <span>Deep Research</span>
+        </button>
+      </div>
+
+      {analysisMode === "deep" && (
+        <div className="px-2.5 py-2 rounded bg-cyan-950/40 border border-cyan-800/60 text-[11px] font-mono text-cyan-200 flex flex-col gap-1">
+          <div className="flex items-center gap-1.5 font-semibold text-cyan-300">
+            <Microscope className="w-3.5 h-3.5 text-cyan-400" />
+            <span>Deep Research Mode Activated</span>
+          </div>
+          <p className="text-[10px] text-cyan-400/80 font-sans leading-relaxed">
+            Produces an exhaustive technical intelligence dossier with dual-pass Copernicus Sentinel-2 T₀/T₁ imagery, dynamic query-tailored spectral charts, and formal governance sectioning.
+          </p>
+        </div>
+      )}
 
       <textarea
         value={question}
@@ -143,10 +189,24 @@ export const InvestigationComposer: React.FC<Props> = ({
       <button
         type="submit"
         disabled={!question.trim() || isSubmitting}
-        className="w-full flex items-center justify-center gap-2 py-2 bg-gradient-to-r from-orange-500 to-blue-600 hover:from-orange-400 hover:to-blue-500 disabled:opacity-50 text-slate-950 font-bold rounded-md text-xs transition-all shadow-md shadow-orange-500/20"
+        className={`w-full flex items-center justify-center gap-2 py-2 font-bold rounded-md text-xs transition-all shadow-md disabled:opacity-50 ${
+          analysisMode === "deep"
+            ? "bg-gradient-to-r from-cyan-500 via-blue-600 to-indigo-600 hover:from-cyan-400 hover:to-indigo-500 text-white shadow-cyan-500/25"
+            : "bg-gradient-to-r from-orange-500 to-blue-600 hover:from-orange-400 hover:to-blue-500 text-slate-950 shadow-orange-500/20"
+        }`}
       >
-        <Play className="w-3.5 h-3.5 fill-current" />
-        <span>{isSubmitting ? "Initiating Investigation..." : "Launch Investigation"}</span>
+        {analysisMode === "deep" ? (
+          <Microscope className="w-3.5 h-3.5" />
+        ) : (
+          <Play className="w-3.5 h-3.5 fill-current" />
+        )}
+        <span>
+          {isSubmitting
+            ? "Initiating Investigation..."
+            : analysisMode === "deep"
+            ? "Generate Deep Research Report"
+            : "Launch Investigation"}
+        </span>
       </button>
     </form>
   )

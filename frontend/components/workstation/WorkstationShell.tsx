@@ -21,7 +21,6 @@ import {
 import { workstationApi } from "@/lib/workstation/api"
 import { WorkstationHeader } from "./WorkstationHeader"
 import { WorkstationDataRail, LayerState, BaseMapId, LayerTileItem } from "./WorkstationDataRail"
-import { WorkstationMap } from "./WorkstationMap"
 import { WorkstationPlanInspector } from "./WorkstationPlanInspector"
 import { WorkstationRunDrawer } from "./WorkstationRunDrawer"
 import GlobeView from "@/components/explore/GlobeView"
@@ -43,7 +42,7 @@ export const WorkstationShell: React.FC = () => {
   const [unloadedLayerIds, setUnloadedLayerIds] = useState<Set<string>>(new Set())
   const [layerOverrides, setLayerOverrides] = useState<Record<string, Partial<LayerState>>>({})
   const [hiddenAoiIds, setHiddenAoiIds] = useState<Set<string>>(new Set())
-  const [viewMode, setViewMode] = useState<"2d" | "3d">("2d")
+  const [viewMode, setViewMode] = useState<"2d" | "3d">("3d")
   const [drawingMode, setDrawingMode] = useState<"box" | "polygon" | null>(null)
   const [flyToBbox, setFlyToBbox] = useState<[number, number, number, number] | null>(null)
 
@@ -720,41 +719,26 @@ export const WorkstationShell: React.FC = () => {
           onToggleGraticule={setShowGraticule}
         />
 
-        {/* Center: Persistent Map Canvas */}
+        {/* Center: Persistent 3D Cesium Globe Canvas */}
         <main className="flex-1 relative h-full">
-          {viewMode === "2d" ? (
-            <WorkstationMap
-              aois={aois}
-              activeAOI={activeAOI}
-              hiddenAoiIds={hiddenAoiIds}
-              onSelectAOI={setActiveAOI}
-              layers={activeMapLayers}
-              viewMode={viewMode}
-              drawingMode={drawingMode}
-              onFinishDrawingAOI={handleFinishDrawingAOI}
-              onCancelDrawing={() => setDrawingMode(null)}
-              fitBoundsBbox={flyToBbox}
-              baseMap={baseMap}
-              onSelectBaseMap={setBaseMap}
-              showLabels={showLabels}
-              onToggleLabels={setShowLabels}
-              labelsOpacity={labelsOpacity}
-              onChangeLabelsOpacity={setLabelsOpacity}
-              showGraticule={showGraticule}
-              onToggleGraticule={setShowGraticule}
-            />
-          ) : (
-            <GlobeView
-              aois={aois}
-              activeAOI={activeAOI}
-              hiddenAoiIds={hiddenAoiIds}
-              onSelectAOI={setActiveAOI}
-              drawingMode={drawingMode}
-              onFinishDrawingAOI={handleFinishDrawingAOI}
-              onCancelDrawing={() => setDrawingMode(null)}
-              fitBoundsBbox={flyToBbox}
-            />
-          )}
+          <GlobeView
+            aois={aois}
+            activeAOI={activeAOI}
+            hiddenAoiIds={hiddenAoiIds}
+            onSelectAOI={setActiveAOI}
+            drawingMode={drawingMode}
+            onFinishDrawingAOI={handleFinishDrawingAOI}
+            onCancelDrawing={() => setDrawingMode(null)}
+            fitBoundsBbox={flyToBbox}
+            baseMap={baseMap}
+            onSelectBaseMap={setBaseMap}
+            showLabels={showLabels}
+            onToggleLabels={setShowLabels}
+            labelsOpacity={labelsOpacity}
+            onChangeLabelsOpacity={setLabelsOpacity}
+            showGraticule={showGraticule}
+            onToggleGraticule={setShowGraticule}
+          />
         </main>
 
         {/* Right: Copilot Planning & Human Approval Gate Inspector */}

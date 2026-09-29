@@ -7,8 +7,7 @@
  */
 
 import React, { Component, ErrorInfo, ReactNode } from "react"
-import { AlertTriangle, RefreshCw, Map } from "lucide-react"
-import { globeCommandBus } from "@/lib/explore/globe-command-bus"
+import { AlertTriangle, RefreshCw } from "lucide-react"
 
 interface Props {
   children: ReactNode
@@ -37,11 +36,6 @@ export class GlobeErrorBoundary extends Component<Props, State> {
     this.setState({ hasError: false, error: null })
   }
 
-  handleSwitchTo2D = () => {
-    this.setState({ hasError: false, error: null })
-    globeCommandBus.dispatch({ type: "SET_VIEW_MODE", mode: "2d" })
-  }
-
   render() {
     if (this.state.hasError) {
       return (
@@ -49,17 +43,13 @@ export class GlobeErrorBoundary extends Component<Props, State> {
           <AlertTriangle size={36} color="#f87171" style={{ marginBottom: 12 }} />
           <h3>3D GLOBE UNAVAILABLE</h3>
           <p>
-            The Cesium 3D graphics context could not be initialized or encountered a shader error.
-            You can continue using the 2D MapLibre view seamlessly.
+            The Cesium 3D graphics context could not be initialized or encountered a WebGL context error.
+            Please verify hardware acceleration in your browser settings.
           </p>
           <div className="fallback-actions">
             <button type="button" className="btn-tactical-icon" onClick={this.handleRetry}>
               <RefreshCw size={13} />
               <span>Retry 3D Globe</span>
-            </button>
-            <button type="button" className="btn-tactical-icon" onClick={this.handleSwitchTo2D}>
-              <Map size={13} />
-              <span>Switch to 2D Map</span>
             </button>
           </div>
         </div>

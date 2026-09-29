@@ -27,3 +27,4 @@ class InvestigationGraphState(TypedDict, total=False):
     errors: List[str]
     warnings: List[str]
     limitations: List[Dict[str, Any]]
+    deep_analysis: Optional[Dict[str, Any]]

@@ -29,7 +29,7 @@ class RSCaptionSpecialist:
 
         dimensions = f"{meta.get('width', 512)}x{meta.get('height', 512)}"
         response_lang = parameters.get("response_language", "en") if parameters else "en"
-        caption = LLMReasoningEngine.synthesize_caption(modality, metrics, dimensions, response_language=response_lang)
+        caption = LLMReasoningEngine.synthesize_caption(modality, metrics, dimensions, response_language=response_lang, query=query)
 
         # Generate tactical multi-class visual evidence overlay (zero global tint, crisp contours & badges)
         rgb_preview = GeospatialReader.to_rgb_preview(image_arr, meta.get("modality", "optical"))
@@ -133,6 +133,7 @@ class RSCaptionSpecialist:
             "fallback_used": fallback_used,
             "fallback_reason": fallback_reason,
             "caption": caption,
+            "answer": caption,
             "confidence": conf,
             "confidence_calibrated": False,
             "evidence_image": evidence_b64,

@@ -113,6 +113,8 @@ uploads/*
 
 backend/outputs/reports/*
 !backend/outputs/reports/.gitkeep
+backend/outputs/workstation_store.json
+outputs/workstation_store.json
 outputs/*
 !outputs/.gitkeep
 

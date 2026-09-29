@@ -3,27 +3,34 @@
 /**
  * TRINETRA / Shanetra Explore Architecture
  * Explore Sidebar Component
- * Phase 2: Live EO discovery catalog, active layer management, and telemetry status.
+ * Phase 2: Live EO discovery catalog, active layer management, workstation bulk uploads & mosaic datasets.
  */
 
-import React, { useState, useCallback } from "react"
+import React, { useState, useCallback, useEffect } from "react"
 import Link from "next/link"
-import { ArrowLeft, Compass, Layers, MapPin, Navigation, PanelLeftClose, Satellite, Sparkles } from "lucide-react"
+import { ArrowLeft, Compass, FolderUp, Layers, MapPin, Navigation, PanelLeftClose, Satellite, Sparkles } from "lucide-react"
 import { globeCommandBus } from "@/lib/explore/globe-command-bus"
 import { useGlobeState, globeState } from "@/lib/explore/globe-state"
 import { DEFAULT_CAMERA_STATE, ISRO_HQ_LOCATION } from "@/lib/explore/constants"
-import { ViewModeSwitcher } from "./ViewModeSwitcher"
 import DataSourcePanel from "./DataSourcePanel"
 import CatalogResults from "./CatalogResults"
 import ActiveLayers from "./ActiveLayers"
 import { InvestigationPanel } from "./InvestigationPanel"
 import { useAOIState } from "@/lib/explore/aoi-state"
+import { WorkstationDataRail } from "@/components/workstation/WorkstationDataRail"
+import { useWorkstationLayers, workstationLayersState } from "@/lib/explore/workstation-layers-state"
 
 export function ExploreSidebar() {
   const { sidebarOpen, sidebarWidth } = useGlobeState()
   const { activeAOI } = useAOIState()
-  const [activeTab, setActiveTab] = useState<"catalog" | "layers" | "investigate" | "waypoints">("catalog")
+  const { layers, assets } = useWorkstationLayers()
+  const [activeTab, setActiveTab] = useState<"data" | "catalog" | "layers" | "investigate" | "waypoints">("data")
   const [isResizing, setIsResizing] = useState(false)
+
+  // Auto-load uploaded assets & mosaics on mount
+  useEffect(() => {
+    workstationLayersState.loadAssets()
+  }, [])
 
   const startResizing = useCallback((e: React.MouseEvent) => {
     e.preventDefault()
@@ -104,19 +111,21 @@ export function ExploreSidebar() {
         </button>
       </div>
 
-      {/* 1. Dimension / View Mode Switcher */}
-      <div className="sidebar-section">
-        <div className="sidebar-section-header">
-          <span style={{ display: "flex", alignItems: "center", gap: 6 }}>
-            <Compass size={13} color="#ff8c42" />
-            <span>DIMENSION / VIEW</span>
-          </span>
-        </div>
-        <ViewModeSwitcher />
-      </div>
-
-      {/* 2. Section Navigation Tabs */}
+      {/* 1. Section Navigation Tabs */}
       <div className="sidebar-tabs">
+        <button
+          className={`tab-btn ${activeTab === "data" ? "active" : ""}`}
+          onClick={() => setActiveTab("data")}
+          title="Workstation Datasets & Bulk Uploads"
+        >
+          <FolderUp size={12} />
+          <span>Uploads</span>
+          {assets.length > 0 && (
+            <span className="text-[10px] font-mono px-1 rounded-full bg-cyan-950/80 text-cyan-300 border border-cyan-800/50">
+              {assets.length}
+            </span>
+          )}
+        </button>
         <button
           className={`tab-btn ${activeTab === "catalog" ? "active" : ""}`}
           onClick={() => setActiveTab("catalog")}
@@ -151,9 +160,34 @@ export function ExploreSidebar() {
         </button>
       </div>
 
-
       {/* 4. Tab Contents */}
-      <div className={`tab-content-container ${activeTab === "investigate" ? "!p-0 !overflow-hidden !gap-0" : ""}`}>
+      <div className={`tab-content-container ${activeTab === "investigate" || activeTab === "data" ? "!p-0 !overflow-hidden !gap-0" : ""}`}>
+        {activeTab === "data" && (
+          <div className="workstation-data-pane h-full w-full flex flex-col min-h-0 overflow-hidden">
+            <WorkstationDataRail
+              assets={assets}
+              aois={[]}
+              activeAOI={null}
+              onSelectAOI={() => {}}
+              hideAoiTab={true}
+              layers={layers}
+              onUpdateLayer={(id, updates) => workstationLayersState.updateLayer(id, updates)}
+              onDeloadLayer={(id) => workstationLayersState.deloadLayer(id)}
+              onReloadLayer={(id) => workstationLayersState.reloadLayer(id)}
+              onDeloadAllLayers={() => workstationLayersState.deloadAllLayers()}
+              onReloadAllLayers={() => workstationLayersState.reloadAllLayers()}
+              onDeleteLayer={(id) => workstationLayersState.deleteLayer(id)}
+              onDeleteAsset={(id) => workstationLayersState.deleteAsset(id)}
+              onDeleteCollection={(id) => workstationLayersState.deleteCollection(id)}
+              onUploadFile={(file, title, onProgress, colId) =>
+                workstationLayersState.uploadFile(file, title, onProgress, colId)
+              }
+              onSearchCatalog={async () => []}
+              onFitBounds={(bbox) => workstationLayersState.fitBounds(bbox)}
+            />
+          </div>
+        )}
+
         {activeTab === "catalog" && (
           <div className="catalog-tab-pane">
             <DataSourcePanel />
@@ -169,14 +203,11 @@ export function ExploreSidebar() {
           </div>
         )}
 
-
-
         {activeTab === "layers" && (
           <div className="layers-tab-pane">
             <ActiveLayers />
           </div>
         )}
-
 
         {activeTab === "waypoints" && (
           <div className="waypoints-tab-pane">
@@ -199,11 +230,20 @@ export function ExploreSidebar() {
               <button
                 type="button"
                 className="layer-item"
-                onClick={() => handleFlyTo(ISRO_HQ_LOCATION)}
+                onClick={() =>
+                  handleFlyTo({
+                    latitude: ISRO_HQ_LOCATION.latitude,
+                    longitude: ISRO_HQ_LOCATION.longitude,
+                    zoom: 14,
+                    heading: 0,
+                    pitch: 0,
+                    roll: 0,
+                  })
+                }
               >
                 <div className="layer-info">
-                  <span className="layer-label">ISRO HQ (Bengaluru)</span>
-                  <span className="layer-badge">12.9716° N, 77.5946° E • Zoom 11.5</span>
+                  <span className="layer-label">ISRO Headquarters (Bengaluru)</span>
+                  <span className="layer-badge">12.9716° N, 77.5946° E • Zoom 14</span>
                 </div>
                 <Navigation size={13} color="#ff6b2b" />
               </button>
@@ -213,17 +253,18 @@ export function ExploreSidebar() {
                 className="layer-item"
                 onClick={() =>
                   handleFlyTo({
-                    latitude: 18.922,
-                    longitude: 72.8347,
-                    zoom: 10.5,
+                    latitude: 13.7199,
+                    longitude: 80.2304,
+                    zoom: 12,
                     heading: 0,
-                    pitch: -45,
+                    pitch: 0,
+                    roll: 0,
                   })
                 }
               >
                 <div className="layer-info">
-                  <span className="layer-label">Mumbai Harbor (West Coast)</span>
-                  <span className="layer-badge">18.9220° N, 72.8347° E • Zoom 10.5</span>
+                  <span className="layer-label">Satish Dhawan Space Centre (Sriharikota)</span>
+                  <span className="layer-badge">13.7199° N, 80.2304° E • Zoom 12</span>
                 </div>
                 <Navigation size={13} color="#ff6b2b" />
               </button>

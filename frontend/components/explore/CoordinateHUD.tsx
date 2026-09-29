@@ -12,14 +12,14 @@ import { useGlobeState } from "@/lib/explore/globe-state"
 import { Compass, Copy, Check, Navigation } from "lucide-react"
 
 export const CoordinateHUD: React.FC = () => {
-  const { camera, viewMode } = useGlobeState()
+  const { camera } = useGlobeState()
   const [copied, setCopied] = useState(false)
 
   const lat = camera?.latitude ?? 0
   const lng = camera?.longitude ?? 0
   const zoom = camera?.zoom ?? 4
   const heading = Math.round(camera?.heading ?? 0)
-  const pitch = Math.round(camera?.pitch ?? (viewMode === "2d" ? -90 : -45))
+  const pitch = Math.round(camera?.pitch ?? -45)
 
   // Estimate camera altitude from zoom level if not directly provided
   const estAltitudeMeters = Math.round(15000000 / Math.pow(2, zoom - 2))
@@ -67,13 +67,11 @@ export const CoordinateHUD: React.FC = () => {
       </div>
 
       {/* 3D Attitude (Pitch / Heading) */}
-      {viewMode === "3d" && (
-        <div className="hidden md:flex items-center gap-1.5 border-l border-white/10 pl-2 text-slate-400 text-[10px]">
-          <span>HDG {heading}°</span>
-          <span className="text-slate-600">·</span>
-          <span>PIT {pitch}°</span>
-        </div>
-      )}
+      <div className="hidden md:flex items-center gap-1.5 border-l border-white/10 pl-2 text-slate-400 text-[10px]">
+        <span>HDG {heading}°</span>
+        <span className="text-slate-600">·</span>
+        <span>PIT {pitch}°</span>
+      </div>
 
       {/* Quick Copy Coordinates Button */}
       <button

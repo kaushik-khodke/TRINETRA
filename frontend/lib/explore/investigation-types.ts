@@ -146,10 +146,82 @@ export interface ChainOfThoughtStep {
   timestamp?: string
 }
 
+export interface DeepAnalysisImagery {
+  satellite: string
+  layer_name: string
+  timestamp: string
+  resolution: string
+  cloud_cover_percent?: number
+  tile_url: string
+  slippy_xyz: [number, number, number]
+  optical_band_combination?: string
+  description: string
+  provider?: string
+}
+
+export interface DeepAnalysisChartSeries {
+  metric: string
+  delta: number
+  unit: string
+  direction: "increase" | "decrease" | "neutral"
+  significance: "MODERATE" | "HIGH" | "CRITICAL" | "LOW"
+}
+
+export interface DeepAnalysisChartSegment {
+  class_name: string
+  area_ha: number
+  percent: number
+  color: string
+}
+
+export interface DeepAnalysisChartPoint {
+  date: string
+  value: number
+  event_note: string
+}
+
+export interface DeepAnalysisChart {
+  chart_id: string
+  chart_type: "bar" | "donut" | "line"
+  title: string
+  x_label?: string
+  y_label?: string
+  total_area_ha?: number
+  series?: DeepAnalysisChartSeries[]
+  segments?: DeepAnalysisChartSegment[]
+  points?: DeepAnalysisChartPoint[]
+}
+
+export interface DeepAnalysisDossierSection {
+  section_id: string
+  title: string
+  content: string
+}
+
+export interface DeepAnalysisData {
+  generated_at: string
+  dossier_title: string
+  target_sector: {
+    label: string
+    centroid: { lat: number; lon: number }
+    area_hectares: number
+    area_sq_km: number
+    tile_coords_z16: { x: number; y: number; zoom: number }
+  }
+  imagery_comparison: {
+    baseline_t0: DeepAnalysisImagery
+    monitoring_t1: DeepAnalysisImagery
+    high_resolution_context: DeepAnalysisImagery
+  }
+  dynamic_charts: DeepAnalysisChart[]
+  technical_dossier_sections: DeepAnalysisDossierSection[]
+}
+
 export interface InvestigationItem {
   investigation_id: string
   question: string
   status: InvestigationStatus
+  mode?: "normal" | "deep"
   progress: InvestigationProgress
   created_at: string
   started_at?: string
@@ -162,6 +234,7 @@ export interface InvestigationItem {
   chain_of_thought?: ChainOfThoughtStep[]
   limitations: any[]
   artifacts: InvestigationArtifact[]
+  deep_analysis?: DeepAnalysisData
   result_data?: Record<string, any>
   error?: { code: string; message: string }
 }

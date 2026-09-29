@@ -83,6 +83,8 @@ export interface AnalysisResponse {
   mode: AnalysisMode;
   query: string;
   answer: string;
+  structured_answer?: string;
+  structured_intelligence?: any;
   confidence: Confidence;
   confidenceScore: number;
   evidence: string[];
@@ -814,11 +816,18 @@ export const analysisAPI = {
         const globeUrl = buildTrinetraUrl(geo, targetLabel);
 
         const rawCot = data.chain_of_thought || resData.chain_of_thought;
+        const candidateAnswer = data.answer || resData.answer || resData.caption || data.caption;
+        const validAnswer = (candidateAnswer && candidateAnswer.trim() !== "Analysis completed." && candidateAnswer.trim() !== "Analysis completed")
+          ? candidateAnswer
+          : (data.structured_answer || resData.structured_answer || resData.caption || data.caption || "Analysis completed successfully.");
+
         const resultPayload: AnalysisResponse = {
           id: data.request_id || `analysis-${Date.now()}`,
           mode: request.mode,
           query: request.query,
-          answer: data.answer || resData.answer || resData.caption || "Analysis completed successfully.",
+          answer: validAnswer,
+          structured_answer: data.structured_answer || resData.structured_answer || undefined,
+          structured_intelligence: data.structured_intelligence || resData.structured_intelligence || undefined,
           confidence: confLevel,
           confidenceScore: confVal,
           evidence: evidenceList,
