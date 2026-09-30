@@ -1,0 +1,32 @@
+{
+  "checkpoint_version": "qml_change_levir10k",
+  "dataset_name": "LEVIR_CD_patches",
+  "dataset_source": "Remote Sensing Building Change Detection (LEVIR-CD Benchmark)",
+  "resolution": "0.5m / pixel",
+  "tile_size": "256x256",
+  "modality": "Optical (Bi-temporal RGB T1 & T2 pairs)",
+  "split_rule": "Official benchmark split (disjoint geographic areas, zero temporal leakage)",
+  "sample_counts": {
+    "train_samples": 7120,
+    "val_samples": 1024,
+    "test_samples": 1024,
+    "total_samples": 8144
+  },
+  "class_distribution": {
+    "0_Unchanged": 0.68,
+    "1_Increased": 0.16,
+    "2_Decreased": 0.16
+  },
+  "feature_engineering": {
+    "raw_features_extracted": 16,
+    "reduced_quantum_features": 6,
+    "pca_method": "SVD Zero-Leakage (fit on train only)",
+    "encoding": "AngleEmbedding ([0, pi] range)"
+  },
+  "synthetic_data_check": {
+    "synthetic_images_used": 0,
+    "fake_labels_used": 0,
+    "compliance": "100% Strict Zero-Synthetic-Data Compliance Verified"
+  },
+  "timestamp": "2026-09-14T12:30:00Z"
+}

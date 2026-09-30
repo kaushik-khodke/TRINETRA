@@ -30,17 +30,21 @@ from observability.langfuse_tracer import LangfuseTracer
 from qml.config import qml_config
 from qml.backends.simulator import get_quantum_backend
 from qml.research_buffer import research_buffer
-from app.middleware import RequestIDMiddleware, format_rfc7807_error
+from app.middleware import RequestIDMiddleware, RateLimitMiddleware, format_rfc7807_error
 from core.security import SecurityValidator
 from core.exceptions import TRINETRABaseException, SecurityViolationError
 from app.routes.explore import router as explore_router
 from app.routes.investigation import router as investigation_router
 from workstation import workstation_router
 
+is_production = os.environ.get("ENV", "development").lower() == "production"
+
 app = FastAPI(
     title="SatQuery AI — Vision-Language Assistant API",
     version="2.0.0",
-    description="100% Local Agentic Remote-Sensing Intelligence Platform for Multimodal Satellite Analysis"
+    description="100% Local Agentic Remote-Sensing Intelligence Platform for Multimodal Satellite Analysis",
+    docs_url=None if is_production else "/docs",
+    redoc_url=None if is_production else "/redoc",
 )
 
 # Exploration & Tile Service Router
@@ -53,7 +57,10 @@ app.include_router(workstation_router)
 # Reliability: Request ID & audit tracing middleware
 app.add_middleware(RequestIDMiddleware)
 
-# CORS configuration for local and cloud deployment
+# Security: Rate limiting middleware (60 req/min global, 8 req/min heavy inference)
+app.add_middleware(RateLimitMiddleware, global_rate_limit=60, heavy_rate_limit=8)
+
+# CORS configuration: Allow localhost dev & verified Vercel deployments
 cors_origins_env = os.environ.get("CORS_ORIGINS", "")
 cors_origins = [o.strip() for o in cors_origins_env.split(",") if o.strip()]
 if not cors_origins:
@@ -68,10 +75,10 @@ if not cors_origins:
 
 app.add_middleware(
     CORSMiddleware,
-    allow_origins=cors_origins if cors_origins_env else ["*"],
-    allow_origin_regex=r"^https?://.*$",
+    allow_origins=cors_origins,
+    allow_origin_regex=r"^https://([a-zA-Z0-9-]+\.)*vercel\.app$",
     allow_credentials=True,
-    allow_methods=["*"],
+    allow_methods=["GET", "POST", "PUT", "DELETE", "OPTIONS"],
     allow_headers=["*"],
 )
 
@@ -443,7 +450,7 @@ async def analyze_request(
             safe_name = SecurityValidator.sanitize_filename(f.filename)
             contents = await f.read()
             await f.seek(0)
-            SecurityValidator.validate_file_type_and_size(contents, safe_name, max_size_bytes=500 * 1024 * 1024)
+            SecurityValidator.validate_file_type_and_size(contents, safe_name, max_size_bytes=50 * 1024 * 1024)
 
             dest_path = os.path.join(req_upload_dir, safe_name)
             with open(dest_path, "wb") as buffer:

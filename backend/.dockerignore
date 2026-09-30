@@ -1,0 +1,13 @@
+outputs/
+uploads/
+training/
+tests/
+scratch/
+.pytest_cache/
+__pycache__/
+*.pyc
+*.pyo
+*.pyd
+.env
+.git
+.gitignore

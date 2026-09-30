@@ -1,0 +1,35 @@
+{
+  "dataset": "SATELLITE_MASTER_50K",
+  "total_test_samples": 21289,
+  "metrics": {
+    "accuracy": 58.88,
+    "macro_f1": 0.5389,
+    "precision": 0.5739,
+    "recall": 0.5774,
+    "latency_ms": 1.11,
+    "parameter_count": 326
+  },
+  "confusion_matrix": [
+    [
+      7541,
+      2311,
+      711
+    ],
+    [
+      753,
+      1559,
+      311
+    ],
+    [
+      2831,
+      1837,
+      3435
+    ]
+  ],
+  "hardware_specs": {
+    "device": "default.qubit",
+    "qubits": 8,
+    "circuit_depth": 9,
+    "quantum_circuit_parameters": 72
+  }
+}

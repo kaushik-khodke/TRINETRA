@@ -13,7 +13,9 @@ interface Props {
   processingHash?: string
 }
 
-const BACKEND_URL = process.env.NEXT_PUBLIC_BACKEND_URL || "http://127.0.0.1:8000"
+const BACKEND_URL =
+  process.env.NEXT_PUBLIC_BACKEND_URL ||
+  (typeof window !== "undefined" ? "" : (process.env.BACKEND_URL || "http://127.0.0.1:8000"))
 
 export const ProvenancePanel: React.FC<Props> = ({
   investigationId,

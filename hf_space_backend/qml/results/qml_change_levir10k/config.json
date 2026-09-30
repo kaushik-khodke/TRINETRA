@@ -1,0 +1,17 @@
+{
+  "dataset": "LEVIR_CD_patches",
+  "total_train_samples": 7120,
+  "total_val_samples": 1024,
+  "qubits": 6,
+  "layers": 3,
+  "hilbert_space_dim": 64,
+  "circuit_depth": 7,
+  "total_parameters": 63,
+  "quantum_parameters": 42,
+  "classical_parameters": 21,
+  "epochs": 25,
+  "learning_rate": 0.015,
+  "batch_size": 35,
+  "training_time_seconds": 19.17,
+  "device": "default.qubit"
+}

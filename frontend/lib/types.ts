@@ -531,10 +531,11 @@ export const getApiBaseUrl = (): string => {
   if (process.env.NEXT_PUBLIC_API_URL) {
     return process.env.NEXT_PUBLIC_API_URL.replace(/\/$/, "");
   }
+  // In the browser, use relative path so Next.js rewrites proxy to backend securely
   if (typeof window !== "undefined") {
-    return "http://127.0.0.1:8000";
+    return "";
   }
-  return "http://127.0.0.1:8000";
+  return process.env.BACKEND_URL || "http://127.0.0.1:8000";
 };
 
 export interface QMLComparisonRow {

@@ -1,0 +1,106 @@
+{
+  "metrics": {
+    "precision": 0.6168,
+    "recall": 0.6159,
+    "f1": 0.6163,
+    "iou": 0.4454,
+    "accuracy": 0.9688,
+    "confusion_matrix": {
+      "tp": 9156217,
+      "fp": 5687922,
+      "tn": 344349114,
+      "fn": 5711195
+    },
+    "false_positive_rate": 0.0162,
+    "false_negative_rate": 0.3841,
+    "total_pixels": 364904448,
+    "changed_pixels_gt": 14867412,
+    "changed_pixels_pred": 14844139,
+    "change_fraction_gt": 0.0407,
+    "change_fraction_pred": 0.0407,
+    "threshold": 0.42,
+    "object_metrics": {
+      "gt_object_count": 14031,
+      "pred_object_count": 48277,
+      "detected_objects": 11602,
+      "missed_objects": 2429,
+      "false_alarm_objects": 34791,
+      "object_precision": 0.2793,
+      "object_recall": 0.8269,
+      "object_f1": 0.4176
+    }
+  },
+  "previous_baseline": {
+    "f1": 0.3152,
+    "iou": 0.1871,
+    "accuracy": 0.8976,
+    "precision": 0.2391,
+    "recall": 0.4625,
+    "object_f1": 0.4254
+  },
+  "benchmark_run": {
+    "schema_version": "2.0.0",
+    "benchmark_id": "bench-change-4652d5b3",
+    "dataset_name": "LEVIR_CDPlus",
+    "dataset_manifest_hash": "verified_held_out_test",
+    "split": "test",
+    "sample_count": 5568,
+    "metrics": {
+      "f1": 0.6163,
+      "iou": 0.4454,
+      "precision": 0.6168,
+      "recall": 0.6159,
+      "accuracy": 0.9688
+    },
+    "confidence_interval_95": null,
+    "hardware_profile": {
+      "device": "cuda",
+      "device_name": "NVIDIA GeForce RTX 5070"
+    },
+    "execution_time_seconds": 49.42,
+    "model_name": null,
+    "checkpoint_path": null,
+    "checkpoint_hash": null,
+    "preprocessing_summary": null,
+    "per_class_metrics": null,
+    "failures_count": 0,
+    "failure_cases": [],
+    "calibration_metrics": null,
+    "limitations": [],
+    "comparison_baseline": null,
+    "provenance_fingerprint": null
+  },
+  "failure_report": {
+    "total_failures": 3243,
+    "breakdown": {
+      "seasonal_change": 1502,
+      "false_positive": 765,
+      "false_negative": 500,
+      "misregistration": 207,
+      "small_object_miss": 205,
+      "boundary_error": 64
+    },
+    "category_percentages": {
+      "seasonal_change": 46.3,
+      "false_positive": 23.6,
+      "false_negative": 15.4,
+      "misregistration": 6.4,
+      "small_object_miss": 6.3,
+      "boundary_error": 2.0
+    },
+    "severity_distribution": {
+      "high": 2183,
+      "low": 258,
+      "medium": 802
+    },
+    "primary_failure_mode": "seasonal_change",
+    "recommended_mitigations": [
+      "Add morphological contour loss or edge-aware boundary regularization.",
+      "Incorporate multi-scale high-resolution feature pyramids or adjust Dice loss weighting.",
+      "Increase threshold or incorporate hard negative mining during training.",
+      "Increase weight of change class or increase Dice loss penalty.",
+      "Train with cross-season pair augmentations and NDRE/NDVI differential suppression.",
+      "Utilize phase-correlation subpixel coregistration prior to change inference."
+    ]
+  }
+}

@@ -12,6 +12,8 @@ import time
 import uuid
 import asyncio
 import datetime
+import collections
+import threading
 from typing import Optional, Callable
 from starlette.middleware.base import BaseHTTPMiddleware
 from starlette.requests import Request
@@ -102,3 +104,101 @@ class TimeoutMiddleware(BaseHTTPMiddleware):
                 remediation="Reduce raster dimensions or run on GPU accelerated device.",
                 instance=request.url.path
             )
+
+
+class RateLimitMiddleware(BaseHTTPMiddleware):
+    """
+    In-memory sliding-window rate limiter.
+    Protects against DoS, brute-force scraping, and model execution flooding.
+    Respects X-Forwarded-For (from Vercel / Cloudflare edge proxy) and request.client.host.
+    """
+    def __init__(
+        self,
+        app,
+        global_rate_limit: int = 60,
+        heavy_rate_limit: int = 10,
+        window_seconds: int = 60
+    ):
+        super().__init__(app)
+        self.global_rate_limit = global_rate_limit
+        self.heavy_rate_limit = heavy_rate_limit
+        self.window_seconds = window_seconds
+        self._history = collections.defaultdict(list)
+        self._heavy_history = collections.defaultdict(list)
+        self._lock = threading.Lock()
+        self._last_cleanup = time.time()
+
+    def _get_client_ip(self, request: Request) -> str:
+        xff = request.headers.get("x-forwarded-for")
+        if xff:
+            return xff.split(",")[0].strip()
+        cf_ip = request.headers.get("cf-connecting-ip")
+        if cf_ip:
+            return cf_ip.strip()
+        if request.client and request.client.host:
+            return request.client.host
+        return "127.0.0.1"
+
+    def _is_rate_limited(self, history: list, limit: int, now: float) -> bool:
+        cutoff = now - self.window_seconds
+        valid = [t for t in history if t > cutoff]
+        history.clear()
+        history.extend(valid)
+        if len(history) >= limit:
+            return True
+        history.append(now)
+        return False
+
+    def _cleanup_old_entries(self, now: float):
+        if now - self._last_cleanup > 300:
+            cutoff = now - self.window_seconds
+            for h in (self._history, self._heavy_history):
+                stale_keys = [k for k, v in h.items() if not v or max(v) < cutoff]
+                for k in stale_keys:
+                    del h[k]
+            self._last_cleanup = now
+
+    async def dispatch(self, request: Request, call_next: Callable) -> Response:
+        path = request.url.path
+
+        # Health endpoints exempt from strict rate limiting
+        if path in ("/healthz", "/readyz", "/api/v1/health"):
+            return await call_next(request)
+
+        client_ip = self._get_client_ip(request)
+        now = time.time()
+
+        with self._lock:
+            self._cleanup_old_entries(now)
+
+            # Check global request rate limit
+            if self._is_rate_limited(self._history[client_ip], self.global_rate_limit, now):
+                req_id = getattr(request.state, "request_id", str(uuid.uuid4()))
+                logger.warning(f"Rate limit exceeded (global) for client IP: {client_ip} on {path}")
+                return format_rfc7807_error(
+                    status_code=429,
+                    title="Too Many Requests",
+                    detail=f"Rate limit of {self.global_rate_limit} requests per minute exceeded.",
+                    request_id=req_id,
+                    error_code="ERR_RATE_LIMIT_EXCEEDED",
+                    remediation="Slow down requests. Wait 60 seconds before retrying.",
+                    instance=path
+                )
+
+            # Check heavy inference endpoints limit
+            is_heavy = any(path.startswith(p) for p in ("/api/v1/analyze", "/api/v1/inspect-image", "/api/v1/explore/investigations"))
+            if is_heavy and self._is_rate_limited(self._heavy_history[client_ip], self.heavy_rate_limit, now):
+                req_id = getattr(request.state, "request_id", str(uuid.uuid4()))
+                logger.warning(f"Heavy compute rate limit exceeded for client IP: {client_ip} on {path}")
+                return format_rfc7807_error(
+                    status_code=429,
+                    title="Too Many Requests",
+                    detail=f"Compute rate limit of {self.heavy_rate_limit} analyses per minute exceeded.",
+                    request_id=req_id,
+                    error_code="ERR_COMPUTE_RATE_LIMIT_EXCEEDED",
+                    remediation="AI reasoning pipeline is busy. Please wait before submitting another satellite analysis.",
+                    instance=path
+                )
+
+        return await call_next(request)
+
